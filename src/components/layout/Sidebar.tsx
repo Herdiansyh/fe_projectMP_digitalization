@@ -25,9 +25,25 @@ const IconDashboard = () => (
     <rect x="14" y="14" width="7" height="7" rx="1" />
   </svg>
 );
-
+const IconOperator = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="9" cy="7" r="4" />
+    <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+    <path d="M16 11l2 2 4-4" />
+  </svg>
+);
 const navItems: NavItem[] = [
   { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
+  { label: "Operators", path: "/operators", icon: <IconOperator /> },
 ];
 
 interface SidebarProps {
@@ -39,7 +55,6 @@ const SIDEBAR_WIDTH = 220;
 const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  console.log("Sidebar open:", open);
   return (
     <>
       {/* Overlay mobile */}
@@ -112,7 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
               lineHeight="1.2"
               whiteSpace="nowrap"
             >
-              Astra Visteon
+              Astra Visteon Indonesia
             </Text>
             <Text
               fontSize="10px"
@@ -120,7 +135,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
               lineHeight="1.3"
               whiteSpace="nowrap"
             >
-              Indonesia
+              MP
             </Text>
           </Box>
         </Flex>
