@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Box } from "@chakra-ui/react";
 import Navbar from "./Navbar";
-import Sidebar from "./sidebar";
+import Sidebar from "./Sidebar";
 
 interface MainLayoutProps {
   children: React.ReactNode;
