@@ -1,11 +1,22 @@
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
 
 const config = defineConfig({
+  globalCss: {
+    "input, textarea, select": {
+      color: "#1a202c !important",
+      backgroundColor: "#ffffff !important",
+    },
+    "input::placeholder, textarea::placeholder": {
+      color: "#a0aec0 !important",
+      opacity: "1 !important",
+    },
+  },
+
   theme: {
     tokens: {
       colors: {
         brand: {
-          50:  { value: "#EBF2FB" },
+          50: { value: "#EBF2FB" },
           100: { value: "#C7DAEF" },
           200: { value: "#9DBDE3" },
           300: { value: "#6F9FD6" },
@@ -17,7 +28,7 @@ const config = defineConfig({
           900: { value: "#061A38" },
         },
         accent: {
-          50:  { value: "#FEF4E3" },
+          50: { value: "#FEF4E3" },
           100: { value: "#FDDFAD" },
           200: { value: "#FAC975" },
           300: { value: "#F7B240" },
@@ -31,7 +42,7 @@ const config = defineConfig({
       },
       fonts: {
         heading: { value: "Inter, sans-serif" },
-        body:    { value: "Inter, sans-serif" },
+        body: { value: "Inter, sans-serif" },
       },
       radii: {
         sm: { value: "6px" },
@@ -42,12 +53,12 @@ const config = defineConfig({
     },
     semanticTokens: {
       colors: {
-        "brand.solid":        { value: "{colors.brand.500}" },
-        "brand.solid.hover":  { value: "{colors.brand.600}" },
-        "brand.muted":        { value: "{colors.brand.50}" },
-        "brand.subtle":       { value: "{colors.brand.100}" },
-        "accent.solid":       { value: "{colors.accent.400}" },
-        "accent.muted":       { value: "{colors.accent.50}" },
+        "brand.solid": { value: "{colors.brand.500}" },
+        "brand.solid.hover": { value: "{colors.brand.600}" },
+        "brand.muted": { value: "{colors.brand.50}" },
+        "brand.subtle": { value: "{colors.brand.100}" },
+        "accent.solid": { value: "{colors.accent.400}" },
+        "accent.muted": { value: "{colors.accent.50}" },
       },
     },
   },

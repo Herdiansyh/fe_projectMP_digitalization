@@ -7,7 +7,26 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  npk?: string;
+  username?: string;
+  photo?: string;
+  is_admin?: boolean;
+  is_active?: boolean;
+  last_login_at?: string;
   role: Role;
+  role_level?: {
+    id: number;
+    name: string;
+  };
+  department?: {
+    id: number;
+    name: string;
+  };
+  section?: {
+    id: number;
+    name: string;
+  };
+  permissions?: string[];
 }
 
 export interface LoginCredentials {
@@ -40,40 +59,4 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   isLoading: boolean;
-}
-export interface Operator {
-  id: number;
-  name: string;
-  nrp: string;
-  created_by: {
-    id: number;
-    name: string;
-  };
-  created_at: string;
-  updated_at: string;
-}
-
-export interface OperatorFormData {
-  name: string;
-  nrp: string;
-}
-
-export interface OperatorPagination {
-  total: number;
-  last_page: number;
-  current_page: number;
-  per_page: number;
-}
-
-export interface OperatorApiResponse {
-  success: boolean;
-  message: string;
-  data: Operator;
-}
-
-export interface OperatorListApiResponse {
-  success: boolean;
-  message: string;
-  data: Operator[];
-  pagination?: OperatorPagination;
 }
