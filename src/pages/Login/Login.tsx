@@ -2,7 +2,7 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import axios from "axios";
 import {
@@ -23,18 +23,10 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-interface LocationState {
-  from?: { pathname: string };
-}
-
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { login } = useAuth();
   const [apiError, setApiError] = React.useState<string>("");
-
-  const state = location.state as LocationState;
-  const from = state?.from?.pathname || "/dashboard";
 
   const {
     register,
@@ -48,7 +40,7 @@ const Login: React.FC = () => {
     setApiError("");
     try {
       await login(data);
-      navigate(from, { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       if (axios.isAxiosError(error)) {
         setApiError(
@@ -81,7 +73,6 @@ const Login: React.FC = () => {
           overflow="hidden"
           boxShadow="sm"
         >
-          {/* Accent bar — gradien biru ke oranye seperti logo */}
           <Box
             h="4px"
             bgGradient="to-r"
@@ -90,7 +81,6 @@ const Login: React.FC = () => {
           />
 
           <Box px={9} pt={9} pb={8}>
-            {/* Brand header */}
             <Flex align="center" gap={3} mb={7}>
               <Box
                 w="50px"
@@ -124,7 +114,6 @@ const Login: React.FC = () => {
               </Box>
             </Flex>
 
-            {/* Page title */}
             <Heading
               as="h1"
               fontSize="xl"
@@ -138,10 +127,8 @@ const Login: React.FC = () => {
               Sign in to continue
             </Text>
 
-            {/* Form */}
             <Box as="form" onSubmit={handleSubmit(onSubmit)}>
               <Stack gap={5}>
-                {/* API Error */}
                 {apiError && (
                   <Box
                     bg="red.50"
@@ -157,7 +144,6 @@ const Login: React.FC = () => {
                   </Box>
                 )}
 
-                {/* Email */}
                 <Field.Root invalid={!!errors.email}>
                   <Field.Label
                     fontSize="11px"
@@ -172,7 +158,7 @@ const Login: React.FC = () => {
                     {...register("email")}
                     type="email"
                     placeholder="admin@astravisteon.co.id"
-                    bg="white" // <-- Ubah jadi white
+                    bg="white"
                     border="0.5px solid"
                     borderColor="gray.200"
                     fontSize="sm"
@@ -181,7 +167,7 @@ const Login: React.FC = () => {
                     _focus={{
                       borderColor: "brand.500",
                       boxShadow: "0 0 0 2px var(--chakra-colors-brand-100)",
-                      bg: "white", // <-- Tetap white
+                      bg: "white",
                       color: "black",
                     }}
                     _hover={{ borderColor: "gray.300" }}
@@ -193,7 +179,6 @@ const Login: React.FC = () => {
                   )}
                 </Field.Root>
 
-                {/* Password */}
                 <Field.Root invalid={!!errors.password}>
                   <Field.Label
                     fontSize="11px"
@@ -213,13 +198,13 @@ const Login: React.FC = () => {
                     border="0.5px solid"
                     borderColor="gray.200"
                     fontSize="sm"
-                    color="black" // <-- Mengubah warna teks input menjadi hitam saat diketik
+                    color="black"
                     _placeholder={{ color: "gray.400" }}
                     _focus={{
                       borderColor: "brand.500",
                       boxShadow: "0 0 0 2px var(--chakra-colors-brand-100)",
                       bg: "white",
-                      color: "black", // Memastikan tetap hitam saat fokus
+                      color: "black",
                     }}
                     _hover={{ borderColor: "gray.300" }}
                   />
@@ -230,7 +215,6 @@ const Login: React.FC = () => {
                   )}
                 </Field.Root>
 
-                {/* Submit */}
                 <Button
                   type="submit"
                   loading={isSubmitting}

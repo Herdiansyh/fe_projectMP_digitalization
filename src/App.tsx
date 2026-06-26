@@ -24,89 +24,105 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <Suspense fallback={<div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", color: "#64748b" }}>Loading...</div>}>
+        <Suspense
+          fallback={
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "100vh",
+                color: "#64748b",
+              }}
+            >
+              Loading...
+            </div>
+          }
+        >
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
 
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route
-            path="/fptklist"
-            element={
-              <ProtectedRoute>
-                <FptkList />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/fptk/approved"
-            element={
-              <ProtectedRoute>
-                <FptkApprovedList />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/fptk/history"
-            element={
-              <ProtectedRoute>
-                <FptkHistoryList />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/fptk/create"
-            element={
-              <ProtectedRoute allowedRoles={["Staff", "Operator", "Admin"]}>
-                <FptkForm />
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/fptk/:noReq"
-            element={
-              <ProtectedRoute>
-                <FptkDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/fptk/pending"
-            element={
-              <ProtectedRoute>
-                <FptkPending />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/fptk/:noReq/review"
-            element={
-              <ProtectedRoute>
-                <FptkApproval />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/fptklist"
+              element={
+                <ProtectedRoute>
+                  <FptkList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/fptk/approved"
+              element={
+                <ProtectedRoute>
+                  <FptkApprovedList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/fptk/history"
+              element={
+                <ProtectedRoute>
+                  <FptkHistoryList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/fptk/create"
+              element={
+                <ProtectedRoute
+                  allowedRoles={["Staff", "Operator", "Section Head", "Admin"]}
+                >
+                  <FptkForm />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* User Management — admin only */}
-          <Route
-            path="/users"
-            element={
-              <ProtectedRoute adminOnly>
-                <UserList />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/fptk/:noReq"
+              element={
+                <ProtectedRoute>
+                  <FptkDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/fptk/pending"
+              element={
+                <ProtectedRoute>
+                  <FptkPending />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/fptk/:noReq/review"
+              element={
+                <ProtectedRoute>
+                  <FptkApproval />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* User Management — admin only */}
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute adminOnly>
+                  <UserList />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Suspense>
       </Router>

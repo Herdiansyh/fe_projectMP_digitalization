@@ -63,9 +63,6 @@ export interface CreateRequisitionInput {
   employee_out?: string;
   manpower_plan?: string;
   unplanned_reason?: string;
-  manager?: string;
-  division?: string;
-  director?: string;
   supervisor?: string;
 }
 

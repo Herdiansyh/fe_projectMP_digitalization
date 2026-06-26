@@ -1,52 +1,31 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Text,
   Flex,
   Input,
-  Textarea,
+  // Textarea,
   HStack,
   Stack,
   Grid,
 } from "@chakra-ui/react";
 import { FiSave, FiArrowLeft, FiPlus, FiTrash2 } from "react-icons/fi";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
 import fptkService from "../../services/fptkService";
-import type {
-  CreateRequisitionInput,
-  UpdateRequisitionInput,
-  MasterData,
-} from "../../types/fptk";
-
-interface Approver {
-  id: number;
-  name: string;
-  npk: string;
-}
-
-interface ApproverList {
-  managers: Approver[];
-  division_heads: Approver[];
-  directors: Approver[];
-}
+import type { CreateRequisitionInput, MasterData } from "../../types/fptk";
 import { toaster } from "../../components/ui/toaster";
+import { useAuth } from "../../contexts/AuthContext";
+import userService from "../../services/userService";
 
 const FptkForm: React.FC = () => {
-  const { noReq } = useParams<{ noReq?: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(false);
   const [masterData, setMasterData] = useState<MasterData | null>(null);
-  const [approvers, setApprovers] = useState<ApproverList>({
-    managers: [],
-    division_heads: [],
-    directors: [],
-  });
-
   const [formData, setFormData] = useState<CreateRequisitionInput>({
-    requester_name: "",
+    requester_name: user?.name ?? "",
     request_date: new Date().toISOString().split("T")[0],
     group: "",
     department: "",
@@ -70,11 +49,8 @@ const FptkForm: React.FC = () => {
     employee_out: "",
     manpower_plan: "",
     unplanned_reason: "",
-    manager: "",
-    division: "",
-    director: "",
-    supervisor: "",
   });
+
   const inputStyle = {
     bg: "#f9fafb",
     border: "1px solid #e2e8f0",
@@ -88,49 +64,31 @@ const FptkForm: React.FC = () => {
       backgroundColor: "#f9fafb",
     },
   };
-
-  const fetchMasterData = useCallback(async () => {
-    try {
-      const response = await fptkService.getMasterData();
-      setMasterData(response.data);
-    } catch {
-      toaster.create({ title: "Failed to fetch master data", type: "error" });
-    }
-  }, []);
-
-  const fetchApprovers = useCallback(async () => {
-    try {
-      const response = await fptkService.getApprovers();
-      setApprovers(response.data);
-    } catch {
-      toaster.create({ title: "Failed to fetch approvers", type: "error" });
-    }
-  }, []);
-
-  const fetchRequisition = useCallback(async (id: string) => {
-    try {
-      setFetching(true);
-      const response = await fptkService.getRequisition(id);
-      setFormData({
-        ...response.data,
-        request_date: response.data.request_date.split("T")[0],
-        technical_skill: response.data.technical_skill || [],
-        soft_skill: response.data.soft_skill || [],
-      } as CreateRequisitionInput);
-    } catch {
-      toaster.create({ title: "Failed to fetch requisition", type: "error" });
-    } finally {
-      setFetching(false);
-    }
-  }, []);
-
+  const [approverChain, setApproverChain] = useState<{
+    manager: string | null;
+    division: string | null;
+    director: string | null;
+  }>({ manager: null, division: null, director: null });
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchMasterData();
+    const loadData = async () => {
+      try {
+        const [masterRes, approverRes] = await Promise.all([
+          fptkService.getMasterData(),
+          userService.getApproversForUser(user!.id),
+        ]);
+        setMasterData(masterRes.data);
+        setApproverChain({
+          manager: approverRes.data.approver_manager?.name ?? null,
+          division: approverRes.data.approver_division?.name ?? null,
+          director: approverRes.data.approver_director?.name ?? null,
+        });
+      } catch {
+        toaster.create({ title: "Failed to load data", type: "error" });
+      }
+    };
 
-    void fetchApprovers();
-  }, [fetchMasterData, fetchApprovers]);
-
+    void loadData();
+  }, [user]);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -142,7 +100,6 @@ const FptkForm: React.FC = () => {
       });
       navigate("/fptklist");
     } catch (error: unknown) {
-      // Coba ambil pesan validasi dari response API
       if (
         error &&
         typeof error === "object" &&
@@ -156,12 +113,10 @@ const FptkForm: React.FC = () => {
           errors?: Record<string, string[]>;
         };
 
-        // Jika ada errors validasi, tampilkan per field
         if (responseData.errors) {
           const errorMessages = Object.entries(responseData.errors)
             .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
             .join("\n");
-
           toaster.create({
             title: "Gagal membuat FPTK",
             description: errorMessages,
@@ -170,7 +125,6 @@ const FptkForm: React.FC = () => {
           return;
         }
 
-        // Jika ada pesan error biasa
         if (responseData.message) {
           toaster.create({
             title: "Gagal membuat FPTK",
@@ -181,7 +135,6 @@ const FptkForm: React.FC = () => {
         }
       }
 
-      // Fallback
       toaster.create({
         title: "Gagal membuat FPTK",
         description: "Terjadi kesalahan, silakan coba lagi.",
@@ -221,14 +174,6 @@ const FptkForm: React.FC = () => {
     newArr.splice(index, 1);
     handleChange(field, newArr);
   };
-
-  if (fetching) {
-    return (
-      <MainLayout>
-        <Box p={6}>Loading...</Box>
-      </MainLayout>
-    );
-  }
 
   return (
     <MainLayout>
@@ -300,9 +245,12 @@ const FptkForm: React.FC = () => {
                     required
                     {...inputStyle}
                     value={formData.requester_name}
-                    onChange={(e) =>
-                      handleChange("requester_name", e.target.value)
-                    }
+                    disabled
+                    style={{
+                      opacity: 0.7,
+                      cursor: "not-allowed",
+                      backgroundColor: "#f1f5f9",
+                    }}
                   />
                 </Box>
                 <Box>
@@ -324,7 +272,7 @@ const FptkForm: React.FC = () => {
                     }
                   />
                 </Box>
-                <Box>
+                {/* <Box>
                   <Text
                     mb="2px"
                     fontWeight="600"
@@ -352,7 +300,7 @@ const FptkForm: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                </Box>
+                </Box> */}
                 <Box>
                   <Text
                     mb="2px"
@@ -411,7 +359,7 @@ const FptkForm: React.FC = () => {
                     ))}
                   </select>
                 </Box>
-                <Box>
+                {/* <Box>
                   <Text
                     mb="2px"
                     fontWeight="600"
@@ -436,7 +384,7 @@ const FptkForm: React.FC = () => {
                     <option value="Internal">Internal</option>
                     <option value="Eksternal">Eksternal</option>
                   </select>
-                </Box>
+                </Box> */}
                 <Box>
                   <Text
                     mb="2px"
@@ -609,7 +557,7 @@ const FptkForm: React.FC = () => {
                     <option value="S1/S2">S1/S2</option>
                   </select>
                 </Box>
-                <Box>
+                {/* <Box>
                   <Text
                     mb="2px"
                     fontWeight="600"
@@ -629,7 +577,7 @@ const FptkForm: React.FC = () => {
                       )
                     }
                   />
-                </Box>
+                </Box> */}
                 <Box>
                   <Text
                     mb="2px"
@@ -826,7 +774,7 @@ const FptkForm: React.FC = () => {
               </Grid>
             </Box>
 
-            {/* 3. Job Details Section */}
+            {/* 3. Detail Requisition */}
             <Box>
               <Text
                 fontSize="xl"
@@ -840,7 +788,7 @@ const FptkForm: React.FC = () => {
                 3. Detail Requisition
               </Text>
 
-              <Box mb={4}>
+              {/* <Box mb={4}>
                 <Text mb="2px" fontWeight="600" fontSize="sm" color="gray.700">
                   Description
                 </Text>
@@ -850,7 +798,7 @@ const FptkForm: React.FC = () => {
                   onChange={(e) => handleChange("description", e.target.value)}
                   rows={3}
                 />
-              </Box>
+              </Box> */}
 
               <Grid
                 templateColumns={{ base: "1fr", md: "1fr 1fr" }}
@@ -1024,8 +972,7 @@ const FptkForm: React.FC = () => {
                 )}
               </Grid>
             </Box>
-
-            {/* 4. Approval Routing Section */}
+            {/* Acknowledgement Section */}
             <Box>
               <Text
                 fontSize="xl"
@@ -1036,106 +983,46 @@ const FptkForm: React.FC = () => {
                 borderColor="brand.100"
                 pb={2}
               >
-                4. Opsi
+                4. Acknowledge
               </Text>
-              <Text fontSize="13px" color="gray.500" mb={4}>
-                Pilih pimpinan yang akan menyetujui FPTK ini. Kosongkan jika
-                tidak diperlukan.
-              </Text>
-              <Grid
-                templateColumns={{ base: "1fr", md: "1fr 1fr 1fr" }}
-                gap={6}
-              >
-                <Box>
-                  <Text
-                    mb="2px"
-                    fontWeight="600"
-                    fontSize="sm"
-                    color="gray.700"
-                  >
-                    Manager
-                  </Text>
-                  <select
-                    value={formData.manager ?? ""}
-                    onChange={(e) => handleChange("manager", e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
-                  >
-                    <option value="">-- Tidak Ada --</option>
-                    {approvers.managers.map((m) => (
-                      <option key={m.id} value={m.name}>
-                        {m.name} ({m.npk})
-                      </option>
-                    ))}
-                  </select>
-                </Box>
-                <Box>
-                  <Text
-                    mb="2px"
-                    fontWeight="600"
-                    fontSize="sm"
-                    color="gray.700"
-                  >
-                    Division Head
-                  </Text>
-                  <select
-                    value={formData.division ?? ""}
-                    onChange={(e) => handleChange("division", e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
-                  >
-                    <option value="">-- Tidak Ada --</option>
-                    {approvers.division_heads.map((d) => (
-                      <option key={d.id} value={d.name}>
-                        {d.name} ({d.npk})
-                      </option>
-                    ))}
-                  </select>
-                </Box>
-                <Box>
-                  <Text
-                    mb="2px"
-                    fontWeight="600"
-                    fontSize="sm"
-                    color="gray.700"
-                  >
-                    Director
-                  </Text>
-                  <select
-                    value={formData.director ?? ""}
-                    onChange={(e) => handleChange("director", e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
-                  >
-                    <option value="">-- Tidak Ada --</option>
-                    {approvers.directors.map((d) => (
-                      <option key={d.id} value={d.name}>
-                        {d.name} ({d.npk})
-                      </option>
-                    ))}
-                  </select>
-                </Box>
-              </Grid>
+              <Box maxW="400px">
+                <Text mb="2px" fontWeight="600" fontSize="sm" color="gray.700">
+                  Acknowledged By
+                </Text>
+                <Input
+                  {...inputStyle}
+                  value={
+                    approverChain.manager ??
+                    approverChain.division ??
+                    approverChain.director ??
+                    "— Tidak Ada —"
+                  }
+                  disabled
+                  style={{
+                    opacity: 0.7,
+                    cursor: "not-allowed",
+                    backgroundColor:
+                      (approverChain.manager ??
+                      approverChain.division ??
+                      approverChain.director)
+                        ? "#f0fdf4"
+                        : "#f8fafc",
+                    borderColor:
+                      (approverChain.manager ??
+                      approverChain.division ??
+                      approverChain.director)
+                        ? "#86efac"
+                        : "#e2e8f0",
+                    color:
+                      (approverChain.manager ??
+                      approverChain.division ??
+                      approverChain.director)
+                        ? "#166534"
+                        : "#94a3b8",
+                  }}
+                />
+              </Box>
             </Box>
-
             {/* Footer buttons */}
             <Flex
               mt={8}
@@ -1168,7 +1055,6 @@ const FptkForm: React.FC = () => {
               >
                 Cancel
               </button>
-
               <button
                 type="submit"
                 disabled={loading}

@@ -84,6 +84,11 @@ const userService = {
     return response.data;
   },
 
+  getApproversForUser: async (id: number) => {
+    const response = await axiosInstance.get(`/users/${id}/approvers`);
+    return response.data;
+  },
+
   // Get all master data (departments, sections, role_levels) dari satu endpoint
   getMasterData: async (): Promise<MasterDataResponse> => {
     const response =

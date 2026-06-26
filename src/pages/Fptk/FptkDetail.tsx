@@ -4,10 +4,8 @@ import { FiArrowLeft } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
 import fptkService from "../../services/fptkService";
-import { useAuth } from "../../contexts/AuthContext";
+// import { useAuth } from "../../contexts/AuthContext";
 import type { Requisition } from "../../types/fptk";
-
-// ── Komponen di luar FptkDetail agar tidak dibuat ulang saat render ──
 
 const Field = ({
   label,
@@ -54,15 +52,15 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
 const FptkDetail: React.FC = () => {
   const { noReq } = useParams<{ noReq: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  // const { user } = useAuth();
   const [requisition, setRequisition] = useState<Requisition | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const canCreateEdit =
-    user?.role?.name !== "Manager" &&
-    user?.role?.name !== "Division Head" &&
-    user?.role?.name !== "Director" &&
-    user?.role?.name !== "Section Head";
+  // const canCreateEdit =
+  //   user?.role?.name !== "Manager" &&
+  //   user?.role?.name !== "Division Head" &&
+  //   user?.role?.name !== "Director" &&
+  //   user?.role?.name !== "Section Head";
 
   const fetchRequisition = useCallback(async (id: string) => {
     try {
@@ -156,7 +154,13 @@ const FptkDetail: React.FC = () => {
         <HStack mb={6}>
           <button
             type="button"
-            onClick={() => navigate("/fptklist")}
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate("/fptklist");
+              }
+            }}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -222,8 +226,8 @@ const FptkDetail: React.FC = () => {
                 <Box>
                   <SectionTitle>Requirement</SectionTitle>
                   <Flex gap={4} wrap="wrap">
-                    <Field label="Fullfilment Type" value={requisition.type} />
-                    <Field label="Group" value={requisition.group} />
+                    {/* <Field label="Fullfilment Type" value={requisition.type} /> */}
+                    {/* <Field label="Group" value={requisition.group} /> */}
                     <Field label="Departement" value={requisition.department} />
                     <Field label="Section" value={requisition.section} />
                     <Field label="Position" value={requisition.position} />
@@ -260,7 +264,7 @@ const FptkDetail: React.FC = () => {
                       label="Minimum Education"
                       value={requisition.education}
                     />
-                    <Field label="Maximum Age" value={requisition.max_age} />
+                    {/* <Field label="Maximum Age" value={requisition.max_age} /> */}
                     <Field
                       label="Min. Experience"
                       value={
@@ -422,7 +426,7 @@ const FptkDetail: React.FC = () => {
                   </Box>
                 </Box>
 
-                {/* ── Job Description ── */}
+                {/* ── Job Description ──
                 <Box>
                   <SectionTitle>Job Description</SectionTitle>
                   <Box>
@@ -445,7 +449,7 @@ const FptkDetail: React.FC = () => {
                       {requisition.description || "-"}
                     </Text>
                   </Box>
-                </Box>
+                </Box> */}
               </Flex>
             </Grid>
 
@@ -543,8 +547,6 @@ const FptkDetail: React.FC = () => {
                 </Box>
               )}
             </Box>
-
-
           </Flex>
         </Box>
       </Box>

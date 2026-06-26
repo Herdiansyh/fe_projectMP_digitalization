@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Box, Text, Flex, Grid } from "@chakra-ui/react";
 import { FiUser, FiX } from "react-icons/fi";
 import userService from "../../services/userService";
+import type { ApproverList } from "../../types/fptk";
 import type {
   UserItem,
   UserFormData,
@@ -10,11 +11,24 @@ import type {
   RoleLevel,
 } from "../../types/user";
 
-interface UserFormModalProps {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface MasterData {
+  departments: Department[];
+  sections: Section[];
+  roleLevels: RoleLevel[];
+  approvers: ApproverList;
+}
+
+export interface UserFormModalProps {
   user?: UserItem | null;
+  /** Data master dikirim dari parent agar tidak di-fetch ulang setiap buka modal */
+  masterData: MasterData | null;
   onClose: () => void;
   onSuccess: () => void;
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const inputStyle = (hasError?: boolean): React.CSSProperties => ({
   width: "100%",
@@ -39,6 +53,8 @@ const selectStyle = (hasError?: boolean): React.CSSProperties => ({
   cursor: "pointer",
 });
 
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
 const FieldLabel: React.FC<{ label: string; required?: boolean }> = ({
   label,
   required,
@@ -60,63 +76,56 @@ const FieldError: React.FC<{ errors?: string[] }> = ({ errors }) =>
     </Text>
   ) : null;
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const EMPTY_APPROVERS: ApproverList = {
+  managers: [],
+  division_heads: [],
+  directors: [],
+};
+
+const buildInitialForm = (user?: UserItem | null): UserFormData => ({
+  npk: user?.npk ?? "",
+  name: user?.name ?? "",
+  username: user?.username ?? "",
+  email: user?.email ?? "",
+  password: "",
+  password_confirmation: "",
+  department_id: user?.department?.id ?? "",
+  section_id: user?.section?.id ?? "",
+  role_level_id: user?.role_level?.id ?? "",
+  approver_manager_id: user?.approver_manager?.id ?? "",
+  approver_division_id: user?.approver_division?.id ?? "",
+  approver_director_id: user?.approver_director?.id ?? "",
+  is_admin: user?.is_admin ?? false,
+});
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 const UserFormModal: React.FC<UserFormModalProps> = ({
   user,
+  masterData,
   onClose,
   onSuccess,
 }) => {
   const isEdit = !!user;
 
-  const [form, setForm] = useState<UserFormData>({
-    npk: "",
-    name: "",
-    username: "",
-    email: "",
-    password: "",
-    password_confirmation: "",
-    department_id: "",
-    section_id: "",
-    role_level_id: "",
-    is_admin: false,
-  });
-
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [sections, setSections] = useState<Section[]>([]);
-  const [roleLevels, setRoleLevels] = useState<RoleLevel[]>([]);
+  // Form langsung diisi dari `user` — tidak perlu efek terpisah
+  const [form, setForm] = useState<UserFormData>(() => buildInitialForm(user));
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
-  // Load master data
+  // Reset form setiap kali modal dibuka dengan user berbeda
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const res = await userService.getMasterData();
-        setDepartments(res.data.departments ?? []);
-        setSections(res.data.sections ?? []);
-        setRoleLevels(res.data.role_levels ?? []);
-      } catch {
-        // dropdowns kosong tapi tidak crash
-      }
-    };
-    void loadData();
-  }, []);
-
-  // Populate form saat edit
-  useEffect(() => {
-    if (user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setForm({
-        npk: user.npk,
-        name: user.name,
-        username: user.username,
-        email: user.email,
-        department_id: user.department?.id ?? "",
-        section_id: user.section?.id ?? "",
-        role_level_id: user.role_level?.id ?? "",
-        is_admin: user.is_admin,
-      });
-    }
+    setForm(buildInitialForm(user));
+    setErrors({});
   }, [user]);
+
+  // Destrukturisasi master data dari props — tidak ada fetch di dalam modal
+  const departments = masterData?.departments ?? [];
+  const sections = masterData?.sections ?? [];
+  const roleLevels = masterData?.roleLevels ?? [];
+  const approvers = masterData?.approvers ?? EMPTY_APPROVERS;
 
   const set = (key: keyof UserFormData, value: unknown) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -131,6 +140,9 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
         department_id: form.department_id || null,
         section_id: form.section_id || null,
         role_level_id: form.role_level_id || null,
+        approver_manager_id: form.approver_manager_id || null,
+        approver_division_id: form.approver_division_id || null,
+        approver_director_id: form.approver_director_id || null,
       };
 
       if (isEdit) {
@@ -364,6 +376,60 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                 ))}
               </select>
               <FieldError errors={errors.role_level_id} />
+            </Box>
+
+            {/* Approver Manager */}
+            <Box>
+              <FieldLabel label="Approver Manager" />
+              <select
+                value={form.approver_manager_id ?? ""}
+                onChange={(e) => set("approver_manager_id", e.target.value)}
+                style={selectStyle(!!errors.approver_manager_id)}
+              >
+                <option value="">-- Pilih Approver Manager --</option>
+                {approvers.managers.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+              <FieldError errors={errors.approver_manager_id} />
+            </Box>
+
+            {/* Approver Division */}
+            <Box>
+              <FieldLabel label="Approver Division Head" />
+              <select
+                value={form.approver_division_id ?? ""}
+                onChange={(e) => set("approver_division_id", e.target.value)}
+                style={selectStyle(!!errors.approver_division_id)}
+              >
+                <option value="">-- Pilih Approver Div Head --</option>
+                {approvers.division_heads.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+              <FieldError errors={errors.approver_division_id} />
+            </Box>
+
+            {/* Approver Director */}
+            <Box>
+              <FieldLabel label="Approver Director" />
+              <select
+                value={form.approver_director_id ?? ""}
+                onChange={(e) => set("approver_director_id", e.target.value)}
+                style={selectStyle(!!errors.approver_director_id)}
+              >
+                <option value="">-- Pilih Approver Director --</option>
+                {approvers.directors.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+              <FieldError errors={errors.approver_director_id} />
             </Box>
 
             {/* Is Admin */}

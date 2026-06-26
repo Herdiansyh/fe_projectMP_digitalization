@@ -1,13 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Box, Text, Badge, Flex, HStack } from "@chakra-ui/react";
-import {
-  FiPlus,
-  FiEye,
-  FiTrash2,
-  FiSearch,
-  FiCheck,
-  FiEdit2,
-} from "react-icons/fi";
+import { FiPlus, FiEye, FiTrash2, FiSearch, FiCheck } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
 import fptkService from "../../services/fptkService";
@@ -15,6 +8,13 @@ import { useAuth } from "../../contexts/AuthContext";
 import type { Requisition, RequisitionListParams } from "../../types/fptk";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { FiTrash2 as FiTrashIcon } from "react-icons/fi";
+
+interface FilterState {
+  page: number;
+  manager: string;
+  status: string;
+  exclude_status: string;
+}
 
 const FptkList: React.FC = () => {
   const navigate = useNavigate();
@@ -30,46 +30,47 @@ const FptkList: React.FC = () => {
     total: 0,
   });
 
-  const [page, setPage] = useState(1);
-
-  const [filters, setFilters] = useState<RequisitionListParams>({
+  const [filterState, setFilterState] = useState<FilterState>({
+    page: 1,
     manager: "",
     status: "",
     exclude_status: "Approved,Rejected",
   });
 
+  const [refreshKey, setRefreshKey] = useState(0);
   const [searchInput, setSearchInput] = useState("");
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canCreateEdit =
     user?.role?.name !== "Manager" &&
     user?.role?.name !== "Division Head" &&
-    user?.role?.name !== "Director" &&
-    user?.role?.name !== "Section Head";
+    user?.role?.name !== "Director";
 
   const canApprove =
     user?.role?.name === "Manager" ||
     user?.role?.name === "Division Head" ||
     user?.role?.name === "Director";
 
-  // Debug logging
-  console.log("Debug FptkList:", {
-    userRole: user?.role?.name,
-    userName: user?.name,
-    canApprove,
-    canCreateEdit,
-  });
+  // Fetch langsung di dalam useEffect — tidak ada useCallback,
+  // tidak ada setState di luar async block
+  useEffect(() => {
+    const cleanParams = Object.fromEntries(
+      Object.entries({
+        page: filterState.page,
+        per_page: 10,
+        manager: filterState.manager,
+        status: filterState.status,
+        exclude_status: filterState.exclude_status,
+      }).filter(([, v]) => v !== "" && v !== undefined && v !== null),
+    ) as RequisitionListParams;
 
-  const fetchRequisitions = useCallback(
-    async (params: RequisitionListParams) => {
+    let cancelled = false;
+
+    const run = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        // Hapus key kosong agar tidak dikirim ke API sebagai filter aktif
-        const cleanParams = Object.fromEntries(
-          Object.entries(params).filter(
-            ([, v]) => v !== "" && v !== undefined && v !== null,
-          ),
-        ) as RequisitionListParams;
         const response = await fptkService.getRequisitions(cleanParams);
+        if (cancelled) return;
         setRequisitions(response.data.data);
         setPagination({
           current_page: response.data.current_page,
@@ -78,30 +79,44 @@ const FptkList: React.FC = () => {
           total: response.data.total,
         });
       } catch {
+        if (cancelled) return;
         alert("Failed to fetch requisitions");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    },
-    [],
-  );
+    };
 
-  // Debounce search input
+    void run();
+
+    // Cleanup: abaikan response jika effect re-run sebelum request selesai
+    return () => {
+      cancelled = true;
+    };
+  }, [filterState, refreshKey]);
+
+  // Cleanup debounce timer saat unmount
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setFilters((prev) => {
-        if (prev.manager === searchInput) return prev;
-        setPage(1); // Reset page on new search
-        return { ...prev, manager: searchInput };
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInput(value);
+
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setFilterState((prev) => {
+        if (prev.manager === value) return prev;
+        return { ...prev, manager: value, page: 1 };
       });
     }, 500);
-    return () => clearTimeout(timeout);
-  }, [searchInput]);
+  };
 
-  // Fetch immediately on page or filters change
-  useEffect(() => {
-    void fetchRequisitions({ page, per_page: 10, ...filters });
-  }, [page, filters, fetchRequisitions]);
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilterState((prev) => ({ ...prev, status: e.target.value, page: 1 }));
+  };
 
   const handleDelete = (noReq: string) => {
     setDeleteTarget(noReq);
@@ -113,7 +128,7 @@ const FptkList: React.FC = () => {
     try {
       await fptkService.deleteRequisition(deleteTarget);
       setDeleteTarget(null);
-      void fetchRequisitions({ page, per_page: 10, ...filters });
+      setRefreshKey((prev) => prev + 1);
     } catch {
       alert("Failed to delete requisition");
     } finally {
@@ -209,7 +224,7 @@ const FptkList: React.FC = () => {
               <input
                 placeholder="Search by requester name..."
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={handleSearchChange}
                 style={{
                   width: "100%",
                   paddingLeft: "32px",
@@ -229,11 +244,8 @@ const FptkList: React.FC = () => {
             </Box>
 
             <select
-              value={filters.status || ""}
-              onChange={(e) => {
-                setPage(1);
-                setFilters((prev) => ({ ...prev, status: e.target.value }));
-              }}
+              value={filterState.status || ""}
+              onChange={handleStatusChange}
               style={{
                 maxWidth: "280px",
                 width: "100%",
@@ -413,36 +425,6 @@ const FptkList: React.FC = () => {
                           {canCreateEdit && (
                             <button
                               type="button"
-                              onClick={() => navigate(`/fptk/edit/${req.no_req}`)}
-                              style={{
-                                width: "30px",
-                                height: "30px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                borderRadius: "6px",
-                                color: "#f59e0b",
-                                backgroundColor: "#fffbeb",
-                                border: "1px solid #fde68a",
-                                cursor: "pointer",
-                              }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "#fef3c7")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "#fffbeb")
-                              }
-                              title="Edit"
-                            >
-                              <FiEdit2 size={14} />
-                            </button>
-                          )}
-
-                          {canCreateEdit && (
-                            <button
-                              type="button"
                               onClick={() => handleDelete(req.no_req)}
                               style={{
                                 width: "30px",
@@ -525,16 +507,19 @@ const FptkList: React.FC = () => {
             <HStack gap={2}>
               <button
                 type="button"
-                disabled={page === 1}
-                onClick={() => setPage((prev) => prev - 1)}
+                disabled={filterState.page === 1}
+                onClick={() =>
+                  setFilterState((prev) => ({ ...prev, page: prev.page - 1 }))
+                }
                 style={{
                   padding: "6px 14px",
                   fontSize: "13px",
                   borderRadius: "6px",
                   border: "1px solid #e2e8f0",
-                  backgroundColor: page === 1 ? "#f8fafc" : "#ffffff",
-                  color: page === 1 ? "#94a3b8" : "#475569",
-                  cursor: page === 1 ? "not-allowed" : "pointer",
+                  backgroundColor:
+                    filterState.page === 1 ? "#f8fafc" : "#ffffff",
+                  color: filterState.page === 1 ? "#94a3b8" : "#475569",
+                  cursor: filterState.page === 1 ? "not-allowed" : "pointer",
                 }}
               >
                 Previous
@@ -546,18 +531,27 @@ const FptkList: React.FC = () => {
 
               <button
                 type="button"
-                disabled={page >= pagination.last_page}
-                onClick={() => setPage((prev) => prev + 1)}
+                disabled={filterState.page >= pagination.last_page}
+                onClick={() =>
+                  setFilterState((prev) => ({ ...prev, page: prev.page + 1 }))
+                }
                 style={{
                   padding: "6px 14px",
                   fontSize: "13px",
                   borderRadius: "6px",
                   border: "1px solid #e2e8f0",
                   backgroundColor:
-                    page >= pagination.last_page ? "#f8fafc" : "#ffffff",
-                  color: page >= pagination.last_page ? "#94a3b8" : "#475569",
+                    filterState.page >= pagination.last_page
+                      ? "#f8fafc"
+                      : "#ffffff",
+                  color:
+                    filterState.page >= pagination.last_page
+                      ? "#94a3b8"
+                      : "#475569",
                   cursor:
-                    page >= pagination.last_page ? "not-allowed" : "pointer",
+                    filterState.page >= pagination.last_page
+                      ? "not-allowed"
+                      : "pointer",
                 }}
               >
                 Next
@@ -566,6 +560,7 @@ const FptkList: React.FC = () => {
           </Flex>
         </Box>
       </Box>
+
       <ConfirmDialog
         open={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}

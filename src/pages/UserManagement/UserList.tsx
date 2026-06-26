@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Box, Text, Badge, Flex, HStack } from "@chakra-ui/react";
 import {
   FiPlus,
@@ -10,10 +10,13 @@ import {
 } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
 import userService from "../../services/userService";
+import fptkService from "../../services/fptkService";
 import type { UserItem, UserListParams } from "../../types/user";
+import type { MasterData } from "./UserFormModal";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import UserFormModal from "./UserFormModal";
 import ResetPasswordModal from "./ResetPasswordModal";
+import UserDetailModal from "./UserDetailModal";
 
 const UserList: React.FC = () => {
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -21,42 +24,68 @@ const UserList: React.FC = () => {
   const [pagination, setPagination] = useState({
     current_page: 1,
     last_page: 1,
-    per_page: 15,
+    per_page: 10,
     total: 0,
   });
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<UserListParams>({ search: "" });
   const [searchInput, setSearchInput] = useState("");
 
-  // Modal states
+  // ─── Master data di-fetch SEKALI di level ini ──────────────────────────────
+  const [masterData, setMasterData] = useState<MasterData | null>(null);
+
+  useEffect(() => {
+    const loadMaster = async () => {
+      try {
+        const [res, appRes] = await Promise.all([
+          userService.getMasterData(),
+          fptkService.getApprovers(),
+        ]);
+        setMasterData({
+          departments: res.data.departments ?? [],
+          sections: res.data.sections ?? [],
+          roleLevels: res.data.role_levels ?? [],
+          approvers: appRes.data,
+        });
+      } catch {
+        // Dropdown kosong tapi tidak crash
+      }
+    };
+    void loadMaster();
+  }, []);
+
+  // ─── Modal states ──────────────────────────────────────────────────────────
   const [formModal, setFormModal] = useState<{
     open: boolean;
     user: UserItem | null;
-  }>({
-    open: false,
-    user: null,
-  });
+  }>({ open: false, user: null });
+
   const [resetModal, setResetModal] = useState<{
     open: boolean;
     user: UserItem | null;
-  }>({
-    open: false,
-    user: null,
-  });
+  }>({ open: false, user: null });
+
+  const [detailModal, setDetailModal] = useState<{
+    open: boolean;
+    user: UserItem | null;
+  }>({ open: false, user: null });
+
   const [deleteTarget, setDeleteTarget] = useState<UserItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // ─── Fetch users ───────────────────────────────────────────────────────────
   const fetchUsers = useCallback(async (params: UserListParams) => {
     try {
       setLoading(true);
       const response = await userService.getUsers(params);
       setUsers(response.data.data);
+      const resData = response.data as any;
       setPagination({
-        current_page: response.data.current_page,
-        last_page: response.data.last_page,
-        per_page: response.data.per_page,
-        total: response.data.total,
+        current_page: resData.meta?.current_page ?? resData.current_page ?? 1,
+        last_page: resData.meta?.last_page ?? resData.last_page ?? 1,
+        per_page: resData.meta?.per_page ?? resData.per_page ?? 10,
+        total: resData.meta?.total ?? resData.total ?? 0,
       });
     } catch {
       alert("Gagal memuat data user.");
@@ -65,23 +94,24 @@ const UserList: React.FC = () => {
     }
   }, []);
 
-  // Debounce search input
+  // Debounce search
   useEffect(() => {
     const timeout = setTimeout(() => {
       setFilters((prev) => {
         if (prev.search === searchInput) return prev;
-        setPage(1); // Reset page on new search
+        setPage(1);
         return { ...prev, search: searchInput };
       });
     }, 400);
     return () => clearTimeout(timeout);
   }, [searchInput]);
 
-  // Fetch immediately on page or filters change
+  // Fetch on page / filter change
   useEffect(() => {
-    void fetchUsers({ page, per_page: 15, ...filters });
+    void fetchUsers({ page, per_page: 10, ...filters });
   }, [page, filters, fetchUsers]);
 
+  // ─── Helpers ───────────────────────────────────────────────────────────────
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(null), 3000);
@@ -94,7 +124,7 @@ const UserList: React.FC = () => {
       await userService.deleteUser(deleteTarget.id);
       setDeleteTarget(null);
       showSuccess(`User ${deleteTarget.name} berhasil dihapus.`);
-      void fetchUsers({ page, per_page: 15, ...filters });
+      void fetchUsers({ page, per_page: 10, ...filters });
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
       alert(e.response?.data?.message ?? "Gagal menghapus user.");
@@ -108,14 +138,17 @@ const UserList: React.FC = () => {
     bg: string,
     hoverBg: string,
     border: string,
-    onClick: () => void,
+    onClick: (e: React.MouseEvent) => void,
     icon: React.ReactNode,
     title?: string,
   ) => (
     <button
       type="button"
       title={title}
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(e);
+      }}
       style={{
         width: "30px",
         height: "30px",
@@ -135,6 +168,7 @@ const UserList: React.FC = () => {
     </button>
   );
 
+  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <MainLayout>
       <Box>
@@ -198,7 +232,6 @@ const UserList: React.FC = () => {
         <Box bg="white" rounded="lg" shadow="sm" p={6}>
           {/* Filter bar */}
           <HStack mb={5} gap={3} flexWrap="wrap">
-            {/* Search */}
             <Box position="relative" maxW="280px" w="full">
               <Box
                 position="absolute"
@@ -233,7 +266,6 @@ const UserList: React.FC = () => {
               />
             </Box>
 
-            {/* Filter Admin */}
             <select
               value={
                 filters.is_admin === undefined ? "" : String(filters.is_admin)
@@ -287,6 +319,7 @@ const UserList: React.FC = () => {
                       "Nama",
                       "Email",
                       "Department",
+                      "Section", // ← ditambahkan
                       "Role Level",
                       "Admin",
                       "Aksi",
@@ -314,7 +347,11 @@ const UserList: React.FC = () => {
                   {users.map((u, index) => (
                     <tr
                       key={u.id}
-                      style={{ borderBottom: "1px solid #f1f5f9" }}
+                      style={{
+                        borderBottom: "1px solid #f1f5f9",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => setDetailModal({ open: true, user: u })}
                       onMouseEnter={(e) =>
                         (e.currentTarget.style.backgroundColor = "#f8fafc")
                       }
@@ -369,6 +406,16 @@ const UserList: React.FC = () => {
                       >
                         {u.department?.name ?? "-"}
                       </td>
+                      {/* Section — ditambahkan */}
+                      <td
+                        style={{
+                          padding: "12px 14px",
+                          fontSize: "13px",
+                          color: "#475569",
+                        }}
+                      >
+                        {u.section?.name ?? "-"}
+                      </td>
                       <td
                         style={{
                           padding: "12px 14px",
@@ -392,7 +439,6 @@ const UserList: React.FC = () => {
                           <Badge colorPalette="gray">User</Badge>
                         )}
                       </td>
-
                       <td style={{ padding: "12px 14px" }}>
                         <HStack gap={1}>
                           {iconBtn(
@@ -486,10 +532,11 @@ const UserList: React.FC = () => {
         </Box>
       </Box>
 
-      {/* Modals */}
+      {/* ── Modals ── */}
       {formModal.open && (
         <UserFormModal
           user={formModal.user}
+          masterData={masterData}
           onClose={() => setFormModal({ open: false, user: null })}
           onSuccess={() => {
             showSuccess(
@@ -497,7 +544,7 @@ const UserList: React.FC = () => {
                 ? "User berhasil diperbarui."
                 : "User berhasil ditambahkan.",
             );
-            void fetchUsers({ page, per_page: 15, ...filters });
+            void fetchUsers({ page, per_page: 10, ...filters });
           }}
         />
       )}
@@ -509,6 +556,13 @@ const UserList: React.FC = () => {
           onSuccess={() =>
             showSuccess(`Password ${resetModal.user!.name} berhasil direset.`)
           }
+        />
+      )}
+
+      {detailModal.open && detailModal.user && (
+        <UserDetailModal
+          user={detailModal.user}
+          onClose={() => setDetailModal({ open: false, user: null })}
         />
       )}
 
