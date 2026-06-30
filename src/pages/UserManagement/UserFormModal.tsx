@@ -164,7 +164,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
       if (e.response?.data?.errors) {
         setErrors(e.response.data.errors);
       } else {
-        alert(e.response?.data?.message ?? "Terjadi kesalahan.");
+        alert(e.response?.data?.message ?? "An error occurred.");
       }
     } finally {
       setLoading(false);
@@ -218,7 +218,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
               <FiUser size={18} />
             </Box>
             <Text fontWeight="600" fontSize="15px" color="gray.800">
-              {isEdit ? "Edit User" : "Tambah User Baru"}
+              {isEdit ? "Edit User" : "Add New User"}
             </Text>
           </Flex>
           <button
@@ -248,7 +248,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
             <Box>
               <FieldLabel label="NPK" required />
               <input
-                placeholder="Contoh: 12345"
+                placeholder="Example: 12345"
                 value={form.npk}
                 onChange={(e) => set("npk", e.target.value)}
                 style={inputStyle(!!errors.npk)}
@@ -258,9 +258,9 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
 
             {/* Name */}
             <Box>
-              <FieldLabel label="Nama Lengkap" required />
+              <FieldLabel label="Full Name" required />
               <input
-                placeholder="Nama lengkap"
+                placeholder="Full name"
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
                 style={inputStyle(!!errors.name)}
@@ -272,7 +272,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
             <Box>
               <FieldLabel label="Username" required />
               <input
-                placeholder="Username login"
+                placeholder="Login username"
                 value={form.username}
                 onChange={(e) => set("username", e.target.value)}
                 style={inputStyle(!!errors.username)}
@@ -300,7 +300,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                   <FieldLabel label="Password" required />
                   <input
                     type="password"
-                    placeholder="Minimal 8 karakter"
+                    placeholder="Minimum 8 characters"
                     value={form.password ?? ""}
                     onChange={(e) => set("password", e.target.value)}
                     style={inputStyle(!!errors.password)}
@@ -309,10 +309,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                 </Box>
 
                 <Box>
-                  <FieldLabel label="Konfirmasi Password" required />
+                  <FieldLabel label="Confirm Password" required />
                   <input
                     type="password"
-                    placeholder="Ulangi password"
+                    placeholder="Repeat password"
                     value={form.password_confirmation ?? ""}
                     onChange={(e) =>
                       set("password_confirmation", e.target.value)
@@ -332,7 +332,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                 onChange={(e) => set("department_id", e.target.value)}
                 style={selectStyle(!!errors.department_id)}
               >
-                <option value="">-- Pilih Department --</option>
+                <option value="">-- Select Department --</option>
                 {departments.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
@@ -350,7 +350,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                 onChange={(e) => set("section_id", e.target.value)}
                 style={selectStyle(!!errors.section_id)}
               >
-                <option value="">-- Pilih Section --</option>
+                <option value="">-- Select Section --</option>
                 {sections.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -368,7 +368,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                 onChange={(e) => set("role_level_id", e.target.value)}
                 style={selectStyle(!!errors.role_level_id)}
               >
-                <option value="">-- Pilih Role Level --</option>
+                <option value="">-- Select Role Level --</option>
                 {roleLevels.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -386,7 +386,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                 onChange={(e) => set("approver_manager_id", e.target.value)}
                 style={selectStyle(!!errors.approver_manager_id)}
               >
-                <option value="">-- Pilih Approver Manager --</option>
+                <option value="">-- Select Approver Manager --</option>
                 {approvers.managers.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -404,7 +404,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                 onChange={(e) => set("approver_division_id", e.target.value)}
                 style={selectStyle(!!errors.approver_division_id)}
               >
-                <option value="">-- Pilih Approver Div Head --</option>
+                <option value="">-- Select Approver Div Head --</option>
                 {approvers.division_heads.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -422,7 +422,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                 onChange={(e) => set("approver_director_id", e.target.value)}
                 style={selectStyle(!!errors.approver_director_id)}
               >
-                <option value="">-- Pilih Approver Director --</option>
+                <option value="">-- Select Approver Director --</option>
                 {approvers.directors.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -449,10 +449,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                 />
                 <Box>
                   <Text fontSize="13px" fontWeight="500" color="gray.700">
-                    Jadikan Admin
+                    Make Admin
                   </Text>
                   <Text fontSize="12px" color="gray.400">
-                    Admin dapat mengakses modul User Management
+                    Admin can access User Management module
                   </Text>
                 </Box>
               </Flex>
@@ -485,7 +485,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
               cursor: loading ? "not-allowed" : "pointer",
             }}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"
@@ -503,10 +503,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
             }}
           >
             {loading
-              ? "Menyimpan..."
+              ? "Saving..."
               : isEdit
-                ? "Simpan Perubahan"
-                : "Tambah User"}
+                ? "Save Changes"
+                : "Add User"}
           </button>
         </Flex>
       </Box>

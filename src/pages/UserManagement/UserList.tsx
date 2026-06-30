@@ -88,7 +88,7 @@ const UserList: React.FC = () => {
         total: resData.meta?.total ?? resData.total ?? 0,
       });
     } catch {
-      alert("Gagal memuat data user.");
+      alert("Failed to load user data.");
     } finally {
       setLoading(false);
     }
@@ -123,11 +123,11 @@ const UserList: React.FC = () => {
     try {
       await userService.deleteUser(deleteTarget.id);
       setDeleteTarget(null);
-      showSuccess(`User ${deleteTarget.name} berhasil dihapus.`);
+      showSuccess(`User ${deleteTarget.name} deleted successfully.`);
       void fetchUsers({ page, per_page: 10, ...filters });
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
-      alert(e.response?.data?.message ?? "Gagal menghapus user.");
+      alert(e.response?.data?.message ?? "Failed to delete user.");
     } finally {
       setDeleting(false);
     }
@@ -199,7 +199,7 @@ const UserList: React.FC = () => {
               User Management
             </Text>
             <Text fontSize="13px" color="gray.500" mt={0.5}>
-              Kelola akun pengguna sistem
+              Manage system user accounts
             </Text>
           </Box>
           <button
@@ -225,7 +225,7 @@ const UserList: React.FC = () => {
               (e.currentTarget.style.backgroundColor = "#3b82f6")
             }
           >
-            <FiPlus size={15} /> Tambah User
+            <FiPlus size={15} /> Add User
           </button>
         </Flex>
 
@@ -245,7 +245,7 @@ const UserList: React.FC = () => {
                 <FiSearch size={14} />
               </Box>
               <input
-                placeholder="Cari nama, email, NPK..."
+                placeholder="Search name, email, NPK..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 style={{
@@ -289,7 +289,7 @@ const UserList: React.FC = () => {
                 cursor: "pointer",
               }}
             >
-              <option value="">Semua Role</option>
+              <option value="">All Roles</option>
               <option value="true">Admin</option>
               <option value="false">Non-Admin</option>
             </select>
@@ -305,7 +305,7 @@ const UserList: React.FC = () => {
           ) : users.length === 0 ? (
             <Flex justify="center" py={10}>
               <Text color="gray.400" fontSize="14px">
-                Tidak ada data user
+                No user data
               </Text>
             </Flex>
           ) : (
@@ -316,13 +316,13 @@ const UserList: React.FC = () => {
                     {[
                       "No",
                       "NPK",
-                      "Nama",
+                      "Name",
                       "Email",
                       "Department",
                       "Section", // ← ditambahkan
                       "Role Level",
                       "Admin",
-                      "Aksi",
+                      "Action",
                     ].map((h) => (
                       <th
                         key={h}
@@ -466,7 +466,7 @@ const UserList: React.FC = () => {
                             "#fecaca",
                             () => setDeleteTarget(u),
                             <FiTrash2 size={14} />,
-                            "Hapus User",
+                            "Delete User",
                           )}
                         </HStack>
                       </td>
@@ -487,7 +487,7 @@ const UserList: React.FC = () => {
             borderColor="gray.100"
           >
             <Text fontSize="12px" color="gray.500">
-              Menampilkan {users.length} dari {pagination.total} user
+              Showing {users.length} of {pagination.total} users
             </Text>
             <HStack gap={2}>
               <button
@@ -541,8 +541,8 @@ const UserList: React.FC = () => {
           onSuccess={() => {
             showSuccess(
               formModal.user
-                ? "User berhasil diperbarui."
-                : "User berhasil ditambahkan.",
+                ? "User updated successfully."
+                : "User added successfully.",
             );
             void fetchUsers({ page, per_page: 10, ...filters });
           }}
@@ -554,7 +554,7 @@ const UserList: React.FC = () => {
           user={resetModal.user}
           onClose={() => setResetModal({ open: false, user: null })}
           onSuccess={() =>
-            showSuccess(`Password ${resetModal.user!.name} berhasil direset.`)
+            showSuccess(`Password for ${resetModal.user!.name} reset successfully.`)
           }
         />
       )}
@@ -571,18 +571,18 @@ const UserList: React.FC = () => {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDeleteConfirm}
         loading={deleting}
-        title="Hapus User?"
+        title="Delete User?"
         message={
           <>
-            Anda akan menghapus user{" "}
+            You are about to delete user{" "}
             <Text as="span" fontWeight="600" color="gray.700">
               {deleteTarget?.name}
             </Text>{" "}
-            ({deleteTarget?.npk}). Tindakan ini tidak dapat dibatalkan.
+            ({deleteTarget?.npk}). This action cannot be undone.
           </>
         }
-        confirmText="Ya, Hapus"
-        cancelText="Batal"
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
         confirmColor="#ef4444"
         icon={<FiTrash2 size={22} color="#ef4444" />}
       />

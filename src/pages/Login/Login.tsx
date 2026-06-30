@@ -17,8 +17,8 @@ import {
 } from "@chakra-ui/react";
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  npk: z.string().min(1, "NPK cannot be empty"),
+  password: z.string().min(8, "Password minimum 8 characters"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -144,7 +144,8 @@ const Login: React.FC = () => {
                   </Box>
                 )}
 
-                <Field.Root invalid={!!errors.email}>
+                {/* NPK Field */}
+                <Field.Root invalid={!!errors.npk}>
                   <Field.Label
                     fontSize="11px"
                     fontWeight="500"
@@ -152,12 +153,12 @@ const Login: React.FC = () => {
                     textTransform="uppercase"
                     letterSpacing="wider"
                   >
-                    Email address
+                    NPK
                   </Field.Label>
                   <Input
-                    {...register("email")}
-                    type="email"
-                    placeholder="admin@astravisteon.co.id"
+                    {...register("npk")}
+                    type="text"
+                    placeholder="Masukkan NPK Anda"
                     bg="white"
                     border="0.5px solid"
                     borderColor="gray.200"
@@ -172,13 +173,14 @@ const Login: React.FC = () => {
                     }}
                     _hover={{ borderColor: "gray.300" }}
                   />
-                  {errors.email && (
+                  {errors.npk && (
                     <Field.ErrorText fontSize="xs">
-                      {errors.email.message}
+                      {errors.npk.message}
                     </Field.ErrorText>
                   )}
                 </Field.Root>
 
+                {/* Password Field */}
                 <Field.Root invalid={!!errors.password}>
                   <Field.Label
                     fontSize="11px"

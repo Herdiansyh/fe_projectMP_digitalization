@@ -1,35 +1,158 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Box, Text, Badge, Flex, HStack } from "@chakra-ui/react";
-import {
-  FiEye,
-  FiSearch,
-  FiPrinter,
-} from "react-icons/fi";
+import { Box, Text, Flex, HStack } from "@chakra-ui/react";
+import { FiSearch, FiPrinter, FiPlay, FiAlertTriangle } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
 import fptkService from "../../services/fptkService";
 import type { Requisition, RequisitionListParams } from "../../types/fptk";
+import { useAuth } from "../../contexts/AuthContext";
 
+// ── Confirm Modal ─────────────────────────────────────────────────────────────
+const ConfirmModal = ({
+  isOpen,
+  noReq,
+  isLoading,
+  onConfirm,
+  onCancel,
+}: {
+  isOpen: boolean;
+  noReq: string;
+  isLoading: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) => {
+  if (!isOpen) return null;
+  return (
+    <>
+      <Box
+        position="fixed"
+        inset={0}
+        zIndex={400}
+        style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+        onClick={!isLoading ? onCancel : undefined}
+      />
+      <Box
+        position="fixed"
+        top="50%"
+        left="50%"
+        zIndex={500}
+        style={{
+          transform: "translate(-50%, -50%)",
+          width: "100%",
+          maxWidth: "440px",
+          padding: "0 16px",
+        }}
+      >
+        <Box
+          bg="white"
+          borderRadius="12px"
+          shadow="xl"
+          borderWidth="1px"
+          borderColor="gray.100"
+          overflow="hidden"
+        >
+          <Box px={6} pt={6} pb={4}>
+            <HStack gap={3} align="flex-start">
+              <Box
+                w="40px"
+                h="40px"
+                borderRadius="10px"
+                bg="#eff6ff"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                flexShrink={0}
+              >
+                <FiAlertTriangle size={20} color="#1d4ed8" />
+              </Box>
+              <Box>
+                <Text fontSize="16px" fontWeight="700" color="gray.800" mb={1}>
+                  HRD Process Confirmation
+                </Text>
+                <Text fontSize="13px" color="gray.500" lineHeight="1.5">
+                  You are about to process FPTK{" "}
+                  <Text as="span" fontWeight="700" color="blue.700">
+                    {noReq}
+                  </Text>{" "}
+                  to start HRD screening. This action cannot be undone.
+                </Text>
+              </Box>
+            </HStack>
+          </Box>
+          <Box h="1px" bg="gray.100" />
+          <Flex px={6} py={4} justify="flex-end" gap={3}>
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={onCancel}
+              style={{
+                padding: "8px 16px",
+                fontSize: "14px",
+                borderRadius: "8px",
+                color: "#4a5568",
+                backgroundColor: "#ffffff",
+                border: "1px solid #e2e8f0",
+                cursor: isLoading ? "not-allowed" : "pointer",
+                opacity: isLoading ? 0.6 : 1,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={onConfirm}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 20px",
+                fontSize: "14px",
+                fontWeight: "600",
+                borderRadius: "8px",
+                color: isLoading ? "#94a3b8" : "#ffffff",
+                backgroundColor: isLoading ? "#f1f5f9" : "#1d4ed8",
+                border: `1px solid ${isLoading ? "#e2e8f0" : "#1d4ed8"}`,
+                cursor: isLoading ? "not-allowed" : "pointer",
+              }}
+            >
+              <FiPlay size={13} />
+              {isLoading ? "Processing..." : "Yes, Process Now"}
+            </button>
+          </Flex>
+        </Box>
+      </Box>
+    </>
+  );
+};
+
+// ── Komponen utama ────────────────────────────────────────────────────────────
 const FptkApprovedList: React.FC = () => {
   const navigate = useNavigate();
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
   const [loading, setLoading] = useState(false);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // ── State untuk confirm modal ──
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    noReq: string;
+  }>({ isOpen: false, noReq: "" });
+
   const [pagination, setPagination] = useState({
     current_page: 1,
     last_page: 1,
     per_page: 10,
     total: 0,
   });
-
   const [page, setPage] = useState(1);
-
-  // Default filter is status: Approved
   const [filters, setFilters] = useState<RequisitionListParams>({
-    manager: "",
-    status: "Approved",
+    status: "Approved,Processed HRD",
   });
-
   const [searchInput, setSearchInput] = useState("");
+  const { user } = useAuth();
+  const isHrAdmin = user?.role?.name === "HR Admin";
 
   const fetchRequisitions = useCallback(
     async (params: RequisitionListParams) => {
@@ -57,22 +180,98 @@ const FptkApprovedList: React.FC = () => {
     [],
   );
 
-  // Debounce search input
+  const [clientSearch, setClientSearch] = useState("");
+
   useEffect(() => {
     const timeout = setTimeout(() => {
-      setFilters((prev) => {
-        if (prev.manager === searchInput) return prev;
-        setPage(1);
-        return { ...prev, manager: searchInput };
-      });
-    }, 500);
+      setClientSearch(searchInput.toLowerCase());
+      setPage(1);
+    }, 400);
     return () => clearTimeout(timeout);
   }, [searchInput]);
 
-  // Fetch immediately on page or filters change
   useEffect(() => {
     void fetchRequisitions({ page, per_page: 10, ...filters });
   }, [page, filters, fetchRequisitions]);
+
+  const displayedRequisitions = clientSearch
+    ? requisitions.filter(
+        (r) =>
+          r.requester_name.toLowerCase().includes(clientSearch) ||
+          (r.no_req ?? "").toLowerCase().includes(clientSearch) ||
+          (r.position ?? "").toLowerCase().includes(clientSearch) ||
+          (r.department ?? "").toLowerCase().includes(clientSearch),
+      )
+    : requisitions;
+
+  const showSuccess = (msg: string) => {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(null), 3000);
+  };
+
+  // Buka modal konfirmasi — dipanggil saat icon Process diklik
+  const openConfirmModal = (e: React.MouseEvent, noReq: string) => {
+    e.stopPropagation();
+    setConfirmModal({ isOpen: true, noReq });
+  };
+
+  // Eksekusi proses setelah user konfirmasi di modal
+  const handleConfirmProcess = async () => {
+    const noReq = confirmModal.noReq;
+    setConfirmModal({ isOpen: false, noReq: "" });
+
+    try {
+      setProcessingId(noReq);
+      await fptkService.processHrd(noReq);
+      showSuccess(`FPTK ${noReq} successfully processed by HRD.`);
+      void fetchRequisitions({ page, per_page: 10, ...filters });
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      alert(e.response?.data?.message ?? "Failed to process FPTK.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handlePrint = (noReq: string) => {
+    const API_BASE_URL =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+    const printUrl =
+      API_BASE_URL.replace(/\/api\/?$/, "") + `/print/fptk/${noReq}`;
+    window.open(printUrl, "_blank");
+  };
+
+  const getStatusBadgeStyle = (status: string): React.CSSProperties => {
+    if (status === "Approved")
+      return {
+        backgroundColor: "#f0fdf4",
+        color: "#15803d",
+        border: "1px solid #bbf7d0",
+        borderRadius: "6px",
+        padding: "2px 8px",
+        fontSize: "12px",
+        fontWeight: 500,
+      };
+    if (status === "Processed HRD")
+      return {
+        backgroundColor: "#eff6ff",
+        color: "#1d4ed8",
+        border: "1px solid #bfdbfe",
+        borderRadius: "6px",
+        padding: "2px 8px",
+        fontSize: "12px",
+        fontWeight: 500,
+      };
+    return {
+      backgroundColor: "#f8fafc",
+      color: "#64748b",
+      border: "1px solid #e2e8f0",
+      borderRadius: "6px",
+      padding: "2px 8px",
+      fontSize: "12px",
+      fontWeight: 500,
+    };
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("id-ID", {
@@ -81,22 +280,49 @@ const FptkApprovedList: React.FC = () => {
       year: "numeric",
     });
   };
-  
-  const handlePrint = (noReq: string) => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
-    // We want the web route, not API route. Usually it's base URL without /api
-    const printUrl = API_BASE_URL.replace(/\/api\/?$/, '') + `/print/fptk/${noReq}`;
-    window.open(printUrl, '_blank');
-  };
 
   return (
     <MainLayout>
       <Box>
+        {/* ── Confirm Modal ── */}
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          noReq={confirmModal.noReq}
+          isLoading={processingId === confirmModal.noReq}
+          onConfirm={handleConfirmProcess}
+          onCancel={() => setConfirmModal({ isOpen: false, noReq: "" })}
+        />
+
+        {/* Success toast */}
+        {successMsg && (
+          <Box
+            position="fixed"
+            top={4}
+            right={4}
+            zIndex={300}
+            bg="green.500"
+            color="white"
+            px={5}
+            py={3}
+            borderRadius="8px"
+            shadow="lg"
+            fontSize="14px"
+            fontWeight="500"
+          >
+            {successMsg}
+          </Box>
+        )}
+
         {/* Header */}
         <Flex justify="space-between" align="center" mb={6}>
-          <Text fontSize="2xl" fontWeight="bold" color="gray.800">
-            Approved FPTK
-          </Text>
+          <Box>
+            <Text fontSize="2xl" fontWeight="bold" color="gray.800">
+              Approved FPTK
+            </Text>
+            <Text fontSize="13px" color="gray.500" mt={0.5}>
+              List of approved FPTK
+            </Text>
+          </Box>
         </Flex>
 
         <Box bg="white" rounded="lg" shadow="sm" p={6}>
@@ -115,7 +341,7 @@ const FptkApprovedList: React.FC = () => {
                 <FiSearch size={14} />
               </Box>
               <input
-                placeholder="Search by requester name..."
+                placeholder="Search no. req / requester / position..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 style={{
@@ -144,10 +370,10 @@ const FptkApprovedList: React.FC = () => {
                 Loading...
               </Text>
             </Flex>
-          ) : requisitions.length === 0 ? (
+          ) : displayedRequisitions.length === 0 ? (
             <Flex justify="center" py={10}>
               <Text color="gray.400" fontSize="14px">
-                No data found
+                No FPTK with Approved / Processed HRD status
               </Text>
             </Flex>
           ) : (
@@ -161,8 +387,9 @@ const FptkApprovedList: React.FC = () => {
                       "Request Date",
                       "Requester",
                       "Position",
+                      "Department",
                       "Status",
-                      "Actions",
+                      "Action",
                     ].map((h) => (
                       <th
                         key={h}
@@ -185,10 +412,14 @@ const FptkApprovedList: React.FC = () => {
                 </thead>
 
                 <tbody>
-                  {requisitions.map((req, index) => (
+                  {displayedRequisitions.map((req, index) => (
                     <tr
                       key={req.no_req}
-                      style={{ borderBottom: "1px solid #f1f5f9" }}
+                      style={{
+                        borderBottom: "1px solid #f1f5f9",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => navigate(`/fptk/${req.no_req}`)}
                       onMouseEnter={(e) =>
                         (e.currentTarget.style.backgroundColor = "#f8fafc")
                       }
@@ -207,7 +438,6 @@ const FptkApprovedList: React.FC = () => {
                           index +
                           1}
                       </td>
-
                       <td
                         style={{
                           padding: "12px 14px",
@@ -218,7 +448,6 @@ const FptkApprovedList: React.FC = () => {
                       >
                         {req.no_req}
                       </td>
-
                       <td
                         style={{
                           padding: "12px 14px",
@@ -228,7 +457,6 @@ const FptkApprovedList: React.FC = () => {
                       >
                         {formatDate(req.request_date)}
                       </td>
-
                       <td
                         style={{
                           padding: "12px 14px",
@@ -238,7 +466,6 @@ const FptkApprovedList: React.FC = () => {
                       >
                         {req.requester_name}
                       </td>
-
                       <td
                         style={{
                           padding: "12px 14px",
@@ -248,44 +475,30 @@ const FptkApprovedList: React.FC = () => {
                       >
                         {req.position || "-"}
                       </td>
-
-                      <td style={{ padding: "12px 14px" }}>
-                        <Badge colorPalette="green">
-                          {req.approval_status}
-                        </Badge>
+                      <td
+                        style={{
+                          padding: "12px 14px",
+                          fontSize: "13px",
+                          color: "#475569",
+                        }}
+                      >
+                        {req.department || "-"}
                       </td>
-
+                      <td style={{ padding: "12px 14px" }}>
+                        <span style={getStatusBadgeStyle(req.approval_status)}>
+                          {req.approval_status}
+                        </span>
+                      </td>
                       <td style={{ padding: "12px 14px" }}>
                         <HStack gap={1}>
+                          {/* Tombol Print */}
                           <button
                             type="button"
-                            onClick={() => navigate(`/fptk/${req.no_req}`)}
-                            style={{
-                              width: "30px",
-                              height: "30px",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              borderRadius: "6px",
-                              color: "#3b82f6",
-                              backgroundColor: "#eff6ff",
-                              border: "1px solid #bfdbfe",
-                              cursor: "pointer",
+                            title="Print"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePrint(req.no_req);
                             }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor = "#dbeafe")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor = "#eff6ff")
-                            }
-                            title="Detail"
-                          >
-                            <FiEye size={14} />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handlePrint(req.no_req)}
                             style={{
                               width: "30px",
                               height: "30px",
@@ -299,15 +512,59 @@ const FptkApprovedList: React.FC = () => {
                               cursor: "pointer",
                             }}
                             onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor = "#d1fae5")
+                              (e.currentTarget.style.backgroundColor =
+                                "#d1fae5")
                             }
                             onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor = "#ecfdf5")
+                              (e.currentTarget.style.backgroundColor =
+                                "#ecfdf5")
                             }
-                            title="Print"
                           >
                             <FiPrinter size={14} />
                           </button>
+
+                          {/* Tombol Process HRD — hanya muncul untuk HR Admin dan status masih Approved */}
+                          {isHrAdmin && req.approval_status === "Approved" && (
+                            <button
+                              type="button"
+                              title="Process as HRD"
+                              disabled={processingId === req.no_req}
+                              onClick={(e) => openConfirmModal(e, req.no_req)}
+                              style={{
+                                width: "30px",
+                                height: "30px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                borderRadius: "6px",
+                                color:
+                                  processingId === req.no_req
+                                    ? "#94a3b8"
+                                    : "#3b82f6",
+                                backgroundColor:
+                                  processingId === req.no_req
+                                    ? "#f1f5f9"
+                                    : "#eff6ff",
+                                border: `1px solid ${processingId === req.no_req ? "#e2e8f0" : "#bfdbfe"}`,
+                                cursor:
+                                  processingId === req.no_req
+                                    ? "not-allowed"
+                                    : "pointer",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (processingId !== req.no_req)
+                                  e.currentTarget.style.backgroundColor =
+                                    "#dbeafe";
+                              }}
+                              onMouseLeave={(e) => {
+                                if (processingId !== req.no_req)
+                                  e.currentTarget.style.backgroundColor =
+                                    "#eff6ff";
+                              }}
+                            >
+                              <FiPlay size={13} />
+                            </button>
+                          )}
                         </HStack>
                       </td>
                     </tr>
@@ -327,14 +584,13 @@ const FptkApprovedList: React.FC = () => {
             borderColor="gray.100"
           >
             <Text fontSize="12px" color="gray.500">
-              Showing {requisitions.length} of {pagination.total} entries
+              Showing {requisitions.length} of {pagination.total} FPTK
             </Text>
-
             <HStack gap={2}>
               <button
                 type="button"
                 disabled={page === 1}
-                onClick={() => setPage((prev) => prev - 1)}
+                onClick={() => setPage((p) => p - 1)}
                 style={{
                   padding: "6px 14px",
                   fontSize: "13px",
@@ -347,15 +603,13 @@ const FptkApprovedList: React.FC = () => {
               >
                 Previous
               </button>
-
               <Text fontSize="13px" color="gray.600" px={2}>
                 Page {pagination.current_page} of {pagination.last_page}
               </Text>
-
               <button
                 type="button"
                 disabled={page >= pagination.last_page}
-                onClick={() => setPage((prev) => prev + 1)}
+                onClick={() => setPage((p) => p + 1)}
                 style={{
                   padding: "6px 14px",
                   fontSize: "13px",

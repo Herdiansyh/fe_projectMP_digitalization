@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import EmployeeList from "./pages/Employee/EmployeeList";
 
 const Login = lazy(() => import("./pages/Login/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
@@ -123,6 +124,14 @@ function App() {
             />
 
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/employees"
+              element={
+                <ProtectedRoute adminOnly>
+                  <EmployeeList />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </Suspense>
       </Router>

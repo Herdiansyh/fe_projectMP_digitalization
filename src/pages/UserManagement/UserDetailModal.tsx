@@ -83,10 +83,10 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
         >
           <Box>
             <Text fontSize="lg" fontWeight="bold" color="gray.800">
-              Detail User
+              User Detail
             </Text>
             <Text fontSize="13px" color="gray.500">
-              Informasi lengkap profil pengguna
+              Complete user profile information
             </Text>
           </Box>
           <button
@@ -118,8 +118,8 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
           <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
             {/* ── Data Pribadi ── */}
             <Box>
-              <SectionTitle>Data Pribadi</SectionTitle>
-              <DetailRow label="Nama Lengkap" value={user.name} />
+              <SectionTitle>Personal Data</SectionTitle>
+              <DetailRow label="Full Name" value={user.name} />
               <DetailRow
                 label="NPK"
                 value={<Text fontFamily="monospace">{user.npk}</Text>}
@@ -130,7 +130,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
 
             {/* ── Posisi & Hak Akses ── */}
             <Box>
-              <SectionTitle>Posisi & Hak Akses</SectionTitle>
+              <SectionTitle>Position & Access Rights</SectionTitle>
               <DetailRow label="Department" value={user.department?.name} />
               <DetailRow label="Section" value={user.section?.name} />{" "}
               {/* ← ditambahkan */}
@@ -183,7 +183,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
                     fontWeight="600"
                     color={user.approver_manager ? "gray.800" : "gray.400"}
                   >
-                    {user.approver_manager?.name ?? "Tidak ada"}
+                    {user.approver_manager?.name ?? "None"}
                   </Text>
                   {user.approver_manager && (
                     <Text fontSize="12px" color="gray.500" mt={1}>
@@ -214,7 +214,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
                     fontWeight="600"
                     color={user.approver_division ? "gray.800" : "gray.400"}
                   >
-                    {user.approver_division?.name ?? "Tidak ada"}
+                    {user.approver_division?.name ?? "None"}
                   </Text>
                   {user.approver_division && (
                     <Text fontSize="12px" color="gray.500" mt={1}>
@@ -245,7 +245,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
                     fontWeight="600"
                     color={user.approver_director ? "gray.800" : "gray.400"}
                   >
-                    {user.approver_director?.name ?? "Tidak ada"}
+                    {user.approver_director?.name ?? "None"}
                   </Text>
                   {user.approver_director && (
                     <Text fontSize="12px" color="gray.500" mt={1}>
@@ -288,7 +288,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
               (e.currentTarget.style.backgroundColor = "white")
             }
           >
-            Tutup
+            Close
           </button>
         </Box>
       </Box>

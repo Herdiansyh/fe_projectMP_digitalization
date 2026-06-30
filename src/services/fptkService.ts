@@ -129,6 +129,13 @@ const fptkService = {
     );
     return response.data;
   },
+
+  processHrd: async (noReq: string): Promise<ApiResponse<Requisition>> => {
+    const response = await axiosInstance.post<ApiResponse<Requisition>>(
+      `/fptk/${noReq}/process-hrd`,
+    );
+    return response.data;
+  },
 };
 
 export default fptkService;

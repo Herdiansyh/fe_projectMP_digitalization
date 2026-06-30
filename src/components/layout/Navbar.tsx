@@ -214,10 +214,10 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, sidebarOpen }) => {
         open={open}
         onClose={() => setOpen(false)}
         onConfirm={handleLogoutConfirm}
-        title="Konfirmasi Logout"
+        title="Logout Confirmation"
         message={
           <>
-            Apakah Anda yakin ingin keluar dari akun{" "}
+            Are you sure you want to log out of{" "}
             <Text as="span" fontWeight="600" color="gray.700">
               {user?.name}
             </Text>
@@ -225,7 +225,7 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, sidebarOpen }) => {
           </>
         }
         confirmText="Ya, Logout"
-        cancelText="Batal"
+        cancelText="Cancel"
         confirmColor="orange.400"
         icon={<IconLogout />}
       />

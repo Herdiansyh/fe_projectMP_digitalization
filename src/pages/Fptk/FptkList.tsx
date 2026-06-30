@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Box, Text, Badge, Flex, HStack } from "@chakra-ui/react";
-import { FiPlus, FiEye, FiTrash2, FiSearch, FiCheck } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiSearch, FiCheck } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
 import fptkService from "../../services/fptkService";
@@ -34,7 +34,7 @@ const FptkList: React.FC = () => {
     page: 1,
     manager: "",
     status: "",
-    exclude_status: "Approved,Rejected",
+    exclude_status: "Approved,Rejected,Processed HRD",
   });
 
   const [refreshKey, setRefreshKey] = useState(0);
@@ -261,13 +261,13 @@ const FptkList: React.FC = () => {
             >
               <option value="">All status (except Approved)</option>
               <option value="Menunggu Approval Manager">
-                Menunggu Approval Manager
+                Waiting for Manager Approval
               </option>
               <option value="Menunggu Approval Division Head">
-                Menunggu Approval Division Head
+                Waiting for Division Head Approval
               </option>
               <option value="Menunggu Approval Director">
-                Menunggu Approval Director
+                Waiting for Director Approval
               </option>
               <option value="Rejected">Rejected</option>
             </select>
@@ -324,7 +324,11 @@ const FptkList: React.FC = () => {
                   {requisitions.map((req, index) => (
                     <tr
                       key={req.no_req}
-                      style={{ borderBottom: "1px solid #f1f5f9" }}
+                      style={{
+                        borderBottom: "1px solid #f1f5f9",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => navigate(`/fptk/${req.no_req}`)}
                       onMouseEnter={(e) =>
                         (e.currentTarget.style.backgroundColor = "#f8fafc")
                       }
@@ -395,37 +399,13 @@ const FptkList: React.FC = () => {
 
                       <td style={{ padding: "12px 14px" }}>
                         <HStack gap={1}>
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/fptk/${req.no_req}`)}
-                            style={{
-                              width: "30px",
-                              height: "30px",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              borderRadius: "6px",
-                              color: "#3b82f6",
-                              backgroundColor: "#eff6ff",
-                              border: "1px solid #bfdbfe",
-                              cursor: "pointer",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "#dbeafe")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "#eff6ff")
-                            }
-                          >
-                            <FiEye size={14} />
-                          </button>
-
                           {canCreateEdit && (
                             <button
                               type="button"
-                              onClick={() => handleDelete(req.no_req)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(req.no_req);
+                              }}
                               style={{
                                 width: "30px",
                                 height: "30px",
@@ -454,9 +434,10 @@ const FptkList: React.FC = () => {
                           {canApprove && canApproveThis(req) && (
                             <button
                               type="button"
-                              onClick={() =>
-                                navigate(`/fptk/${req.no_req}/review`)
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/fptk/${req.no_req}/review`);
+                              }}
                               style={{
                                 width: "30px",
                                 height: "30px",
@@ -566,18 +547,18 @@ const FptkList: React.FC = () => {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleConfirmDelete}
         loading={deleting}
-        title="Hapus Requisition?"
+        title="Delete Requisition?"
         message={
           <>
-            Anda akan menghapus requisition{" "}
+            You are about to delete requisition{" "}
             <Text as="span" fontWeight="600" color="gray.700">
               {deleteTarget}
             </Text>
-            . Tindakan ini tidak dapat dibatalkan.
+            . This action cannot be undone.
           </>
         }
-        confirmText="Ya, Hapus"
-        cancelText="Batal"
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
         confirmColor="#ef4444"
         icon={<FiTrashIcon size={22} color="#ef4444" />}
       />

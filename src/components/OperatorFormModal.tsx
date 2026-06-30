@@ -63,12 +63,12 @@ const OperatorFormModal: React.FC<Props> = ({
         />
         <Box px={7} pt={6} pb={7}>
           <Heading fontSize="md" fontWeight="500" color="gray.900" mb={1}>
-            {isEditing ? "Edit Operator" : "Tambah Operator"}
+            {isEditing ? "Edit Operator" : "Add Operator"}
           </Heading>
           <Text fontSize="sm" color="gray.500" mb={5}>
             {isEditing
               ? "Update informasi operator."
-              : "Tambah operator baru ke sistem."}
+              : "Add a new operator to the system."}
           </Text>
 
           <Box as="form" onSubmit={onSubmit}>
@@ -154,7 +154,7 @@ const OperatorFormModal: React.FC<Props> = ({
                   disabled={isSubmitting}
                   onClick={onClose}
                 >
-                  Batal
+                  Cancel
                 </Button>
                 <Button
                   type="submit"
@@ -166,7 +166,7 @@ const OperatorFormModal: React.FC<Props> = ({
                   loading={isSubmitting}
                   loadingText="Menyimpan..."
                 >
-                  {isEditing ? "Update" : "Simpan"}
+                  {isEditing ? "Update" : "Save"}
                 </Button>
               </Flex>
             </Stack>

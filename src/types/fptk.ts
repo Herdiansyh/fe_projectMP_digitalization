@@ -30,10 +30,18 @@ export interface Requisition {
   director?: string;
   supervisor?: string;
   hrd_approved: boolean;
+  hrd_processed_by?: string;
+  hrd_processed_at?: string;
   rejection_reason?: string;
   manager_approved_at?: string;
   division_approved_at?: string;
   director_approved_at?: string;
+  apprenticeship_period?: boolean;
+  replacement_employee?: {
+    id: number;
+    npk: string;
+    name: string;
+  } | null;
   created_at: string;
   updated_at: string;
 }
@@ -64,6 +72,8 @@ export interface CreateRequisitionInput {
   manpower_plan?: string;
   unplanned_reason?: string;
   supervisor?: string;
+  replacement_employee_id?: number | null;
+  apprenticeship_period?: boolean;
 }
 
 export interface UpdateRequisitionInput {
@@ -91,10 +101,12 @@ export interface UpdateRequisitionInput {
   employee_out?: string;
   manpower_plan?: string;
   unplanned_reason?: string;
+  replacement_employee_id?: number | null;
+  apprenticeship_period?: boolean;
 }
 
 export interface ApprovalInput {
-  action: 'approved' | 'rejected';
+  action: "approved" | "rejected";
   rejection_reason?: string;
 }
 
@@ -189,4 +201,3 @@ export interface UserContext {
     is_system: boolean;
   };
 }
-

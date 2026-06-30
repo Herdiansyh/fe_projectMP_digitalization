@@ -30,7 +30,7 @@ export interface User {
 }
 
 export interface LoginCredentials {
-  email: string;
+  npk: string;
   password: string;
 }
 

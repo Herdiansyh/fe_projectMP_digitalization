@@ -671,11 +671,11 @@ const FptkApproval: React.FC = () => {
         }
         message={
           action === "approved"
-            ? `Anda akan menyetujui requisition ${requisition?.no_req}. Tindakan ini tidak dapat dibatalkan.`
-            : `Anda akan menolak requisition ${requisition?.no_req}. Pastikan alasan penolakan sudah diisi dengan benar.`
+            ? `You are about to approve requisition ${requisition?.no_req}. This action cannot be undone.`
+            : `You are about to reject requisition ${requisition?.no_req}. Make sure the rejection reason is filled correctly.`
         }
-        confirmText={action === "approved" ? "Ya, Approve" : "Ya, Reject"}
-        cancelText="Batal"
+        confirmText={action === "approved" ? "Yes, Approve" : "Yes, Reject"}
+        cancelText="Cancel"
         confirmColor={action === "approved" ? "#16a34a" : "#be123c"}
         icon={
           action === "approved" ? (

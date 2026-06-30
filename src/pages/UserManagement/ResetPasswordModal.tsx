@@ -38,11 +38,11 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
 
     // Client-side validation
     const localErrors: Record<string, string[]> = {};
-    if (!password) localErrors.password = ["Password baru wajib diisi."];
+    if (!password) localErrors.password = ["New password is required."];
     else if (password.length < 8)
-      localErrors.password = ["Password minimal 8 karakter."];
+      localErrors.password = ["Password must be at least 8 characters."];
     if (password !== passwordConfirmation)
-      localErrors.password_confirmation = ["Konfirmasi password tidak cocok."];
+      localErrors.password_confirmation = ["Password confirmation does not match."];
     if (Object.keys(localErrors).length > 0) {
       setErrors(localErrors);
       return;
@@ -63,7 +63,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       if (e.response?.data?.errors) {
         setErrors(e.response.data.errors);
       } else {
-        alert("Gagal mereset password.");
+        alert("Failed to reset password.");
       }
     } finally {
       setLoading(false);
@@ -148,7 +148,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
             mb={5}
           >
             <Text fontSize="13px" color="orange.700">
-              Reset password untuk{" "}
+              Reset password for{" "}
               <Text as="span" fontWeight="600">
                 {user.name}
               </Text>{" "}
@@ -159,7 +159,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
           {/* Password */}
           <Box mb={4}>
             <Text fontSize="13px" fontWeight="500" color="gray.700" mb={1}>
-              Password Baru{" "}
+              New Password{" "}
               <Text as="span" color="red.400">
                 *
               </Text>
@@ -167,7 +167,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
             <Box position="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="Minimal 8 karakter"
+                placeholder="Minimum 8 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={{
@@ -214,7 +214,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
           {/* Confirm Password */}
           <Box mb={2}>
             <Text fontSize="13px" fontWeight="500" color="gray.700" mb={1}>
-              Konfirmasi Password{" "}
+              Confirm Password{" "}
               <Text as="span" color="red.400">
                 *
               </Text>
@@ -222,7 +222,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
             <Box position="relative">
               <input
                 type={showConfirm ? "text" : "password"}
-                placeholder="Ulangi password baru"
+                placeholder="Repeat new password"
                 value={passwordConfirmation}
                 onChange={(e) => setPasswordConfirmation(e.target.value)}
                 style={{
@@ -293,7 +293,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
               cursor: loading ? "not-allowed" : "pointer",
             }}
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"
@@ -310,7 +310,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
               cursor: loading ? "not-allowed" : "pointer",
             }}
           >
-            {loading ? "Menyimpan..." : "Reset Password"}
+            {loading ? "Saving..." : "Reset Password"}
           </button>
         </Flex>
       </Box>

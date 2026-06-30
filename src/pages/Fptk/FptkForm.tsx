@@ -1,19 +1,12 @@
 import React, { useState, useEffect } from "react";
-import {
-  Box,
-  Text,
-  Flex,
-  Input,
-  // Textarea,
-  HStack,
-  Stack,
-  Grid,
-} from "@chakra-ui/react";
+import { Box, Text, Flex, Input, HStack, Stack, Grid } from "@chakra-ui/react";
 import { FiSave, FiArrowLeft, FiPlus, FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
 import fptkService from "../../services/fptkService";
+import employeeService from "../../services/employeeService";
 import type { CreateRequisitionInput, MasterData } from "../../types/fptk";
+import type { Employee } from "../../types/employee";
 import { toaster } from "../../components/ui/toaster";
 import { useAuth } from "../../contexts/AuthContext";
 import userService from "../../services/userService";
@@ -23,7 +16,10 @@ const FptkForm: React.FC = () => {
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
+  const [approverLoading, setApproverLoading] = useState(true);
   const [masterData, setMasterData] = useState<MasterData | null>(null);
+  const [activeEmployees, setActiveEmployees] = useState<Employee[]>([]);
+
   const [formData, setFormData] = useState<CreateRequisitionInput>({
     requester_name: user?.name ?? "",
     request_date: new Date().toISOString().split("T")[0],
@@ -47,6 +43,8 @@ const FptkForm: React.FC = () => {
     objective: "",
     reason: "",
     employee_out: "",
+    replacement_employee_id: null, // ← tambah
+    apprenticeship_period: false, // ← tambah
     manpower_plan: "",
     unplanned_reason: "",
   });
@@ -64,17 +62,30 @@ const FptkForm: React.FC = () => {
       backgroundColor: "#f9fafb",
     },
   };
+
+  const selectStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "8px 12px",
+    borderRadius: "8px",
+    border: "1px solid #e2e8f0",
+    backgroundColor: "#f9fafb",
+    fontSize: "14px",
+    color: "#1a202c",
+  };
+
   const [approverChain, setApproverChain] = useState<{
     manager: string | null;
     division: string | null;
     director: string | null;
   }>({ manager: null, division: null, director: null });
+
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [masterRes, approverRes] = await Promise.all([
+        const [masterRes, approverRes, employeeRes] = await Promise.all([
           fptkService.getMasterData(),
           userService.getApproversForUser(user!.id),
+          employeeService.getActiveEmployees(),
         ]);
         setMasterData(masterRes.data);
         setApproverChain({
@@ -82,13 +93,17 @@ const FptkForm: React.FC = () => {
           division: approverRes.data.approver_division?.name ?? null,
           director: approverRes.data.approver_director?.name ?? null,
         });
+        setActiveEmployees(employeeRes.data as Employee[]);
       } catch {
         toaster.create({ title: "Failed to load data", type: "error" });
+      } finally {
+        setApproverLoading(false);
       }
     };
 
     void loadData();
   }, [user]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -118,7 +133,7 @@ const FptkForm: React.FC = () => {
             .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
             .join("\n");
           toaster.create({
-            title: "Gagal membuat FPTK",
+            title: "Failed to create FPTK",
             description: errorMessages,
             type: "error",
           });
@@ -127,7 +142,7 @@ const FptkForm: React.FC = () => {
 
         if (responseData.message) {
           toaster.create({
-            title: "Gagal membuat FPTK",
+            title: "Failed to create FPTK",
             description: responseData.message,
             type: "error",
           });
@@ -136,8 +151,8 @@ const FptkForm: React.FC = () => {
       }
 
       toaster.create({
-        title: "Gagal membuat FPTK",
-        description: "Terjadi kesalahan, silakan coba lagi.",
+        title: "Failed to create FPTK",
+        description: "An error occurred, please try again.",
         type: "error",
       });
     } finally {
@@ -174,6 +189,14 @@ const FptkForm: React.FC = () => {
     newArr.splice(index, 1);
     handleChange(field, newArr);
   };
+
+  const approverName =
+    approverChain.manager ?? approverChain.division ?? approverChain.director;
+
+  // Employee yang dipilih untuk ditampilkan info-nya
+  const selectedEmployee = activeEmployees.find(
+    (e) => e.id === formData.replacement_employee_id,
+  );
 
   return (
     <MainLayout>
@@ -272,35 +295,6 @@ const FptkForm: React.FC = () => {
                     }
                   />
                 </Box>
-                {/* <Box>
-                  <Text
-                    mb="2px"
-                    fontWeight="600"
-                    fontSize="sm"
-                    color="gray.700"
-                  >
-                    Group
-                  </Text>
-                  <select
-                    value={formData.group}
-                    onChange={(e) => handleChange("group", e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
-                  >
-                    <option value="">Select Group</option>
-                    {masterData?.companies.map((c) => (
-                      <option key={c.id} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </Box> */}
                 <Box>
                   <Text
                     mb="2px"
@@ -313,14 +307,7 @@ const FptkForm: React.FC = () => {
                   <select
                     value={formData.department}
                     onChange={(e) => handleChange("department", e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
+                    style={selectStyle}
                   >
                     <option value="">Select Department</option>
                     {masterData?.departments.map((d) => (
@@ -342,14 +329,7 @@ const FptkForm: React.FC = () => {
                   <select
                     value={formData.section}
                     onChange={(e) => handleChange("section", e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
+                    style={selectStyle}
                   >
                     <option value="">Select Section</option>
                     {masterData?.sections.map((s) => (
@@ -359,32 +339,6 @@ const FptkForm: React.FC = () => {
                     ))}
                   </select>
                 </Box>
-                {/* <Box>
-                  <Text
-                    mb="2px"
-                    fontWeight="600"
-                    fontSize="sm"
-                    color="gray.700"
-                  >
-                    Fullfilment Type
-                  </Text>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => handleChange("type", e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
-                  >
-                    <option value="">Select Type</option>
-                    <option value="Internal">Internal</option>
-                    <option value="Eksternal">Eksternal</option>
-                  </select>
-                </Box> */}
                 <Box>
                   <Text
                     mb="2px"
@@ -412,14 +366,7 @@ const FptkForm: React.FC = () => {
                   <select
                     value={formData.status}
                     onChange={(e) => handleChange("status", e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
+                    style={selectStyle}
                   >
                     <option value="">Select Status</option>
                     {masterData?.employee_statuses.map((s) => (
@@ -441,14 +388,7 @@ const FptkForm: React.FC = () => {
                   <select
                     value={formData.level}
                     onChange={(e) => handleChange("level", e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
+                    style={selectStyle}
                   >
                     <option value="">Select Level</option>
                     {[0, 1, 2, 3, 4, 5].map((lvl) => (
@@ -542,14 +482,7 @@ const FptkForm: React.FC = () => {
                   <select
                     value={formData.education}
                     onChange={(e) => handleChange("education", e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
+                    style={selectStyle}
                   >
                     <option value="">Select Education</option>
                     <option value="SMA/SMK">SMA/SMK</option>
@@ -557,27 +490,6 @@ const FptkForm: React.FC = () => {
                     <option value="S1/S2">S1/S2</option>
                   </select>
                 </Box>
-                {/* <Box>
-                  <Text
-                    mb="2px"
-                    fontWeight="600"
-                    fontSize="sm"
-                    color="gray.700"
-                  >
-                    Maximum Age
-                  </Text>
-                  <Input
-                    type="number"
-                    {...inputStyle}
-                    value={formData.max_age || ""}
-                    onChange={(e) =>
-                      handleChange(
-                        "max_age",
-                        parseInt(e.target.value) || undefined,
-                      )
-                    }
-                  />
-                </Box> */}
                 <Box>
                   <Text
                     mb="2px"
@@ -595,14 +507,7 @@ const FptkForm: React.FC = () => {
                         parseInt(e.target.value) || undefined,
                       )
                     }
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
+                    style={selectStyle}
                   >
                     <option value="">Select Min Experience</option>
                     <option value="0">Fresh Graduate</option>
@@ -788,18 +693,6 @@ const FptkForm: React.FC = () => {
                 3. Detail Requisition
               </Text>
 
-              {/* <Box mb={4}>
-                <Text mb="2px" fontWeight="600" fontSize="sm" color="gray.700">
-                  Description
-                </Text>
-                <Textarea
-                  {...inputStyle}
-                  value={formData.description}
-                  onChange={(e) => handleChange("description", e.target.value)}
-                  rows={3}
-                />
-              </Box> */}
-
               <Grid
                 templateColumns={{ base: "1fr", md: "1fr 1fr" }}
                 gap={6}
@@ -819,14 +712,7 @@ const FptkForm: React.FC = () => {
                     onChange={(e) =>
                       handleChange("cost_center", e.target.value)
                     }
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
+                    style={selectStyle}
                   >
                     <option value="">Select Cost Center</option>
                     <option value="DL">DL</option>
@@ -845,15 +731,16 @@ const FptkForm: React.FC = () => {
                   </Text>
                   <select
                     value={formData.objective}
-                    onChange={(e) => handleChange("objective", e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
+                    onChange={(e) => {
+                      handleChange("objective", e.target.value);
+                      // Reset replacement fields saat objective berubah
+                      if (e.target.value !== "Replacement") {
+                        handleChange("replacement_employee_id", null);
+                        handleChange("employee_out", "");
+                        handleChange("reason", "");
+                      }
                     }}
+                    style={selectStyle}
                   >
                     <option value="">Select Objective</option>
                     <option value="Replacement">Replacement</option>
@@ -862,6 +749,7 @@ const FptkForm: React.FC = () => {
                 </Box>
               </Grid>
 
+              {/* ── Replacement Fields ── */}
               {formData.objective === "Replacement" && (
                 <Grid
                   templateColumns={{ base: "1fr", md: "1fr 1fr" }}
@@ -880,14 +768,7 @@ const FptkForm: React.FC = () => {
                     <select
                       value={formData.reason}
                       onChange={(e) => handleChange("reason", e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "1px solid #e2e8f0",
-                        backgroundColor: "#f9fafb",
-                        color: "#1a202c",
-                      }}
+                      style={selectStyle}
                     >
                       <option value="">Select Reason</option>
                       <option value="End Of Contract">End Of Contract</option>
@@ -898,6 +779,8 @@ const FptkForm: React.FC = () => {
                       <option value="Transferred">Transferred</option>
                     </select>
                   </Box>
+
+                  {/* ── Dropdown Employee (menggantikan input teks employee_out) ── */}
                   <Box>
                     <Text
                       mb="2px"
@@ -907,16 +790,98 @@ const FptkForm: React.FC = () => {
                     >
                       Name Of Employee Out
                     </Text>
-                    <Input
-                      {...inputStyle}
-                      value={formData.employee_out}
-                      onChange={(e) =>
-                        handleChange("employee_out", e.target.value)
-                      }
-                    />
+                    <select
+                      value={formData.replacement_employee_id ?? ""}
+                      onChange={(e) => {
+                        const id = e.target.value
+                          ? Number(e.target.value)
+                          : null;
+                        handleChange("replacement_employee_id", id);
+                        // Sync employee_out (nama) untuk backward compatibility
+                        const emp = activeEmployees.find((x) => x.id === id);
+                        handleChange("employee_out", emp?.name ?? "");
+                      }}
+                      style={selectStyle}
+                    >
+                      <option value="">Select Employee</option>
+                      {activeEmployees.map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.npk} — {emp.name}
+                          {emp.jabatan ? ` (${emp.jabatan})` : ""}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Info card karyawan yang dipilih */}
+                    {selectedEmployee && (
+                      <Box
+                        mt={2}
+                        p={3}
+                        borderRadius="8px"
+                        bg="#f0fdf4"
+                        border="1px solid #bbf7d0"
+                      >
+                        <Text
+                          fontSize="12px"
+                          fontWeight="600"
+                          color="green.700"
+                        >
+                          {selectedEmployee.name}
+                        </Text>
+                        <Text fontSize="11px" color="green.600">
+                          {selectedEmployee.npk}
+                          {selectedEmployee.department?.name
+                            ? ` · ${selectedEmployee.department.name}`
+                            : ""}
+                          {selectedEmployee.jabatan
+                            ? ` · ${selectedEmployee.jabatan}`
+                            : ""}
+                        </Text>
+                      </Box>
+                    )}
                   </Box>
                 </Grid>
               )}
+
+              {/* ── Apprenticeship Period ── */}
+              <Box mb={4}>
+                <Text mb="2px" fontWeight="600" fontSize="sm" color="gray.700">
+                  Apprenticeship Period
+                </Text>
+                <HStack gap={4} mt={1}>
+                  {[
+                    { label: "Yes, need apprenticeship", value: true },
+                    { label: "No", value: false },
+                  ].map(({ label, value }) => (
+                    <label
+                      key={String(value)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        color: "#374151",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="apprenticeship_period"
+                        checked={formData.apprenticeship_period === value}
+                        onChange={() =>
+                          handleChange("apprenticeship_period", value)
+                        }
+                        style={{
+                          accentColor: "#1A5EA8",
+                          width: "16px",
+                          height: "16px",
+                        }}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </HStack>
+              </Box>
 
               <Grid
                 templateColumns={{ base: "1fr", md: "1fr 1fr" }}
@@ -937,14 +902,7 @@ const FptkForm: React.FC = () => {
                     onChange={(e) =>
                       handleChange("manpower_plan", e.target.value)
                     }
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      backgroundColor: "#f9fafb",
-                      color: "#1a202c",
-                    }}
+                    style={selectStyle}
                   >
                     <option value="">Select Plan</option>
                     <option value="Planned">Planned</option>
@@ -972,7 +930,8 @@ const FptkForm: React.FC = () => {
                 )}
               </Grid>
             </Box>
-            {/* Acknowledgement Section */}
+
+            {/* 4. Acknowledgement Section */}
             <Box>
               <Text
                 fontSize="xl"
@@ -992,37 +951,34 @@ const FptkForm: React.FC = () => {
                 <Input
                   {...inputStyle}
                   value={
-                    approverChain.manager ??
-                    approverChain.division ??
-                    approverChain.director ??
-                    "— Tidak Ada —"
+                    approverLoading
+                      ? "Loading..."
+                      : (approverName ?? "— None —")
                   }
                   disabled
                   style={{
                     opacity: 0.7,
                     cursor: "not-allowed",
-                    backgroundColor:
-                      (approverChain.manager ??
-                      approverChain.division ??
-                      approverChain.director)
+                    backgroundColor: approverLoading
+                      ? "#f8fafc"
+                      : approverName
                         ? "#f0fdf4"
                         : "#f8fafc",
-                    borderColor:
-                      (approverChain.manager ??
-                      approverChain.division ??
-                      approverChain.director)
+                    borderColor: approverLoading
+                      ? "#e2e8f0"
+                      : approverName
                         ? "#86efac"
                         : "#e2e8f0",
-                    color:
-                      (approverChain.manager ??
-                      approverChain.division ??
-                      approverChain.director)
+                    color: approverLoading
+                      ? "#94a3b8"
+                      : approverName
                         ? "#166534"
                         : "#94a3b8",
                   }}
                 />
               </Box>
             </Box>
+
             {/* Footer buttons */}
             <Flex
               mt={8}

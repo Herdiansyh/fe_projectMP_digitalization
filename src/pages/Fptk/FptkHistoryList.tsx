@@ -85,8 +85,7 @@ const FptkHistoryList: React.FC = () => {
               FPTK History
             </Text>
             <Text fontSize="13px" color="gray.500" mt={1}>
-              FPTK yang sudah Anda berikan aksi (approve/reject) — terlepas
-              dari status keseluruhan FPTK saat ini
+              FPTK that you have acted on (approve/reject)
             </Text>
           </Box>
         </Flex>
@@ -107,7 +106,7 @@ const FptkHistoryList: React.FC = () => {
                 <FiSearch size={14} />
               </Box>
               <input
-                placeholder="Cari nama requester atau no. requisition..."
+                placeholder="Search requester name or requisition no..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -139,7 +138,7 @@ const FptkHistoryList: React.FC = () => {
           ) : filtered.length === 0 ? (
             <Flex justify="center" py={10}>
               <Text color="gray.400" fontSize="14px">
-                Tidak ada data history
+                No history data
               </Text>
             </Flex>
           ) : (
@@ -153,7 +152,7 @@ const FptkHistoryList: React.FC = () => {
                       "Request Date",
                       "Requester",
                       "Position",
-                      "Status Sekarang",
+                      "Current Status",
                       "Actions",
                     ].map((h) => (
                       <th

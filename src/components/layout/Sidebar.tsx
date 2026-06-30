@@ -94,7 +94,6 @@ const IconApproved = () => (
   </svg>
 );
 
-
 const IconHistory = () => (
   <svg
     width="16"
@@ -110,13 +109,28 @@ const IconHistory = () => (
     <polyline points="12 6 12 12 16 14" />
   </svg>
 );
-
+const IconEmployee = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
 const approvalNavItems: NavItem[] = [
   { label: "Pending Approvals", path: "/fptk/pending", icon: <IconPending /> },
 ];
 
 const adminNavItems: NavItem[] = [
   { label: "User Management", path: "/users", icon: <IconUsers /> },
+  { label: "Manpower Management", path: "/employees", icon: <IconEmployee /> },
 ];
 
 interface SidebarProps {
@@ -130,19 +144,44 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const roleName = user?.role?.name;
+
   const isApproverRole =
-    user?.role?.name === "Manager" ||
-    user?.role?.name === "Division Head" ||
-    user?.role?.name === "Director";
+    roleName === "Manager" ||
+    roleName === "Division Head" ||
+    roleName === "Director";
+
+  const isHrAdmin = roleName === "HR Admin";
 
   const isAdmin = user?.is_admin === true;
 
   const navItems: NavItem[] = [
     { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
-    ...(!isApproverRole ? [{ label: "On Progress FPTK", path: "/fptklist", icon: <IconFPTK /> }] : []),
-    { label: "Approved FPTK", path: "/fptk/approved", icon: <IconApproved /> },
+    // "On Progress FPTK" hanya untuk non-approver dan non-HR Admin
+    ...(!isApproverRole && !isHrAdmin
+      ? [{ label: "On Progress FPTK", path: "/fptklist", icon: <IconFPTK /> }]
+      : []),
+    // "Approved FPTK" tampil untuk semua kecuali approver murni
+    ...(!isApproverRole
+      ? [
+          {
+            label: "Approved FPTK",
+            path: "/fptk/approved",
+            icon: <IconApproved />,
+          },
+        ]
+      : []),
+    // Pending Approvals & History hanya untuk approver roles
     ...(isApproverRole ? approvalNavItems : []),
-    ...(isApproverRole ? [{ label: "FPTK History", path: "/fptk/history", icon: <IconHistory /> }] : []),
+    ...(isApproverRole
+      ? [
+          {
+            label: "FPTK History",
+            path: "/fptk/history",
+            icon: <IconHistory />,
+          },
+        ]
+      : []),
   ];
 
   return (

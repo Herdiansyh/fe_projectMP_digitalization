@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Text, Badge, Flex, HStack, Grid } from "@chakra-ui/react";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiPlay, FiAlertTriangle } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
 import fptkService from "../../services/fptkService";
-// import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/AuthContext";
 import type { Requisition } from "../../types/fptk";
 
 const Field = ({
@@ -47,38 +47,185 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   </Text>
 );
 
-// ── Komponen utama ──
+// ── Confirm Modal ─────────────────────────────────────────────────────────────
+const ConfirmModal = ({
+  isOpen,
+  noReq,
+  isLoading,
+  onConfirm,
+  onCancel,
+}: {
+  isOpen: boolean;
+  noReq: string;
+  isLoading: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) => {
+  if (!isOpen) return null;
+  return (
+    <>
+      <Box
+        position="fixed"
+        inset={0}
+        zIndex={400}
+        style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+        onClick={!isLoading ? onCancel : undefined}
+      />
+      <Box
+        position="fixed"
+        top="50%"
+        left="50%"
+        zIndex={500}
+        style={{
+          transform: "translate(-50%, -50%)",
+          width: "100%",
+          maxWidth: "440px",
+          padding: "0 16px",
+        }}
+      >
+        <Box
+          bg="white"
+          borderRadius="12px"
+          shadow="xl"
+          borderWidth="1px"
+          borderColor="gray.100"
+          overflow="hidden"
+        >
+          <Box px={6} pt={6} pb={4}>
+            <HStack gap={3} align="flex-start">
+              <Box
+                w="40px"
+                h="40px"
+                borderRadius="10px"
+                bg="#eff6ff"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                flexShrink={0}
+              >
+                <FiAlertTriangle size={20} color="#1d4ed8" />
+              </Box>
+              <Box>
+                <Text fontSize="16px" fontWeight="700" color="gray.800" mb={1}>
+                  HRD Process Confirmation
+                </Text>
+                <Text fontSize="13px" color="gray.500" lineHeight="1.5">
+                  You are about to process FPTK{" "}
+                  <Text as="span" fontWeight="700" color="blue.700">
+                    {noReq}
+                  </Text>{" "}
+                  to start HRD screening. This action cannot be undone.
+                </Text>
+              </Box>
+            </HStack>
+          </Box>
+          <Box h="1px" bg="gray.100" />
+          <Flex px={6} py={4} justify="flex-end" gap={3}>
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={onCancel}
+              style={{
+                padding: "8px 16px",
+                fontSize: "14px",
+                borderRadius: "8px",
+                color: "#4a5568",
+                backgroundColor: "#ffffff",
+                border: "1px solid #e2e8f0",
+                cursor: isLoading ? "not-allowed" : "pointer",
+                opacity: isLoading ? 0.6 : 1,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={onConfirm}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 20px",
+                fontSize: "14px",
+                fontWeight: "600",
+                borderRadius: "8px",
+                color: isLoading ? "#94a3b8" : "#ffffff",
+                backgroundColor: isLoading ? "#f1f5f9" : "#1d4ed8",
+                border: `1px solid ${isLoading ? "#e2e8f0" : "#1d4ed8"}`,
+                cursor: isLoading ? "not-allowed" : "pointer",
+              }}
+            >
+              <FiPlay size={13} />
+              {isLoading ? "Processing..." : "Yes, Process Now"}
+            </button>
+          </Flex>
+        </Box>
+      </Box>
+    </>
+  );
+};
 
+// ── Komponen utama ────────────────────────────────────────────────────────────
 const FptkDetail: React.FC = () => {
   const { noReq } = useParams<{ noReq: string }>();
   const navigate = useNavigate();
-  // const { user } = useAuth();
+  const { user } = useAuth();
   const [requisition, setRequisition] = useState<Requisition | null>(null);
   const [loading, setLoading] = useState(true);
+  const [processingHrd, setProcessingHrd] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // const canCreateEdit =
-  //   user?.role?.name !== "Manager" &&
-  //   user?.role?.name !== "Division Head" &&
-  //   user?.role?.name !== "Director" &&
-  //   user?.role?.name !== "Section Head";
-
-  const fetchRequisition = useCallback(async (id: string) => {
-    try {
-      setLoading(true);
-      const response = await fptkService.getRequisition(id);
-      setRequisition(response.data);
-    } catch {
-      alert("Failed to fetch requisition");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const isHrAdmin = user?.role?.name === "HR Admin";
 
   useEffect(() => {
     if (!noReq) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchRequisition(noReq);
-  }, [noReq, fetchRequisition]);
+
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const response = await fptkService.getRequisition(noReq);
+        if (!cancelled) {
+          setRequisition(response.data);
+        }
+      } catch {
+        if (!cancelled) {
+          alert("Failed to fetch requisition");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [noReq]);
+
+  const handleProcessHrd = async () => {
+    if (!noReq) return;
+    setShowConfirmModal(false);
+    try {
+      setProcessingHrd(true);
+      await fptkService.processHrd(noReq);
+      setSuccessMsg(`FPTK ${noReq} successfully processed by HRD.`);
+      const response = await fptkService.getRequisition(noReq);
+      setRequisition(response.data);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      alert(e.response?.data?.message ?? "Failed to process FPTK.");
+    } finally {
+      setProcessingHrd(false);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "-";
@@ -90,6 +237,12 @@ const FptkDetail: React.FC = () => {
   };
 
   const getStatusColor = (status: string): React.CSSProperties => {
+    if (status === "Processed HRD")
+      return {
+        backgroundColor: "#eff6ff",
+        color: "#1d4ed8",
+        border: "1px solid #bfdbfe",
+      };
     if (status === "Approved")
       return {
         backgroundColor: "#f0fdf4",
@@ -150,41 +303,124 @@ const FptkDetail: React.FC = () => {
   return (
     <MainLayout>
       <Box>
-        {/* Top bar */}
-        <HStack mb={6}>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.history.length > 1) {
-                navigate(-1);
-              } else {
-                navigate("/fptklist");
-              }
-            }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "8px 12px",
-              borderRadius: "8px",
-              fontSize: "14px",
-              color: "#4a5568",
-              backgroundColor: "#ffffff",
-              border: "1px solid #e2e8f0",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor = "#f7fafc")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = "#ffffff")
-            }
+        {/* Confirm Modal */}
+        <ConfirmModal
+          isOpen={showConfirmModal}
+          noReq={noReq ?? ""}
+          isLoading={processingHrd}
+          onConfirm={handleProcessHrd}
+          onCancel={() => setShowConfirmModal(false)}
+        />
+
+        {/* Success toast */}
+        {successMsg && (
+          <Box
+            position="fixed"
+            top={4}
+            right={4}
+            zIndex={300}
+            bg="blue.600"
+            color="white"
+            px={5}
+            py={3}
+            borderRadius="8px"
+            shadow="lg"
+            fontSize="14px"
+            fontWeight="500"
           >
-            <FiArrowLeft size={14} /> Back
-          </button>
-          <Text fontSize="2xl" fontWeight="bold" color="gray.800">
-            FPTK Details
-          </Text>
+            {successMsg}
+          </Box>
+        )}
+
+        {/* Top bar */}
+        <HStack mb={6} justify="space-between" align="center">
+          <HStack>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  navigate("/fptklist");
+                }
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 12px",
+                borderRadius: "8px",
+                fontSize: "14px",
+                color: "#4a5568",
+                backgroundColor: "#ffffff",
+                border: "1px solid #e2e8f0",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#f7fafc")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "#ffffff")
+              }
+            >
+              <FiArrowLeft size={14} /> Back
+            </button>
+            <Text fontSize="2xl" fontWeight="bold" color="gray.800">
+              FPTK Details
+            </Text>
+          </HStack>
+
+          {isHrAdmin && requisition.approval_status === "Approved" && (
+            <button
+              type="button"
+              disabled={processingHrd}
+              onClick={() => setShowConfirmModal(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 20px",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: 600,
+                color: processingHrd ? "#94a3b8" : "#ffffff",
+                backgroundColor: processingHrd ? "#f1f5f9" : "#1d4ed8",
+                border: `1px solid ${processingHrd ? "#e2e8f0" : "#1d4ed8"}`,
+                cursor: processingHrd ? "not-allowed" : "pointer",
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                if (!processingHrd)
+                  e.currentTarget.style.backgroundColor = "#1e40af";
+              }}
+              onMouseLeave={(e) => {
+                if (!processingHrd)
+                  e.currentTarget.style.backgroundColor = "#1d4ed8";
+              }}
+            >
+              <FiPlay size={14} />
+              {processingHrd ? "Processed..." : "Process"}
+            </button>
+          )}
+
+          {isHrAdmin && requisition.approval_status === "Processed HRD" && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#1d4ed8",
+                backgroundColor: "#eff6ff",
+                border: "1px solid #bfdbfe",
+              }}
+            >
+              ✓ Processed by HRD
+            </span>
+          )}
         </HStack>
 
         <Box
@@ -218,7 +454,7 @@ const FptkDetail: React.FC = () => {
               </Flex>
             </Box>
 
-            {/* ── 2-Column Layout for Main Content ── */}
+            {/* ── 2-Column Layout ── */}
             <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={10}>
               {/* Left Column */}
               <Flex direction="column" gap={8}>
@@ -226,8 +462,6 @@ const FptkDetail: React.FC = () => {
                 <Box>
                   <SectionTitle>Requirement</SectionTitle>
                   <Flex gap={4} wrap="wrap">
-                    {/* <Field label="Fullfilment Type" value={requisition.type} /> */}
-                    {/* <Field label="Group" value={requisition.group} /> */}
                     <Field label="Departement" value={requisition.department} />
                     <Field label="Section" value={requisition.section} />
                     <Field label="Position" value={requisition.position} />
@@ -264,7 +498,6 @@ const FptkDetail: React.FC = () => {
                       label="Minimum Education"
                       value={requisition.education}
                     />
-                    {/* <Field label="Maximum Age" value={requisition.max_age} /> */}
                     <Field
                       label="Min. Experience"
                       value={
@@ -275,8 +508,78 @@ const FptkDetail: React.FC = () => {
                     />
                   </Flex>
                 </Box>
+              </Flex>
 
-                {/* ── Detail Requirement ── */}
+              {/* Right Column */}
+              <Flex direction="column" gap={8}>
+                {/* ── Job Specification ── */}
+                <Box>
+                  <SectionTitle>Job Specification</SectionTitle>
+                  <Box mb={6}>
+                    <Text
+                      fontSize="11px"
+                      fontWeight="600"
+                      color="gray.400"
+                      textTransform="uppercase"
+                      letterSpacing="0.05em"
+                      mb="4px"
+                    >
+                      Technical Skill
+                    </Text>
+                    {Array.isArray(requisition.technical_skill) &&
+                    requisition.technical_skill.length > 0 ? (
+                      <Flex direction="column" gap={2}>
+                        {requisition.technical_skill.map((s, i) => (
+                          <Text
+                            key={i}
+                            fontSize="14px"
+                            color="gray.800"
+                            fontWeight="500"
+                          >
+                            {String.fromCharCode(97 + i)}.) {s}
+                          </Text>
+                        ))}
+                      </Flex>
+                    ) : (
+                      <Text fontSize="14px" color="gray.800" fontWeight="500">
+                        -
+                      </Text>
+                    )}
+                  </Box>
+                  <Box>
+                    <Text
+                      fontSize="11px"
+                      fontWeight="600"
+                      color="gray.400"
+                      textTransform="uppercase"
+                      letterSpacing="0.05em"
+                      mb="4px"
+                    >
+                      Soft Skill
+                    </Text>
+                    {Array.isArray(requisition.soft_skill) &&
+                    requisition.soft_skill.length > 0 ? (
+                      <Flex direction="column" gap={2}>
+                        {requisition.soft_skill.map((s, i) => (
+                          <Text
+                            key={i}
+                            fontSize="14px"
+                            color="gray.800"
+                            fontWeight="500"
+                          >
+                            {String.fromCharCode(97 + i)}.) {s}
+                          </Text>
+                        ))}
+                      </Flex>
+                    ) : (
+                      <Text fontSize="14px" color="gray.800" fontWeight="500">
+                        -
+                      </Text>
+                    )}
+                  </Box>
+                </Box>
+
+                {/* ── Detail Requirement ── (dipindahkan ke sini, di bawah Job Specification) */}
                 <Box>
                   <SectionTitle>Detail Requirement</SectionTitle>
                   <Flex gap={4} wrap="wrap" mb={4}>
@@ -288,11 +591,77 @@ const FptkDetail: React.FC = () => {
                       label="Requisition Objectives"
                       value={requisition.objective}
                     />
-                    <Field
-                      label="Name Of Employee Out"
-                      value={requisition.employee_out}
-                    />
+
+                    {/* ── Apprenticeship Period ── */}
+                    <Box flex={1} minW="180px">
+                      <Text
+                        fontSize="11px"
+                        fontWeight="600"
+                        color="gray.400"
+                        textTransform="uppercase"
+                        letterSpacing="0.05em"
+                        mb="2px"
+                      >
+                        Apprenticeship Period
+                      </Text>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          padding: "2px 10px",
+                          borderRadius: "999px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: requisition.apprenticeship_period
+                            ? "#15803d"
+                            : "#64748b",
+                          backgroundColor: requisition.apprenticeship_period
+                            ? "#f0fdf4"
+                            : "#f8fafc",
+                          border: `1px solid ${requisition.apprenticeship_period ? "#bbf7d0" : "#e2e8f0"}`,
+                        }}
+                      >
+                        {requisition.apprenticeship_period ? "Yes" : "No"}
+                      </span>
+                    </Box>
                   </Flex>
+
+                  {/* ── Employee Out (Replacement) ── */}
+                  {requisition.objective === "Replacement" && (
+                    <Box mb={4}>
+                      <Text
+                        fontSize="11px"
+                        fontWeight="600"
+                        color="gray.400"
+                        textTransform="uppercase"
+                        letterSpacing="0.05em"
+                        mb="4px"
+                      >
+                        Replaced Employee
+                      </Text>
+                      <Box
+                        p={3}
+                        borderRadius="8px"
+                        bg="#f0fdf4"
+                        border="1px solid #bbf7d0"
+                        display="inline-block"
+                      >
+                        <Text
+                          fontSize="14px"
+                          fontWeight="600"
+                          color="green.700"
+                        >
+                          {requisition.employee_out || "-"}
+                        </Text>
+                        {requisition.replacement_employee?.npk && (
+                          <Text fontSize="12px" color="green.600">
+                            NPK: {requisition.replacement_employee.npk}
+                          </Text>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+
                   <Flex gap={4} wrap="wrap">
                     <Box flex={1} minW="180px">
                       <Text
@@ -352,110 +721,11 @@ const FptkDetail: React.FC = () => {
                   </Flex>
                 </Box>
               </Flex>
-
-              {/* Right Column */}
-              <Flex direction="column" gap={8}>
-                {/* ── Job Specification ── */}
-                <Box>
-                  <SectionTitle>Job Specification</SectionTitle>
-
-                  {/* Technical Skills */}
-                  <Box mb={6}>
-                    <Text
-                      fontSize="11px"
-                      fontWeight="600"
-                      color="gray.400"
-                      textTransform="uppercase"
-                      letterSpacing="0.05em"
-                      mb="4px"
-                    >
-                      Technical Skill
-                    </Text>
-                    {Array.isArray(requisition.technical_skill) &&
-                    requisition.technical_skill.length > 0 ? (
-                      <Flex direction="column" gap={2}>
-                        {requisition.technical_skill.map((s, i) => (
-                          <Text
-                            key={i}
-                            fontSize="14px"
-                            color="gray.800"
-                            fontWeight="500"
-                          >
-                            {String.fromCharCode(97 + i)}.) {s}
-                          </Text>
-                        ))}
-                      </Flex>
-                    ) : (
-                      <Text fontSize="14px" color="gray.800" fontWeight="500">
-                        -
-                      </Text>
-                    )}
-                  </Box>
-
-                  {/* Soft Skills */}
-                  <Box>
-                    <Text
-                      fontSize="11px"
-                      fontWeight="600"
-                      color="gray.400"
-                      textTransform="uppercase"
-                      letterSpacing="0.05em"
-                      mb="4px"
-                    >
-                      Soft Skill
-                    </Text>
-                    {Array.isArray(requisition.soft_skill) &&
-                    requisition.soft_skill.length > 0 ? (
-                      <Flex direction="column" gap={2}>
-                        {requisition.soft_skill.map((s, i) => (
-                          <Text
-                            key={i}
-                            fontSize="14px"
-                            color="gray.800"
-                            fontWeight="500"
-                          >
-                            {String.fromCharCode(97 + i)}.) {s}
-                          </Text>
-                        ))}
-                      </Flex>
-                    ) : (
-                      <Text fontSize="14px" color="gray.800" fontWeight="500">
-                        -
-                      </Text>
-                    )}
-                  </Box>
-                </Box>
-
-                {/* ── Job Description ──
-                <Box>
-                  <SectionTitle>Job Description</SectionTitle>
-                  <Box>
-                    <Text
-                      fontSize="11px"
-                      fontWeight="600"
-                      color="gray.400"
-                      textTransform="uppercase"
-                      letterSpacing="0.05em"
-                      mb="4px"
-                    >
-                      Description
-                    </Text>
-                    <Text
-                      fontSize="14px"
-                      color="gray.800"
-                      fontWeight="500"
-                      whiteSpace="pre-wrap"
-                    >
-                      {requisition.description || "-"}
-                    </Text>
-                  </Box>
-                </Box> */}
-              </Flex>
             </Grid>
 
             {/* ── Opsi / Approval Information ── */}
             <Box>
-              <SectionTitle>Opsi</SectionTitle>
+              <SectionTitle>Appover</SectionTitle>
               <Flex gap={4} wrap="wrap">
                 {[
                   {
@@ -510,15 +780,22 @@ const FptkDetail: React.FC = () => {
                     letterSpacing="0.05em"
                     mb="2px"
                   >
-                    HRD Approved
+                    Processed by HRD
                   </Text>
                   <Text
                     fontSize="14px"
                     fontWeight="500"
-                    color={requisition.hrd_approved ? "green.600" : "gray.800"}
+                    color={
+                      requisition.hrd_processed_by ? "blue.600" : "gray.800"
+                    }
                   >
-                    {requisition.hrd_approved ? "✓ Yes" : "-"}
+                    {requisition.hrd_processed_by || "-"}
                   </Text>
+                  {requisition.hrd_processed_at && (
+                    <Text fontSize="12px" color="blue.500" mt="2px">
+                      ✓ Processed: {formatDate(requisition.hrd_processed_at)}
+                    </Text>
+                  )}
                 </Box>
               </Flex>
 
