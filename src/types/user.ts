@@ -5,6 +5,7 @@ export interface UserItem {
   username: string;
   email: string;
   is_admin: boolean;
+  can_view_manpower?: boolean;
   department?: { id: number; name: string } | null;
   section?: { id: number; name: string } | null;
   role_level?: { id: number; name: string } | null;
@@ -23,6 +24,7 @@ export interface UserListParams {
   section_id?: number | string;
   role_level_id?: number | string;
   is_admin?: boolean | string;
+  can_view_manpower?: boolean | string;
   page?: number;
   per_page?: number;
 }
@@ -42,6 +44,7 @@ export interface UserFormData {
   approver_division_id?: number | string | null;
   approver_director_id?: number | string | null;
   is_admin?: boolean;
+  can_view_manpower?: boolean;
 }
 
 export interface ResetPasswordData {

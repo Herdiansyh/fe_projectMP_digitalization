@@ -8,6 +8,7 @@ import {
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import EmployeeList from "./pages/Employee/EmployeeList";
+import InternList from "./pages/Intern/InternList";
 
 const Login = lazy(() => import("./pages/Login/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
@@ -122,12 +123,19 @@ function App() {
                 </ProtectedRoute>
               }
             />
-
+            <Route
+              path="/interns"
+              element={
+                <ProtectedRoute manpowerOnly>
+                  <InternList />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route
               path="/employees"
               element={
-                <ProtectedRoute adminOnly>
+                <ProtectedRoute manpowerOnly>
                   <EmployeeList />
                 </ProtectedRoute>
               }

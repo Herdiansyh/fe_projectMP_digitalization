@@ -322,6 +322,7 @@ const UserList: React.FC = () => {
                       "Section", // ← ditambahkan
                       "Role Level",
                       "Admin",
+                      "MP Access",
                       "Action",
                     ].map((h) => (
                       <th
@@ -440,6 +441,13 @@ const UserList: React.FC = () => {
                         )}
                       </td>
                       <td style={{ padding: "12px 14px" }}>
+                        {u.can_view_manpower ? (
+                          <Badge colorPalette="green">Yes</Badge>
+                        ) : (
+                          <Badge colorPalette="gray">No</Badge>
+                        )}
+                      </td>
+                      <td style={{ padding: "12px 14px" }}>
                         <HStack gap={1}>
                           {iconBtn(
                             "#16a34a",
@@ -554,7 +562,9 @@ const UserList: React.FC = () => {
           user={resetModal.user}
           onClose={() => setResetModal({ open: false, user: null })}
           onSuccess={() =>
-            showSuccess(`Password for ${resetModal.user!.name} reset successfully.`)
+            showSuccess(
+              `Password for ${resetModal.user!.name} reset successfully.`,
+            )
           }
         />
       )}

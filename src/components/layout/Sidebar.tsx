@@ -109,6 +109,7 @@ const IconHistory = () => (
     <polyline points="12 6 12 12 16 14" />
   </svg>
 );
+
 const IconEmployee = () => (
   <svg
     width="16"
@@ -124,13 +125,36 @@ const IconEmployee = () => (
     <circle cx="12" cy="7" r="4" />
   </svg>
 );
+
+const IconIntern = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M22 10v6M2 10l10-5 10 5-10 5-10-5z" />
+    <path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5" />
+  </svg>
+);
+
 const approvalNavItems: NavItem[] = [
   { label: "Pending Approvals", path: "/fptk/pending", icon: <IconPending /> },
 ];
 
-const adminNavItems: NavItem[] = [
+// ── Khusus is_admin === true (User Management TIDAK boleh dibuka selain admin) ──
+const adminOnlyNavItems: NavItem[] = [
   { label: "User Management", path: "/users", icon: <IconUsers /> },
+];
+
+// ── Boleh diakses is_admin ATAU can_view_manpower ──
+const manpowerNavItems: NavItem[] = [
   { label: "Manpower Management", path: "/employees", icon: <IconEmployee /> },
+  { label: "Manpower Pemagangan", path: "/interns", icon: <IconIntern /> },
 ];
 
 interface SidebarProps {
@@ -153,7 +177,19 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
   const isHrAdmin = roleName === "HR Admin";
 
+  // ── Dua flag akses terpisah ──
   const isAdmin = user?.is_admin === true;
+  const canViewManpower = user?.can_view_manpower === true;
+
+  // Section "Admin" di sidebar tampil kalau salah satu benar
+  const showAdminSection = isAdmin || canViewManpower;
+
+  // Item yang benar-benar ditampilkan di section Admin,
+  // digabung sesuai hak masing-masing user
+  const visibleAdminSectionItems: NavItem[] = [
+    ...(isAdmin ? adminOnlyNavItems : []), // User Management → wajib is_admin
+    ...(isAdmin || canViewManpower ? manpowerNavItems : []), // Manpower → admin ATAU permission khusus
+  ];
 
   const navItems: NavItem[] = [
     { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
@@ -183,6 +219,51 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
         ]
       : []),
   ];
+
+  const renderNavItem = (item: NavItem) => {
+    const isActive = location.pathname === item.path;
+    return (
+      <Flex
+        key={item.path}
+        align="center"
+        gap={3}
+        px={4}
+        h="40px"
+        mx={2}
+        borderRadius="md"
+        cursor="pointer"
+        bg={isActive ? "brand.50" : "transparent"}
+        color={isActive ? "brand.500" : "gray.500"}
+        _hover={{
+          bg: isActive ? "brand.50" : "gray.50",
+          color: isActive ? "brand.500" : "gray.700",
+        }}
+        transition="all 0.15s"
+        onClick={() => navigate(item.path)}
+        position="relative"
+      >
+        {isActive && (
+          <Box
+            position="absolute"
+            left={0}
+            top="20%"
+            h="60%"
+            w="3px"
+            bg="brand.500"
+            borderRadius="0 2px 2px 0"
+          />
+        )}
+        <Box flexShrink={0}>{item.icon}</Box>
+        <Text
+          fontSize="13px"
+          fontWeight={isActive ? "500" : "400"}
+          whiteSpace="nowrap"
+        >
+          {item.label}
+        </Text>
+      </Flex>
+    );
+  };
 
   return (
     <>
@@ -279,53 +360,13 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             Menu
           </Text>
 
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Flex
-                key={item.path}
-                align="center"
-                gap={3}
-                px={4}
-                h="40px"
-                mx={2}
-                borderRadius="md"
-                cursor="pointer"
-                bg={isActive ? "brand.50" : "transparent"}
-                color={isActive ? "brand.500" : "gray.500"}
-                _hover={{
-                  bg: isActive ? "brand.50" : "gray.50",
-                  color: isActive ? "brand.500" : "gray.700",
-                }}
-                transition="all 0.15s"
-                onClick={() => navigate(item.path)}
-                position="relative"
-              >
-                {isActive && (
-                  <Box
-                    position="absolute"
-                    left={0}
-                    top="20%"
-                    h="60%"
-                    w="3px"
-                    bg="brand.500"
-                    borderRadius="0 2px 2px 0"
-                  />
-                )}
-                <Box flexShrink={0}>{item.icon}</Box>
-                <Text
-                  fontSize="13px"
-                  fontWeight={isActive ? "500" : "400"}
-                  whiteSpace="nowrap"
-                >
-                  {item.label}
-                </Text>
-              </Flex>
-            );
-          })}
+          {navItems.map(renderNavItem)}
 
-          {/* Admin section — hanya tampil untuk admin */}
-          {isAdmin && (
+          {/* Admin section — tampil untuk is_admin ATAU can_view_manpower.
+              Isi barisnya berbeda tergantung hak masing-masing:
+              - User Management HANYA untuk is_admin === true
+              - Manpower Management/Pemagangan untuk is_admin ATAU can_view_manpower === true */}
+          {showAdminSection && (
             <>
               <Text
                 fontSize="10px"
@@ -340,50 +381,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
               >
                 Admin
               </Text>
-              {adminNavItems.map((item) => {
-                const isActive = location.pathname === item.path;
-                return (
-                  <Flex
-                    key={item.path}
-                    align="center"
-                    gap={3}
-                    px={4}
-                    h="40px"
-                    mx={2}
-                    borderRadius="md"
-                    cursor="pointer"
-                    bg={isActive ? "brand.50" : "transparent"}
-                    color={isActive ? "brand.500" : "gray.500"}
-                    _hover={{
-                      bg: isActive ? "brand.50" : "gray.50",
-                      color: isActive ? "brand.500" : "gray.700",
-                    }}
-                    transition="all 0.15s"
-                    onClick={() => navigate(item.path)}
-                    position="relative"
-                  >
-                    {isActive && (
-                      <Box
-                        position="absolute"
-                        left={0}
-                        top="20%"
-                        h="60%"
-                        w="3px"
-                        bg="brand.500"
-                        borderRadius="0 2px 2px 0"
-                      />
-                    )}
-                    <Box flexShrink={0}>{item.icon}</Box>
-                    <Text
-                      fontSize="13px"
-                      fontWeight={isActive ? "500" : "400"}
-                      whiteSpace="nowrap"
-                    >
-                      {item.label}
-                    </Text>
-                  </Flex>
-                );
-              })}
+              {visibleAdminSectionItems.map(renderNavItem)}
             </>
           )}
         </Box>

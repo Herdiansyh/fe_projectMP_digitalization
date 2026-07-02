@@ -152,6 +152,16 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
                   )
                 }
               />
+              <DetailRow
+                label="Manpower Access"
+                value={
+                  user.can_view_manpower ? (
+                    <Badge colorPalette="green">Can View</Badge>
+                  ) : (
+                    <Badge colorPalette="gray">No Access</Badge>
+                  )
+                }
+              />
             </Box>
 
             {/* ── Approver Chain ── */}

@@ -2,17 +2,17 @@ import React, { useState, useEffect } from "react";
 import { Box, Text, Flex, Grid, Stack } from "@chakra-ui/react";
 import { FiX, FiSave } from "react-icons/fi";
 import type {
-  CreateEmployeeInput,
-  Employee,
-  UpdateEmployeeInput,
-} from "../../types/employee";
+  CreateInternInput,
+  Intern,
+  UpdateInternInput,
+} from "../../types/intern";
 import type { MasterData } from "../UserManagement/UserFormModal";
-import employeeService from "../../services/employeeService";
+import internService from "../../services/internService";
 import { toaster } from "../../components/ui/toaster";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const EMPTY_FORM: CreateEmployeeInput = {
+const EMPTY_FORM: CreateInternInput = {
   npk: "",
   name: "",
   gender: "male",
@@ -21,8 +21,8 @@ const EMPTY_FORM: CreateEmployeeInput = {
   role_level: "",
   jabatan: "",
   area: "",
+  line: "",
   station: "",
-  employment_type: "permanent",
   start_contract: "",
   end_contract: null,
 };
@@ -60,9 +60,9 @@ const labelStyle: React.CSSProperties = {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface EmployeeFormModalProps {
+interface InternFormModalProps {
   isOpen: boolean;
-  editTarget: Employee | null;
+  editTarget: Intern | null;
   masterData: MasterData | null;
   onClose: () => void;
   onSaved: () => void;
@@ -70,14 +70,14 @@ interface EmployeeFormModalProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
+const InternFormModal: React.FC<InternFormModalProps> = ({
   isOpen,
   editTarget,
   masterData,
   onClose,
   onSaved,
 }) => {
-  const [form, setForm] = useState<CreateEmployeeInput>(EMPTY_FORM);
+  const [form, setForm] = useState<CreateInternInput>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
@@ -92,8 +92,8 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
         role_level: editTarget.role_level ?? "",
         jabatan: editTarget.jabatan ?? "",
         area: editTarget.area ?? "",
+        line: editTarget.line ?? "",
         station: editTarget.station ?? "",
-        employment_type: editTarget.employment_type,
         start_contract: editTarget.start_contract,
         end_contract: editTarget.end_contract ?? null,
       });
@@ -105,7 +105,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleChange = (field: keyof CreateEmployeeInput, value: unknown) => {
+  const handleChange = (field: keyof CreateInternInput, value: unknown) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: [] }));
   };
@@ -114,24 +114,20 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
     e.preventDefault();
     try {
       setLoading(true);
-      const payload = {
-        ...form,
-        end_contract:
-          form.employment_type === "permanent" ? null : form.end_contract,
-      };
+      const payload = { ...form };
       if (editTarget) {
-        await employeeService.updateEmployee(
+        await internService.updateIntern(
           editTarget.id,
-          payload as UpdateEmployeeInput,
+          payload as UpdateInternInput,
         );
         toaster.create({
-          title: "Employee updated successfully",
+          title: "Intern updated successfully",
           type: "success",
         });
       } else {
-        await employeeService.createEmployee(payload);
+        await internService.createIntern(payload);
         toaster.create({
-          title: "Employee added successfully",
+          title: "Intern added successfully",
           type: "success",
         });
       }
@@ -214,7 +210,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
             borderBottom="1px solid #e2e8f0"
           >
             <Text fontSize="16px" fontWeight="700" color="gray.800">
-              {editTarget ? "Edit Employee" : "Add Employee"}
+              {editTarget ? "Edit Intern" : "Add Intern"}
             </Text>
             <button
               type="button"
@@ -238,7 +234,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
 
           {/* Body */}
           <Box px={6} py={5} style={{ overflowY: "auto", flex: 1 }}>
-            <form id="employee-form" onSubmit={handleSubmit}>
+            <form id="intern-form" onSubmit={handleSubmit}>
               <Stack gap={5}>
                 {/* NPK & Nama */}
                 <Grid templateColumns="1fr 1fr" gap={4}>
@@ -249,7 +245,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                       required
                       value={form.npk}
                       onChange={(e) => handleChange("npk", e.target.value)}
-                      placeholder="Example: AVI001"
+                      placeholder="Example: INT001"
                     />
                     {errorText("npk")}
                   </Box>
@@ -263,6 +259,31 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                       placeholder="Full name"
                     />
                     {errorText("name")}
+                  </Box>
+                </Grid>
+
+                {/* Gender */}
+                <Grid templateColumns="1fr 1fr" gap={4}>
+                  <Box>
+                    <label style={labelStyle}>Gender *</label>
+                    <select
+                      style={selectStyle}
+                      value={form.gender}
+                      onChange={(e) => handleChange("gender", e.target.value)}
+                    >
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </select>
+                    {errorText("gender")}
+                  </Box>
+                  <Box>
+                    <label style={labelStyle}>Position</label>
+                    <input
+                      style={inputStyle}
+                      value={form.jabatan ?? ""}
+                      onChange={(e) => handleChange("jabatan", e.target.value)}
+                      placeholder="Specific position name"
+                    />
                   </Box>
                 </Grid>
 
@@ -310,7 +331,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                   </Box>
                 </Grid>
 
-                {/* Role Level & Jabatan */}
+                {/* Role Level & Area */}
                 <Grid templateColumns="1fr 1fr" gap={4}>
                   <Box>
                     <label style={labelStyle}>Role Level</label>
@@ -324,25 +345,25 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                     />
                   </Box>
                   <Box>
-                    <label style={labelStyle}>Position</label>
-                    <input
-                      style={inputStyle}
-                      value={form.jabatan ?? ""}
-                      onChange={(e) => handleChange("jabatan", e.target.value)}
-                      placeholder="Specific position name"
-                    />
-                  </Box>
-                </Grid>
-
-                {/* Area & Station */}
-                <Grid templateColumns="1fr 1fr" gap={4}>
-                  <Box>
                     <label style={labelStyle}>Area</label>
                     <input
                       style={inputStyle}
                       value={form.area ?? ""}
                       onChange={(e) => handleChange("area", e.target.value)}
                       placeholder="Example: Assembly"
+                    />
+                  </Box>
+                </Grid>
+
+                {/* Line & Station */}
+                <Grid templateColumns="1fr 1fr" gap={4}>
+                  <Box>
+                    <label style={labelStyle}>Line</label>
+                    <input
+                      style={inputStyle}
+                      value={form.line ?? ""}
+                      onChange={(e) => handleChange("line", e.target.value)}
+                      placeholder="Example: Line A"
                     />
                   </Box>
                   <Box>
@@ -356,43 +377,10 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                   </Box>
                 </Grid>
 
-                {/* Gender & Employment Type */}
-                <Grid templateColumns="1fr 1fr" gap={4}>
-                  <Box>
-                    <label style={labelStyle}>Gender *</label>
-                    <select
-                      style={selectStyle}
-                      value={form.gender}
-                      onChange={(e) => handleChange("gender", e.target.value)}
-                    >
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                    </select>
-                    {errorText("gender")}
-                  </Box>
-                  <Box>
-                    <label style={labelStyle}>Employee Type *</label>
-                    <select
-                      style={selectStyle}
-                      value={form.employment_type}
-                      onChange={(e) => {
-                        handleChange("employment_type", e.target.value);
-                        if (e.target.value === "permanent")
-                          handleChange("end_contract", null);
-                      }}
-                    >
-                      <option value="permanent">Permanent</option>
-                      <option value="contract">Contract</option>
-                      <option value="apprentice">Apprentice</option>
-                    </select>
-                    {errorText("employment_type")}
-                  </Box>
-                </Grid>
-
                 {/* Start & End Contract */}
                 <Grid templateColumns="1fr 1fr" gap={4}>
                   <Box>
-                    <label style={labelStyle}>Contract Start Date *</label>
+                    <label style={labelStyle}>Internship Start Date *</label>
                     <input
                       type="date"
                       style={inputStyle}
@@ -404,21 +392,19 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                     />
                     {errorText("start_contract")}
                   </Box>
-                  {form.employment_type !== "permanent" && (
-                    <Box>
-                      <label style={labelStyle}>Contract End Date *</label>
-                      <input
-                        type="date"
-                        style={inputStyle}
-                        required
-                        value={form.end_contract ?? ""}
-                        onChange={(e) =>
-                          handleChange("end_contract", e.target.value || null)
-                        }
-                      />
-                      {errorText("end_contract")}
-                    </Box>
-                  )}
+                  <Box>
+                    <label style={labelStyle}>Internship End Date *</label>
+                    <input
+                      type="date"
+                      style={inputStyle}
+                      required
+                      value={form.end_contract ?? ""}
+                      onChange={(e) =>
+                        handleChange("end_contract", e.target.value || null)
+                      }
+                    />
+                    {errorText("end_contract")}
+                  </Box>
                 </Grid>
               </Stack>
             </form>
@@ -445,7 +431,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
               Cancel
             </button>
             <button
-              form="employee-form"
+              form="intern-form"
               type="submit"
               disabled={loading}
               style={{
@@ -467,7 +453,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                 ? "Saving..."
                 : editTarget
                   ? "Save Changes"
-                  : "Add Employee"}
+                  : "Add Intern"}
             </button>
           </Flex>
         </Box>
@@ -476,4 +462,4 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
   );
 };
 
-export default EmployeeFormModal;
+export default InternFormModal;

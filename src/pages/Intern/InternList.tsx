@@ -2,16 +2,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Box, Text, Flex, Input, HStack, Grid } from "@chakra-ui/react";
 import { FiPlus, FiEdit2, FiTrash2, FiSearch } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
-import employeeService from "../../services/employeeService";
+import internService from "../../services/internService";
 import { toaster } from "../../components/ui/toaster";
 import fptkService from "../../services/fptkService";
-import type { Employee } from "../../types/employee";
+import type { Intern } from "../../types/intern";
 import DeleteModal from "./DeleteModal";
-import EmployeeFormModal from "./EmployeeFormModal";
+import InternFormModal from "./InternFormModal";
 import type { MasterData } from "../../types/fptk";
-import EmployeeDetailModal from "./EmployeeDetailModal";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
+import InternDetailModal from "./InternDetailModal";
 
 const formatDate = (dateString?: string | null) => {
   if (!dateString) return "-";
@@ -31,118 +29,65 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-// ── Badge ─────────────────────────────────────────────────────────────────────
-
-const Badge = ({
-  children,
-  color,
-  bg,
-  border,
-}: {
-  children: React.ReactNode;
-  color: string;
-  bg: string;
-  border: string;
-}) => (
+// ── Main Component ────────────────────────────────────────────────────────────
+const NeedEvaluationBadge = () => (
   <span
     style={{
       display: "inline-flex",
       alignItems: "center",
-      padding: "2px 10px",
+      gap: "4px",
+      padding: "2px 8px",
       borderRadius: "999px",
-      fontSize: "12px",
-      fontWeight: 600,
-      color,
-      backgroundColor: bg,
-      border: `1px solid ${border}`,
+      fontSize: "11px",
+      fontWeight: 700,
+      color: "#be123c",
+      backgroundColor: "#fff1f2",
+      border: "1px solid #fecdd3",
+      marginTop: "4px",
     }}
   >
-    {children}
+    ⚠ Need Evaluation
   </span>
 );
-
-const employmentTypeBadge = (type: string) => {
-  const map: Record<
-    string,
-    { color: string; bg: string; border: string; label: string }
-  > = {
-    permanent: {
-      color: "#15803d",
-      bg: "#f0fdf4",
-      border: "#bbf7d0",
-      label: "Permanent",
-    },
-    contract: {
-      color: "#92400e",
-      bg: "#fffbeb",
-      border: "#fde68a",
-      label: "Contract",
-    },
-    apprentice: {
-      color: "#1d4ed8",
-      bg: "#eff6ff",
-      border: "#bfdbfe",
-      label: "Apprentice",
-    },
-  };
-  const s = map[type] ?? {
-    color: "#64748b",
-    bg: "#f8fafc",
-    border: "#e2e8f0",
-    label: type,
-  };
-  return <Badge {...s}>{s.label}</Badge>;
-};
-
-// Status logic removed — no status badges
-
-// ── Main Component ────────────────────────────────────────────────────────────
-
-const EmployeeList: React.FC = () => {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+const InternList: React.FC = () => {
+  const [interns, setInterns] = useState<Intern[]>([]);
   const [masterData, setMasterData] = useState<MasterData | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterDept, setFilterDept] = useState("");
-  const [filterType, setFilterType] = useState("");
-
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalData, setTotalData] = useState(0);
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Employee | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
+  const [editTarget, setEditTarget] = useState<Intern | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Intern | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [detailTarget, setDetailTarget] = useState<Employee | null>(null);
+  const [detailTarget, setDetailTarget] = useState<Intern | null>(null);
 
   const debouncedSearch = useDebounce(search, 400);
 
-  const fetchEmployees = useCallback(
+  const fetchInterns = useCallback(
     async (page = 1) => {
       try {
         setLoading(true);
-        const res = await employeeService.getEmployees({
+        const res = await internService.getInterns({
           page,
           per_page: 15,
           search: debouncedSearch || undefined,
           department_id: filterDept ? Number(filterDept) : undefined,
-          employment_type: filterType || undefined,
         });
-        setEmployees(res.data.data);
+        setInterns(res.data.data);
         setTotalPages(res.data.last_page);
         setTotalData(res.data.total);
         setCurrentPage(res.data.current_page);
       } catch {
-        toaster.create({
-          title: "Failed to load employee data",
-          type: "error",
-        });
+        toaster.create({ title: "Failed to load intern data", type: "error" });
       } finally {
         setLoading(false);
       }
     },
-    [debouncedSearch, filterDept, filterType],
+    [debouncedSearch, filterDept],
   );
 
   useEffect(() => {
@@ -150,26 +95,21 @@ const EmployeeList: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void fetchEmployees(1);
-  }, [fetchEmployees]);
+    void fetchInterns(1);
+  }, [fetchInterns]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
       setDeleting(true);
-      await employeeService.deleteEmployee(deleteTarget.id);
-      toaster.create({
-        title: "Employee deleted successfully",
-        type: "success",
-      });
+      await internService.deleteIntern(deleteTarget.id);
+      toaster.create({ title: "Intern deleted successfully", type: "success" });
       setDeleteTarget(null);
       const targetPage =
-        employees.length === 1 && currentPage > 1
-          ? currentPage - 1
-          : currentPage;
-      void fetchEmployees(targetPage);
+        interns.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+      void fetchInterns(targetPage);
     } catch {
-      toaster.create({ title: "Failed to delete employee", type: "error" });
+      toaster.create({ title: "Failed to delete intern", type: "error" });
     } finally {
       setDeleting(false);
     }
@@ -190,7 +130,7 @@ const EmployeeList: React.FC = () => {
 
   return (
     <MainLayout>
-      <EmployeeFormModal
+      <InternFormModal
         isOpen={formOpen}
         editTarget={editTarget}
         masterData={masterData}
@@ -198,29 +138,30 @@ const EmployeeList: React.FC = () => {
           setFormOpen(false);
           setEditTarget(null);
         }}
-        onSaved={() => void fetchEmployees(currentPage)}
+        onSaved={() => void fetchInterns(currentPage)}
       />
       <DeleteModal
         isOpen={!!deleteTarget}
-        employee={deleteTarget}
+        intern={deleteTarget}
         isLoading={deleting}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
-      <EmployeeDetailModal
+      <InternDetailModal
         isOpen={!!detailTarget}
-        employee={detailTarget}
+        intern={detailTarget}
         onClose={() => setDetailTarget(null)}
       />
+
       <Box>
         {/* Header */}
         <Flex mb={6} justify="space-between" align="center">
           <Box>
             <Text fontSize="2xl" fontWeight="bold" color="gray.800">
-              Manpower Management
+              Internship Manpower{" "}
             </Text>
             <Text fontSize="sm" color="gray.500" mt={1}>
-              {totalData} total registered employees
+              {totalData} total registered interns
             </Text>
           </Box>
           <button
@@ -249,7 +190,7 @@ const EmployeeList: React.FC = () => {
               (e.currentTarget.style.backgroundColor = "#1A5EA8")
             }
           >
-            <FiPlus size={15} /> Add Employee
+            <FiPlus size={15} /> Add Intern
           </button>
         </Flex>
 
@@ -263,10 +204,7 @@ const EmployeeList: React.FC = () => {
           p={4}
           mb={4}
         >
-          <Grid
-            templateColumns={{ base: "1fr", md: "2fr 1fr 1fr 1fr" }}
-            gap={3}
-          >
+          <Grid templateColumns={{ base: "1fr", md: "2fr 1fr" }} gap={3}>
             <Box position="relative">
               <Box
                 position="absolute"
@@ -306,24 +244,6 @@ const EmployeeList: React.FC = () => {
                 </option>
               ))}
             </select>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              style={{
-                padding: "8px 12px",
-                borderRadius: "8px",
-                border: "1px solid #e2e8f0",
-                backgroundColor: "#f9fafb",
-                fontSize: "14px",
-                color: "#1a202c",
-              }}
-            >
-              <option value="">All Types</option>
-              <option value="permanent">Permanent</option>
-              <option value="contract">Contract</option>
-              <option value="apprentice">Apprentice</option>
-            </select>
-            {/* Status filter removed */}
           </Grid>
         </Box>
 
@@ -344,8 +264,8 @@ const EmployeeList: React.FC = () => {
                   <th style={thStyle}>Name</th>
                   <th style={thStyle}>Department</th>
                   <th style={thStyle}>Position</th>
-                  <th style={thStyle}>Type</th>
-                  <th style={thStyle}>End Contract</th>
+                  <th style={thStyle}>Area / Line</th>
+                  <th style={thStyle}>End Internship</th>
                   <th style={{ ...thStyle, textAlign: "center" }}>Action</th>
                 </tr>
               </thead>
@@ -364,7 +284,7 @@ const EmployeeList: React.FC = () => {
                       Loading data...
                     </td>
                   </tr>
-                ) : employees.length === 0 ? (
+                ) : interns.length === 0 ? (
                   <tr>
                     <td
                       colSpan={7}
@@ -375,16 +295,16 @@ const EmployeeList: React.FC = () => {
                         fontSize: "14px",
                       }}
                     >
-                      No employee data
+                      No intern data
                     </td>
                   </tr>
                 ) : (
-                  employees.map((emp) => {
-                    const isWarning = !!emp.is_near_expiry;
+                  interns.map((intern) => {
+                    const isWarning = !!intern.is_near_expiry;
                     return (
                       <tr
-                        key={emp.id}
-                        onClick={() => setDetailTarget(emp)}
+                        key={intern.id}
+                        onClick={() => setDetailTarget(intern)}
                         style={{
                           backgroundColor: isWarning ? "#fff5f5" : "white",
                           borderBottom: "1px solid #f1f5f9",
@@ -409,7 +329,7 @@ const EmployeeList: React.FC = () => {
                             color: "#1a202c",
                           }}
                         >
-                          {emp.npk}
+                          {intern.npk}
                         </td>
                         <td
                           style={{
@@ -418,10 +338,10 @@ const EmployeeList: React.FC = () => {
                             color: "#1a202c",
                           }}
                         >
-                          <Text fontWeight="500">{emp.name}</Text>
-                          {emp.gender && (
+                          <Text fontWeight="500">{intern.name}</Text>
+                          {intern.gender && (
                             <Text fontSize="12px" color="gray.400">
-                              {emp.gender === "male" ? "Male" : "Female"}
+                              {intern.gender === "male" ? "Male" : "Female"}
                             </Text>
                           )}
                         </td>
@@ -432,10 +352,10 @@ const EmployeeList: React.FC = () => {
                             color: "#475569",
                           }}
                         >
-                          <div>{emp.department?.name ?? "-"}</div>
-                          {emp.section && (
+                          <div>{intern.department?.name ?? "-"}</div>
+                          {intern.section && (
                             <div style={{ fontSize: "12px", color: "#94a3b8" }}>
-                              {emp.section.name}
+                              {intern.section.name}
                             </div>
                           )}
                         </td>
@@ -446,26 +366,40 @@ const EmployeeList: React.FC = () => {
                             color: "#475569",
                           }}
                         >
-                          {emp.jabatan ?? "-"}
+                          {intern.jabatan ?? "-"}
                         </td>
-                        <td style={{ padding: "12px 16px" }}>
-                          {employmentTypeBadge(emp.employment_type)}
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            fontSize: "13px",
+                            color: "#475569",
+                          }}
+                        >
+                          {intern.area || "-"}
+                          {intern.line && (
+                            <div style={{ fontSize: "12px", color: "#94a3b8" }}>
+                              {intern.line}
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: "12px 16px", fontSize: "13px" }}>
-                          {emp.end_contract ? (
+                          {intern.end_contract ? (
                             <Box>
                               <Text
                                 fontWeight={isWarning ? 700 : 400}
                                 color={isWarning ? "red.600" : "gray.700"}
                               >
                                 {isWarning && "⚠️ "}
-                                {formatDate(emp.end_contract)}
+                                {formatDate(intern.end_contract)}
                               </Text>
-                              {isWarning && emp.days_until_expiry !== null && (
-                                <Text fontSize="12px" color="red.400">
-                                  {emp.days_until_expiry} days left
-                                </Text>
-                              )}
+                              {isWarning &&
+                                intern.days_until_expiry !== null && (
+                                  <>
+                                    <Box mt={1}>
+                                      <NeedEvaluationBadge />
+                                    </Box>
+                                  </>
+                                )}
                             </Box>
                           ) : (
                             <Text color="gray.400">-</Text>
@@ -479,7 +413,7 @@ const EmployeeList: React.FC = () => {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditTarget(emp);
+                                setEditTarget(intern);
                                 setFormOpen(true);
                               }}
                               style={{
@@ -502,7 +436,7 @@ const EmployeeList: React.FC = () => {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setDeleteTarget(emp);
+                                setDeleteTarget(intern);
                               }}
                               style={{
                                 width: "32px",
@@ -546,7 +480,7 @@ const EmployeeList: React.FC = () => {
                 <button
                   type="button"
                   disabled={currentPage === 1 || loading}
-                  onClick={() => void fetchEmployees(currentPage - 1)}
+                  onClick={() => void fetchInterns(currentPage - 1)}
                   style={{
                     padding: "6px 12px",
                     fontSize: "13px",
@@ -563,7 +497,7 @@ const EmployeeList: React.FC = () => {
                 <button
                   type="button"
                   disabled={currentPage === totalPages || loading}
-                  onClick={() => void fetchEmployees(currentPage + 1)}
+                  onClick={() => void fetchInterns(currentPage + 1)}
                   style={{
                     padding: "6px 12px",
                     fontSize: "13px",
@@ -588,4 +522,4 @@ const EmployeeList: React.FC = () => {
   );
 };
 
-export default EmployeeList;
+export default InternList;

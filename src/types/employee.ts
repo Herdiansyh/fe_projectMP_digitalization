@@ -5,12 +5,12 @@ export interface Employee {
   gender: "male" | "female";
   department_id: number | null;
   section_id: number | null;
-  role_level_id: number | null;
+  role_level?: string | null;
   jabatan: string | null;
   area: string | null;
+  line?: string | null;
   station: string | null;
   employment_type: "permanent" | "contract" | "apprentice";
-  status: "active" | "nonactive" | "resigned";
   start_contract: string;
   end_contract: string | null;
   created_at: string;
@@ -19,7 +19,6 @@ export interface Employee {
   // Relasi (dari resource)
   department?: { id: number; name: string };
   section?: { id: number; name: string };
-  role_level?: { id: number; name: string };
 
   // Accessor dari backend
   is_near_expiry?: boolean;
@@ -32,12 +31,11 @@ export interface CreateEmployeeInput {
   gender: "male" | "female";
   department_id?: number | null;
   section_id?: number | null;
-  role_level_id?: number | null;
+  role_level?: string | null;
   jabatan?: string | null;
   area?: string | null;
   station?: string | null;
   employment_type: "permanent" | "contract" | "apprentice";
-  status: "active" | "nonactive" | "resigned";
   start_contract: string;
   end_contract?: string | null;
 }
@@ -48,12 +46,11 @@ export interface UpdateEmployeeInput {
   gender?: "male" | "female";
   department_id?: number | null;
   section_id?: number | null;
-  role_level_id?: number | null;
+  role_level?: string | null;
   jabatan?: string | null;
   area?: string | null;
   station?: string | null;
   employment_type?: "permanent" | "contract" | "apprentice";
-  status?: "active" | "nonactive" | "resigned";
   start_contract?: string;
   end_contract?: string | null;
 }
@@ -65,6 +62,5 @@ export interface EmployeeListParams {
   department_id?: number;
   section_id?: number;
   employment_type?: string;
-  status?: string;
   near_expiry?: boolean;
 }

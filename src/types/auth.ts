@@ -11,6 +11,7 @@ export interface User {
   username?: string;
   photo?: string;
   is_admin?: boolean;
+  can_view_manpower?: boolean;
   is_active?: boolean;
   last_login_at?: string;
   role: Role;

@@ -15,7 +15,7 @@ import { toaster } from "../../components/ui/toaster";
 import type { Requisition } from "../../types/fptk";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 
-// ── Komponen di luar FptkApproval agar tidak dibuat ulang saat render ──
+// ── Components defined outside FptkApproval so they aren't recreated on every render ──
 
 const Field = ({
   label,
@@ -57,7 +57,7 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   </Text>
 );
 
-// ── Komponen utama ──
+// ── Main component ──
 
 const FptkApproval: React.FC = () => {
   const { noReq } = useParams<{ noReq: string }>();
@@ -171,13 +171,13 @@ const FptkApproval: React.FC = () => {
     const userRole = user.role?.name;
     const userName = user.name;
 
-    if (currentStatus === "Menunggu Approval Manager") {
+    if (currentStatus === "Waiting for Manager Approval") {
       return userRole === "Manager" && requisition.manager === userName;
     }
-    if (currentStatus === "Menunggu Approval Division Head") {
+    if (currentStatus === "Waiting for Division Head Approval") {
       return userRole === "Division Head" && requisition.division === userName;
     }
-    if (currentStatus === "Menunggu Approval Director") {
+    if (currentStatus === "Waiting for Director Approval") {
       return userRole === "Director" && requisition.director === userName;
     }
 
@@ -204,19 +204,19 @@ const FptkApproval: React.FC = () => {
         color: "#be123c",
         border: "1px solid #fecdd3",
       };
-    if (status === "Menunggu Approval Manager")
+    if (status === "Waiting for Manager Approval")
       return {
         backgroundColor: "#f8fafc",
         color: "#475569",
         border: "1px solid #cbd5e1",
       };
-    if (status === "Menunggu Approval Division Head")
+    if (status === "Waiting for Division Head Approval")
       return {
         backgroundColor: "#f1f5f9",
         color: "#334155",
         border: "1px solid #94a3b8",
       };
-    if (status === "Menunggu Approval Director")
+    if (status === "Waiting for Director Approval")
       return {
         backgroundColor: "#eff6ff",
         color: "#1d4ed8",
@@ -419,10 +419,25 @@ const FptkApproval: React.FC = () => {
               <Flex gap={4} wrap="wrap">
                 <Field label="Position" value={requisition.position} />
                 <Field label="Type" value={requisition.type} />
+                <Field label="Status" value={requisition.status} />
                 <Field label="Level" value={requisition.level} />
+                <Field
+                  label="Duration"
+                  value={
+                    requisition.duration ? `${requisition.duration} Month` : "-"
+                  }
+                />
                 <Field
                   label="Number of Employees"
                   value={requisition.cost_employee}
+                />
+                <Field
+                  label="Start Date Required"
+                  value={
+                    requisition.fulfilment_time
+                      ? formatDate(requisition.fulfilment_time)
+                      : "-"
+                  }
                 />
               </Flex>
             </Box>
@@ -455,9 +470,58 @@ const FptkApproval: React.FC = () => {
                 >
                   Technical Skills
                 </Text>
-                <Text fontSize="14px" fontWeight="500" color="gray.800">
-                  {requisition.technical_skill || "-"}
+                {Array.isArray(requisition.technical_skill) &&
+                requisition.technical_skill.length > 0 ? (
+                  <Flex direction="column" gap={1}>
+                    {requisition.technical_skill.map((s, i) => (
+                      <Text
+                        key={i}
+                        fontSize="14px"
+                        color="gray.800"
+                        fontWeight="500"
+                      >
+                        {String.fromCharCode(97 + i)}.) {s}
+                      </Text>
+                    ))}
+                  </Flex>
+                ) : (
+                  <Text fontSize="14px" color="gray.800" fontWeight="500">
+                    {requisition.technical_skill || "-"}
+                  </Text>
+                )}
+              </Box>
+
+              {/* Soft Skills */}
+              <Box mb={3}>
+                <Text
+                  fontSize="11px"
+                  fontWeight="600"
+                  color="gray.400"
+                  textTransform="uppercase"
+                  letterSpacing="0.05em"
+                  mb="4px"
+                >
+                  Soft Skills
                 </Text>
+                {Array.isArray(requisition.soft_skill) &&
+                requisition.soft_skill.length > 0 ? (
+                  <Flex direction="column" gap={1}>
+                    {requisition.soft_skill.map((s, i) => (
+                      <Text
+                        key={i}
+                        fontSize="14px"
+                        color="gray.800"
+                        fontWeight="500"
+                      >
+                        {String.fromCharCode(97 + i)}.) {s}
+                      </Text>
+                    ))}
+                  </Flex>
+                ) : (
+                  <Text fontSize="14px" color="gray.800" fontWeight="500">
+                    -
+                  </Text>
+                )}
               </Box>
 
               {/* Job Description */}
@@ -481,6 +545,144 @@ const FptkApproval: React.FC = () => {
                   {requisition.description || "-"}
                 </Text>
               </Box>
+            </Box>
+
+            {/* ── Detail Requirement ── */}
+            <Box>
+              <SectionTitle>Detail Requirement</SectionTitle>
+              <Flex gap={4} wrap="wrap" mb={4}>
+                <Field
+                  label="Employee Cost Center"
+                  value={requisition.cost_center}
+                />
+                <Field
+                  label="Requisition Objectives"
+                  value={requisition.objective}
+                />
+
+                {/* ── Apprenticeship Period ── */}
+                <Box flex={1} minW="180px">
+                  <Text
+                    fontSize="11px"
+                    fontWeight="600"
+                    color="gray.400"
+                    textTransform="uppercase"
+                    letterSpacing="0.05em"
+                    mb="2px"
+                  >
+                    Apprenticeship Period
+                  </Text>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "2px 10px",
+                      borderRadius: "999px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: requisition.apprenticeship_period
+                        ? "#15803d"
+                        : "#64748b",
+                      backgroundColor: requisition.apprenticeship_period
+                        ? "#f0fdf4"
+                        : "#f8fafc",
+                      border: `1px solid ${requisition.apprenticeship_period ? "#bbf7d0" : "#e2e8f0"}`,
+                    }}
+                  >
+                    {requisition.apprenticeship_period ? "Yes" : "No"}
+                  </span>
+                </Box>
+              </Flex>
+
+              {/* ── Employee Out (Replacement) ── */}
+              {requisition.objective === "Replacement" && (
+                <Box mb={4}>
+                  <Text
+                    fontSize="11px"
+                    fontWeight="600"
+                    color="gray.400"
+                    textTransform="uppercase"
+                    letterSpacing="0.05em"
+                    mb="4px"
+                  >
+                    Replaced Employee
+                  </Text>
+                  <Box
+                    p={3}
+                    borderRadius="8px"
+                    bg="#f0fdf4"
+                    border="1px solid #bbf7d0"
+                    display="inline-block"
+                  >
+                    <Text fontSize="14px" fontWeight="600" color="green.700">
+                      {requisition.employee_out || "-"}
+                    </Text>
+                    {requisition.replacement_employee?.npk && (
+                      <Text fontSize="12px" color="green.600">
+                        NPK: {requisition.replacement_employee.npk}
+                      </Text>
+                    )}
+                  </Box>
+                </Box>
+              )}
+
+              <Flex gap={4} wrap="wrap">
+                <Box flex={1} minW="180px">
+                  <Text
+                    fontSize="11px"
+                    fontWeight="600"
+                    color="gray.400"
+                    textTransform="uppercase"
+                    letterSpacing="0.05em"
+                    mb="4px"
+                  >
+                    Replacement Reason
+                  </Text>
+                  <Text
+                    fontSize="14px"
+                    color="gray.800"
+                    fontWeight="500"
+                    whiteSpace="pre-wrap"
+                  >
+                    {requisition.reason || "-"}
+                  </Text>
+                </Box>
+                <Box flex={1} minW="180px">
+                  <Text
+                    fontSize="11px"
+                    fontWeight="600"
+                    color="gray.400"
+                    textTransform="uppercase"
+                    letterSpacing="0.05em"
+                    mb="4px"
+                  >
+                    Manpower Plan
+                  </Text>
+                  <Text fontSize="14px" color="gray.800" fontWeight="500">
+                    {requisition.manpower_plan || "-"}
+                  </Text>
+                </Box>
+                <Box flex={1} minW="180px">
+                  <Text
+                    fontSize="11px"
+                    fontWeight="600"
+                    color="gray.400"
+                    textTransform="uppercase"
+                    letterSpacing="0.05em"
+                    mb="4px"
+                  >
+                    Unplanned Reason
+                  </Text>
+                  <Text
+                    fontSize="14px"
+                    color="gray.800"
+                    fontWeight="500"
+                    whiteSpace="pre-wrap"
+                  >
+                    {requisition.unplanned_reason || "-"}
+                  </Text>
+                </Box>
+              </Flex>
             </Box>
 
             {/* ── Approval Action ── */}

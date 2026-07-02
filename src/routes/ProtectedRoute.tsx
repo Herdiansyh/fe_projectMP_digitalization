@@ -6,12 +6,14 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: string[];
   adminOnly?: boolean;
+  manpowerOnly?: boolean;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   allowedRoles,
   adminOnly = false,
+  manpowerOnly = false,
 }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
 
@@ -30,7 +32,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (adminOnly && !user?.is_admin) {
     return <Navigate to="/unauthorized" replace />;
   }
-
+  if (manpowerOnly && !user?.is_admin && !user?.can_view_manpower) {
+    return <Navigate to="/unauthorized" replace />;
+  }
   if (allowedRoles && !allowedRoles.includes(user?.role?.name ?? "")) {
     return <Navigate to="/unauthorized" replace />;
   }

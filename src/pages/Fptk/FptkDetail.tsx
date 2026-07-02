@@ -166,7 +166,7 @@ const ConfirmModal = ({
   );
 };
 
-// ── Komponen utama ────────────────────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────────────────────
 const FptkDetail: React.FC = () => {
   const { noReq } = useParams<{ noReq: string }>();
   const navigate = useNavigate();
@@ -229,7 +229,7 @@ const FptkDetail: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("id-ID", {
+    return new Date(dateString).toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -255,19 +255,25 @@ const FptkDetail: React.FC = () => {
         color: "#be123c",
         border: "1px solid #fecdd3",
       };
-    if (status === "Menunggu Approval Manager")
+    if (status === "Manpower Assigned")
+      return {
+        backgroundColor: "#f0fdf4",
+        color: "#166534",
+        border: "1px solid #bbf7d0",
+      };
+    if (status === "Waiting for Manager Approval")
       return {
         backgroundColor: "#f8fafc",
         color: "#475569",
         border: "1px solid #cbd5e1",
       };
-    if (status === "Menunggu Approval Division Head")
+    if (status === "Waiting for Division Head Approval")
       return {
         backgroundColor: "#f1f5f9",
         color: "#334155",
         border: "1px solid #94a3b8",
       };
-    if (status === "Menunggu Approval Director")
+    if (status === "Waiting for Director Approval")
       return {
         backgroundColor: "#eff6ff",
         color: "#1d4ed8",
@@ -399,7 +405,7 @@ const FptkDetail: React.FC = () => {
               }}
             >
               <FiPlay size={14} />
-              {processingHrd ? "Processed..." : "Process"}
+              {processingHrd ? "Processing..." : "Process FPTK (HRD)"}
             </button>
           )}
 
@@ -462,7 +468,7 @@ const FptkDetail: React.FC = () => {
                 <Box>
                   <SectionTitle>Requirement</SectionTitle>
                   <Flex gap={4} wrap="wrap">
-                    <Field label="Departement" value={requisition.department} />
+                    <Field label="Department" value={requisition.department} />
                     <Field label="Section" value={requisition.section} />
                     <Field label="Position" value={requisition.position} />
                     <Field label="Status" value={requisition.status} />
@@ -476,7 +482,7 @@ const FptkDetail: React.FC = () => {
                     />
                     <Field label="Level" value={requisition.level} />
                     <Field
-                      label="Number Of Employee"
+                      label="Number of Employees"
                       value={requisition.cost_employee}
                     />
                     <Field
@@ -524,7 +530,7 @@ const FptkDetail: React.FC = () => {
                       letterSpacing="0.05em"
                       mb="4px"
                     >
-                      Technical Skill
+                      Technical Skills
                     </Text>
                     {Array.isArray(requisition.technical_skill) &&
                     requisition.technical_skill.length > 0 ? (
@@ -555,7 +561,7 @@ const FptkDetail: React.FC = () => {
                       letterSpacing="0.05em"
                       mb="4px"
                     >
-                      Soft Skill
+                      Soft Skills
                     </Text>
                     {Array.isArray(requisition.soft_skill) &&
                     requisition.soft_skill.length > 0 ? (
@@ -579,7 +585,7 @@ const FptkDetail: React.FC = () => {
                   </Box>
                 </Box>
 
-                {/* ── Detail Requirement ── (dipindahkan ke sini, di bawah Job Specification) */}
+                {/* ── Detail Requirement ── */}
                 <Box>
                   <SectionTitle>Detail Requirement</SectionTitle>
                   <Flex gap={4} wrap="wrap" mb={4}>
@@ -588,7 +594,7 @@ const FptkDetail: React.FC = () => {
                       value={requisition.cost_center}
                     />
                     <Field
-                      label="Requisition Objectives"
+                      label="Requisition Objective"
                       value={requisition.objective}
                     />
 
@@ -626,7 +632,7 @@ const FptkDetail: React.FC = () => {
                     </Box>
                   </Flex>
 
-                  {/* ── Employee Out (Replacement) ── */}
+                  {/* ── Replaced Employee ── */}
                   {requisition.objective === "Replacement" && (
                     <Box mb={4}>
                       <Text
@@ -723,9 +729,52 @@ const FptkDetail: React.FC = () => {
               </Flex>
             </Grid>
 
-            {/* ── Opsi / Approval Information ── */}
+            {/* ── Manpower Assignment (muncul setelah HRD assign) ── */}
+            {requisition.hrd_assigned_at && (
+              <Box>
+                <SectionTitle>Manpower Assignment</SectionTitle>
+                <Flex gap={4} wrap="wrap">
+                  <Field
+                    label="Candidate NPK"
+                    value={requisition.assigned_npk}
+                  />
+                  <Field
+                    label="Candidate Name"
+                    value={requisition.assigned_name}
+                  />
+                  <Field
+                    label="Start Contract"
+                    value={
+                      requisition.assigned_start_contract
+                        ? formatDate(requisition.assigned_start_contract)
+                        : "-"
+                    }
+                  />
+                  <Field
+                    label="End Contract"
+                    value={
+                      requisition.assigned_end_contract
+                        ? formatDate(requisition.assigned_end_contract)
+                        : "-"
+                    }
+                  />
+                  <Field
+                    label="Assigned by"
+                    value={requisition.hrd_assigned_by}
+                  />
+                  {requisition.assigned_area && (
+                    <Field label="Area" value={requisition.assigned_area} />
+                  )}
+                  {requisition.assigned_line && (
+                    <Field label="Line" value={requisition.assigned_line} />
+                  )}
+                </Flex>
+              </Box>
+            )}
+
+            {/* ── Approval Information ── */}
             <Box>
-              <SectionTitle>Appover</SectionTitle>
+              <SectionTitle>Approver</SectionTitle>
               <Flex gap={4} wrap="wrap">
                 {[
                   {
@@ -744,7 +793,7 @@ const FptkDetail: React.FC = () => {
                     date: requisition.division_approved_at,
                   },
                   {
-                    label: "Request Approval To (Director)",
+                    label: "Approved By (Director)",
                     name: requisition.director,
                     date: requisition.director_approved_at,
                   },

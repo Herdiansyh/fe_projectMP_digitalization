@@ -34,7 +34,7 @@ const FptkList: React.FC = () => {
     page: 1,
     manager: "",
     status: "",
-    exclude_status: "Approved,Rejected,Processed HRD",
+    exclude_status: "Approved,Rejected,Processed HRD,Manpower Assigned",
   });
 
   const [refreshKey, setRefreshKey] = useState(0);
@@ -137,9 +137,11 @@ const FptkList: React.FC = () => {
   };
 
   const getStatusColor = (status: string) => {
-    if (status.includes("Approved")) return "green";
-    if (status.includes("Rejected")) return "red";
-    if (status.includes("Menunggu")) return "orange";
+    if (status === "Approved") return "green";
+    if (status === "Rejected") return "red";
+    if (status.startsWith("Waiting for")) return "orange";
+    if (status === "Processed HRD") return "blue";
+    if (status === "Manpower Assigned") return "purple";
     return "gray";
   };
 

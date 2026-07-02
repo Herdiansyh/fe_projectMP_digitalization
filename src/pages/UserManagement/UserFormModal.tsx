@@ -98,6 +98,7 @@ const buildInitialForm = (user?: UserItem | null): UserFormData => ({
   approver_division_id: user?.approver_division?.id ?? "",
   approver_director_id: user?.approver_director?.id ?? "",
   is_admin: user?.is_admin ?? false,
+  can_view_manpower: user?.can_view_manpower ?? false,
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -457,6 +458,31 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                 </Box>
               </Flex>
             </Box>
+            {/* Can View Manpower */}
+            <Box gridColumn="1 / -1">
+              <Flex align="center" gap={3} mt={1}>
+                <input
+                  type="checkbox"
+                  id="can_view_manpower"
+                  checked={form.can_view_manpower ?? false}
+                  onChange={(e) => set("can_view_manpower", e.target.checked)}
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    cursor: "pointer",
+                    accentColor: "#3b82f6",
+                  }}
+                />
+                <Box>
+                  <Text fontSize="13px" fontWeight="500" color="gray.700">
+                    Can View Manpower Data
+                  </Text>
+                  <Text fontSize="12px" color="gray.400">
+                    Allow access to Manpower Management & Pemagangan modules
+                  </Text>
+                </Box>
+              </Flex>
+            </Box>
           </Grid>
         </Box>
 
@@ -502,11 +528,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
               cursor: loading ? "not-allowed" : "pointer",
             }}
           >
-            {loading
-              ? "Saving..."
-              : isEdit
-                ? "Save Changes"
-                : "Add User"}
+            {loading ? "Saving..." : isEdit ? "Save Changes" : "Add User"}
           </button>
         </Flex>
       </Box>

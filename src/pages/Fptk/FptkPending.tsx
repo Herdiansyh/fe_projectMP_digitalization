@@ -336,7 +336,7 @@ const FptkPending: React.FC = () => {
   const getStatusColor = (status: string) => {
     if (status.includes("Approved")) return "green";
     if (status.includes("Rejected")) return "red";
-    if (status.includes("Menunggu")) return "orange";
+    if (status.includes("Waiting")) return "orange";
     return "gray";
   };
 
@@ -352,11 +352,11 @@ const FptkPending: React.FC = () => {
     const currentStatus = req.approval_status;
     const userRole = user.role?.name;
     const userName = user.name;
-    if (currentStatus === "Menunggu Approval Manager")
+    if (currentStatus === "Waiting for Manager Approval")
       return userRole === "Manager" && req.manager === userName;
-    if (currentStatus === "Menunggu Approval Division Head")
+    if (currentStatus === "Waiting for Division Head Approval")
       return userRole === "Division Head" && req.division === userName;
-    if (currentStatus === "Menunggu Approval Director")
+    if (currentStatus === "Waiting for Director Approval")
       return userRole === "Director" && req.director === userName;
     return false;
   };
