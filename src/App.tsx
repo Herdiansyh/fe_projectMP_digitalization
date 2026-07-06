@@ -15,13 +15,16 @@ const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
 const FptkList = lazy(() => import("./pages/Fptk/FptkList"));
 const FptkApprovedList = lazy(() => import("./pages/Fptk/FptkApprovedList"));
+const FptkRejectedList = lazy(() => import("./pages/Fptk/FptkRejectedList"));
 const FptkHistoryList = lazy(() => import("./pages/Fptk/FptkHistoryList"));
 const FptkForm = lazy(() => import("./pages/Fptk/FptkForm"));
 const FptkDetail = lazy(() => import("./pages/Fptk/FptkDetail"));
 const FptkPending = lazy(() => import("./pages/Fptk/FptkPending"));
 const FptkApproval = lazy(() => import("./pages/Fptk/FptkApproval"));
 const UserList = lazy(() => import("./pages/UserManagement/UserList"));
-
+const StationList = lazy(() => import("./pages/StationManagement/StationList"));
+const AreaList = lazy(() => import("./pages/AreaManagement/AreaList"));
+const LineList = lazy(() => import("./pages/LineManagement/LineList"));
 function App() {
   return (
     <AuthProvider>
@@ -67,6 +70,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <FptkApprovedList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/fptk/rejected"
+              element={
+                <ProtectedRoute>
+                  <FptkRejectedList />
                 </ProtectedRoute>
               }
             />
@@ -137,6 +148,34 @@ function App() {
               element={
                 <ProtectedRoute manpowerOnly>
                   <EmployeeList />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Station Management — admin only */}
+            <Route
+              path="/stations"
+              element={
+                <ProtectedRoute adminOnly>
+                  <StationList />
+                </ProtectedRoute>
+              }
+            />
+            {/* Area Management — admin only */}
+            <Route
+              path="/areas"
+              element={
+                <ProtectedRoute adminOnly>
+                  <AreaList />
+                </ProtectedRoute>
+              }
+            />
+            {/* Line Management — admin only */}
+            <Route
+              path="/lines"
+              element={
+                <ProtectedRoute adminOnly>
+                  <LineList />
                 </ProtectedRoute>
               }
             />

@@ -13,6 +13,21 @@ export interface RoleLevel {
   name: string;
 }
 
+export interface Area {
+  id: number;
+  name: string;
+}
+
+export interface Line {
+  id: number;
+  name: string;
+}
+
+export interface Station {
+  id: number;
+  name: string;
+}
+
 export interface Intern {
   id: number;
   npk: string;
@@ -22,9 +37,17 @@ export interface Intern {
   section_id: number | null;
   role_level?: string | null;
   jabatan: string | null;
-  area: string | null;
-  line?: string | null;
-  station: string | null;
+
+  // Foreign keys (baru)
+  area_id?: number | null;
+  line_id?: number | null;
+  station_id?: number | null;
+
+  // Relasi objek (dikembalikan oleh InternResource, bukan string lagi)
+  area?: Area | null;
+  line?: Line | null;
+  station?: Station | null;
+
   start_contract: string;
   end_contract: string | null;
   is_near_expiry?: boolean;
@@ -43,9 +66,9 @@ export interface CreateInternInput {
   section_id: number | null;
   role_level?: string | null;
   jabatan: string;
-  area: string;
-  line?: string | null;
-  station: string;
+  area_id: number | null;
+  line_id?: number | null;
+  station_id: number | null;
   start_contract: string;
   end_contract: string | null;
 }

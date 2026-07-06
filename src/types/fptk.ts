@@ -46,6 +46,8 @@
 //   updated_at: string;
 // }
 
+import type { Station } from "./station";
+
 // export interface CreateRequisitionInput {
 //   requester_name: string;
 //   request_date: string;
@@ -264,6 +266,13 @@ export interface Requisition {
 
   created_at: string;
   updated_at: string;
+  assigned_station?: string | null; // legacy, dihapus setelah migrasi data selesai
+  area_id?: number | null;
+  line_id?: number | null;
+  station_id?: number | null;
+  area?: { id: number; name: string } | null;
+  line?: { id: number; name: string } | null;
+  station?: { id: number; name: string } | null;
 }
 
 export interface AssignManpowerInput {
@@ -274,8 +283,9 @@ export interface AssignManpowerInput {
 }
 
 export interface AssignAreaLineInput {
-  area: string;
-  line?: string | null;
+  area_id: number;
+  line_id?: number | null;
+  station_id?: number | null;
 }
 
 export interface CreateRequisitionInput {
@@ -407,6 +417,8 @@ export interface MasterData {
   companies: MasterDataItem[];
   departments: MasterDataItem[];
   sections: MasterDataItem[];
+  stations: Station[]; // ← tambahan
+
   employee_statuses: EmployeeStatusItem[];
   role_levels: MasterDataItem[];
 }

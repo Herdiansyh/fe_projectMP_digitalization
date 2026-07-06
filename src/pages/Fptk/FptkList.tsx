@@ -34,7 +34,7 @@ const FptkList: React.FC = () => {
     page: 1,
     manager: "",
     status: "",
-    exclude_status: "Approved,Rejected,Processed HRD,Manpower Assigned",
+    exclude_status: "Approved,rejected,Processed HRD,Manpower Assigned",
   });
 
   const [refreshKey, setRefreshKey] = useState(0);

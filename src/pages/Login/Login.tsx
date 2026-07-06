@@ -12,9 +12,11 @@ import {
   Flex,
   Heading,
   Input,
+  InputGroup,
   Stack,
   Text,
 } from "@chakra-ui/react";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 
 const loginSchema = z.object({
   npk: z.string().min(1, "NPK cannot be empty"),
@@ -27,7 +29,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [apiError, setApiError] = React.useState<string>("");
-
+  const [showPassword, setShowPassword] = React.useState(false);
   const {
     register,
     handleSubmit,
@@ -191,25 +193,44 @@ const Login: React.FC = () => {
                   >
                     Password
                   </Field.Label>
-                  <Input
-                    {...register("password")}
-                    type="password"
-                    autoComplete="current-password"
-                    placeholder="••••••••"
-                    bg="gray.50"
-                    border="0.5px solid"
-                    borderColor="gray.200"
-                    fontSize="sm"
-                    color="black"
-                    _placeholder={{ color: "gray.400" }}
-                    _focus={{
-                      borderColor: "brand.500",
-                      boxShadow: "0 0 0 2px var(--chakra-colors-brand-100)",
-                      bg: "white",
-                      color: "black",
-                    }}
-                    _hover={{ borderColor: "gray.300" }}
-                  />
+                  <InputGroup
+                    endElement={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        minW="unset"
+                        p={0}
+                        h="100%"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <FiEyeOff size={18} />
+                        ) : (
+                          <FiEye size={18} />
+                        )}
+                      </Button>
+                    }
+                  >
+                    <Input
+                      {...register("password")}
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      placeholder="••••••••"
+                      bg="gray.50"
+                      border="0.5px solid"
+                      borderColor="gray.200"
+                      fontSize="sm"
+                      color="black"
+                      _placeholder={{ color: "gray.400" }}
+                      _focus={{
+                        borderColor: "brand.500",
+                        boxShadow: "0 0 0 2px var(--chakra-colors-brand-100)",
+                        bg: "white",
+                        color: "black",
+                      }}
+                      _hover={{ borderColor: "gray.300" }}
+                    />
+                  </InputGroup>
                   {errors.password && (
                     <Field.ErrorText fontSize="xs">
                       {errors.password.message}

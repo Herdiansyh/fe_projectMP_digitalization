@@ -128,8 +128,25 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
   const roleLevels = masterData?.roleLevels ?? [];
   const approvers = masterData?.approvers ?? EMPTY_APPROVERS;
 
+  // Role level yang sedang dipilih di form saat ini
+  const selectedRoleLevel = roleLevels.find(
+    (r) => String(r.id) === String(form.role_level_id),
+  );
+  // True jika role level yang dipilih adalah "Admin" — checkbox "Make Admin"
+  // akan dikunci (disabled) dan otomatis tercentang, karena status admin
+  // seharusnya mengikuti role level, bukan diatur manual.
+  const isAdminRole = selectedRoleLevel?.name?.toLowerCase() === "admin";
+
   const set = (key: keyof UserFormData, value: unknown) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  // Sinkronkan is_admin setiap kali role level berubah menjadi Admin
+  useEffect(() => {
+    if (isAdminRole && !form.is_admin) {
+      set("is_admin", true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdminRole]);
 
   const handleSubmit = async () => {
     setErrors({});
@@ -440,12 +457,14 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                   type="checkbox"
                   id="is_admin"
                   checked={form.is_admin ?? false}
+                  disabled={isAdminRole}
                   onChange={(e) => set("is_admin", e.target.checked)}
                   style={{
                     width: "16px",
                     height: "16px",
-                    cursor: "pointer",
+                    cursor: isAdminRole ? "not-allowed" : "pointer",
                     accentColor: "#3b82f6",
+                    opacity: isAdminRole ? 0.6 : 1,
                   }}
                 />
                 <Box>
@@ -453,7 +472,9 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                     Make Admin
                   </Text>
                   <Text fontSize="12px" color="gray.400">
-                    Admin can access User Management module
+                    {isAdminRole
+                      ? "Automatically enabled because role level is Admin"
+                      : "Admin can access User Management module"}
                   </Text>
                 </Box>
               </Flex>

@@ -418,7 +418,6 @@ const FptkApproval: React.FC = () => {
               <SectionTitle>Position Information</SectionTitle>
               <Flex gap={4} wrap="wrap">
                 <Field label="Position" value={requisition.position} />
-                <Field label="Type" value={requisition.type} />
                 <Field label="Status" value={requisition.status} />
                 <Field label="Level" value={requisition.level} />
                 <Field
@@ -447,7 +446,6 @@ const FptkApproval: React.FC = () => {
               <SectionTitle>Requirements</SectionTitle>
               <Flex gap={4} wrap="wrap" mb={4}>
                 <Field label="Education" value={requisition.education} />
-                <Field label="Maximum Age" value={requisition.max_age} />
                 <Field
                   label="Minimum Experience"
                   value={
@@ -458,73 +456,74 @@ const FptkApproval: React.FC = () => {
                 />
               </Flex>
 
-              {/* Technical Skills */}
-              <Box mb={3}>
-                <Text
-                  fontSize="11px"
-                  fontWeight="600"
-                  color="gray.400"
-                  textTransform="uppercase"
-                  letterSpacing="0.05em"
-                  mb="4px"
-                >
-                  Technical Skills
-                </Text>
-                {Array.isArray(requisition.technical_skill) &&
-                requisition.technical_skill.length > 0 ? (
-                  <Flex direction="column" gap={1}>
-                    {requisition.technical_skill.map((s, i) => (
-                      <Text
-                        key={i}
-                        fontSize="14px"
-                        color="gray.800"
-                        fontWeight="500"
-                      >
-                        {String.fromCharCode(97 + i)}.) {s}
-                      </Text>
-                    ))}
-                  </Flex>
-                ) : (
-                  <Text fontSize="14px" color="gray.800" fontWeight="500">
-                    {requisition.technical_skill || "-"}
+              {/* Technical Skills & Soft Skills — berdampingan */}
+              <Flex gap={4} wrap="wrap" mb={3}>
+                <Box flex="1" minW="220px">
+                  <Text
+                    fontSize="11px"
+                    fontWeight="600"
+                    color="gray.400"
+                    textTransform="uppercase"
+                    letterSpacing="0.05em"
+                    mb="4px"
+                  >
+                    Technical Skills
                   </Text>
-                )}
-              </Box>
+                  {Array.isArray(requisition.technical_skill) &&
+                  requisition.technical_skill.length > 0 ? (
+                    <Flex direction="column" gap={1}>
+                      {requisition.technical_skill.map((s, i) => (
+                        <Text
+                          key={i}
+                          fontSize="14px"
+                          color="gray.800"
+                          fontWeight="500"
+                        >
+                          {String.fromCharCode(97 + i)}.) {s}
+                        </Text>
+                      ))}
+                    </Flex>
+                  ) : (
+                    <Text fontSize="14px" color="gray.800" fontWeight="500">
+                      {requisition.technical_skill || "-"}
+                    </Text>
+                  )}
+                </Box>
 
-              {/* Soft Skills */}
-              <Box mb={3}>
-                <Text
-                  fontSize="11px"
-                  fontWeight="600"
-                  color="gray.400"
-                  textTransform="uppercase"
-                  letterSpacing="0.05em"
-                  mb="4px"
-                >
-                  Soft Skills
-                </Text>
-                {Array.isArray(requisition.soft_skill) &&
-                requisition.soft_skill.length > 0 ? (
-                  <Flex direction="column" gap={1}>
-                    {requisition.soft_skill.map((s, i) => (
-                      <Text
-                        key={i}
-                        fontSize="14px"
-                        color="gray.800"
-                        fontWeight="500"
-                      >
-                        {String.fromCharCode(97 + i)}.) {s}
-                      </Text>
-                    ))}
-                  </Flex>
-                ) : (
-                  <Text fontSize="14px" color="gray.800" fontWeight="500">
-                    -
+                <Box flex="1" minW="220px">
+                  <Text
+                    fontSize="11px"
+                    fontWeight="600"
+                    color="gray.400"
+                    textTransform="uppercase"
+                    letterSpacing="0.05em"
+                    mb="4px"
+                  >
+                    Soft Skills
                   </Text>
-                )}
-              </Box>
+                  {Array.isArray(requisition.soft_skill) &&
+                  requisition.soft_skill.length > 0 ? (
+                    <Flex direction="column" gap={1}>
+                      {requisition.soft_skill.map((s, i) => (
+                        <Text
+                          key={i}
+                          fontSize="14px"
+                          color="gray.800"
+                          fontWeight="500"
+                        >
+                          {String.fromCharCode(97 + i)}.) {s}
+                        </Text>
+                      ))}
+                    </Flex>
+                  ) : (
+                    <Text fontSize="14px" color="gray.800" fontWeight="500">
+                      -
+                    </Text>
+                  )}
+                </Box>
+              </Flex>
 
-              {/* Job Description */}
+              {/* Job Description
               <Box>
                 <Text
                   fontSize="11px"
@@ -544,7 +543,7 @@ const FptkApproval: React.FC = () => {
                 >
                   {requisition.description || "-"}
                 </Text>
-              </Box>
+              </Box> */}
             </Box>
 
             {/* ── Detail Requirement ── */}

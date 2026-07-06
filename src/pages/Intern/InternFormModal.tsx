@@ -6,8 +6,12 @@ import type {
   Intern,
   UpdateInternInput,
 } from "../../types/intern";
+import type { Area } from "../../types/area";
+import type { Line } from "../../types/line";
+import type { Station } from "../../types/station";
 import type { MasterData } from "../UserManagement/UserFormModal";
 import internService from "../../services/internService";
+import lineService from "../../services/lineService";
 import { toaster } from "../../components/ui/toaster";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -20,9 +24,9 @@ const EMPTY_FORM: CreateInternInput = {
   section_id: null,
   role_level: "",
   jabatan: "",
-  area: "",
-  line: "",
-  station: "",
+  area_id: null,
+  line_id: null,
+  station_id: null,
   start_contract: "",
   end_contract: null,
 };
@@ -64,6 +68,8 @@ interface InternFormModalProps {
   isOpen: boolean;
   editTarget: Intern | null;
   masterData: MasterData | null;
+  areas: Area[];
+  stations: Station[];
   onClose: () => void;
   onSaved: () => void;
 }
@@ -74,6 +80,8 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
   isOpen,
   editTarget,
   masterData,
+  areas,
+  stations,
   onClose,
   onSaved,
 }) => {
@@ -81,6 +89,12 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
+  // Line tetap fetch dinamis karena bergantung pada area_id yang dipilih —
+  // tidak bisa di-preload di parent seperti Area & Station.
+  const [lines, setLines] = useState<Line[]>([]);
+  const [loadingLines, setLoadingLines] = useState(false);
+
+  // Isi form saat editTarget berubah / modal dibuka
   useEffect(() => {
     if (editTarget) {
       setForm({
@@ -91,9 +105,9 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
         section_id: editTarget.section_id,
         role_level: editTarget.role_level ?? "",
         jabatan: editTarget.jabatan ?? "",
-        area: editTarget.area ?? "",
-        line: editTarget.line ?? "",
-        station: editTarget.station ?? "",
+        area_id: editTarget.area_id ?? editTarget.area?.id ?? null,
+        line_id: editTarget.line_id ?? editTarget.line?.id ?? null,
+        station_id: editTarget.station_id ?? editTarget.station?.id ?? null,
         start_contract: editTarget.start_contract,
         end_contract: editTarget.end_contract ?? null,
       });
@@ -103,11 +117,37 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
     setErrors({});
   }, [editTarget, isOpen]);
 
+  // Load Line setiap kali Area berubah (termasuk saat edit sudah punya area_id)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (!form.area_id) {
+      setLines([]);
+      return;
+    }
+
+    setLoadingLines(true);
+    lineService
+      .getLines({ area_id: form.area_id })
+      .then((res) => setLines(res.data))
+      .catch(() => setLines([]))
+      .finally(() => setLoadingLines(false));
+  }, [form.area_id, isOpen]);
+
   if (!isOpen) return null;
 
   const handleChange = (field: keyof CreateInternInput, value: unknown) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: [] }));
+  };
+
+  const handleAreaChange = (value: number | null) => {
+    setForm((prev) => ({
+      ...prev,
+      area_id: value,
+      line_id: null, // reset line saat area berganti
+    }));
+    setErrors((prev) => ({ ...prev, area_id: [], line_id: [] }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -346,12 +386,27 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
                   </Box>
                   <Box>
                     <label style={labelStyle}>Area</label>
-                    <input
-                      style={inputStyle}
-                      value={form.area ?? ""}
-                      onChange={(e) => handleChange("area", e.target.value)}
-                      placeholder="Example: Assembly"
-                    />
+                    <select
+                      style={selectStyle}
+                      value={form.area_id ?? ""}
+                      onChange={(e) =>
+                        handleAreaChange(
+                          e.target.value ? Number(e.target.value) : null,
+                        )
+                      }
+                    >
+                      <option value="">
+                        {areas.length === 0
+                          ? "Loading areas..."
+                          : "Select area"}
+                      </option>
+                      {areas.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </select>
+                    {errorText("area_id")}
                   </Box>
                 </Grid>
 
@@ -359,21 +414,58 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
                 <Grid templateColumns="1fr 1fr" gap={4}>
                   <Box>
                     <label style={labelStyle}>Line</label>
-                    <input
-                      style={inputStyle}
-                      value={form.line ?? ""}
-                      onChange={(e) => handleChange("line", e.target.value)}
-                      placeholder="Example: Line A"
-                    />
+                    <select
+                      style={selectStyle}
+                      value={form.line_id ?? ""}
+                      disabled={!form.area_id || loadingLines}
+                      onChange={(e) =>
+                        handleChange(
+                          "line_id",
+                          e.target.value ? Number(e.target.value) : null,
+                        )
+                      }
+                    >
+                      <option value="">
+                        {!form.area_id
+                          ? "Select area first"
+                          : loadingLines
+                            ? "Loading lines..."
+                            : lines.length === 0
+                              ? "No lines in this area"
+                              : "Select line"}
+                      </option>
+                      {lines.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                    {errorText("line_id")}
                   </Box>
                   <Box>
                     <label style={labelStyle}>Station</label>
-                    <input
-                      style={inputStyle}
-                      value={form.station ?? ""}
-                      onChange={(e) => handleChange("station", e.target.value)}
-                      placeholder="Example: ST-01"
-                    />
+                    <select
+                      style={selectStyle}
+                      value={form.station_id ?? ""}
+                      onChange={(e) =>
+                        handleChange(
+                          "station_id",
+                          e.target.value ? Number(e.target.value) : null,
+                        )
+                      }
+                    >
+                      <option value="">
+                        {stations.length === 0
+                          ? "Loading stations..."
+                          : "Select station"}
+                      </option>
+                      {stations.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    {errorText("station_id")}
                   </Box>
                 </Grid>
 

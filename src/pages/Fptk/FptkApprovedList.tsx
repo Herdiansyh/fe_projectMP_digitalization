@@ -649,6 +649,12 @@ import MainLayout from "../../components/layout/MainLayout";
 import fptkService from "../../services/fptkService";
 import type { Requisition, RequisitionListParams } from "../../types/fptk";
 import { useAuth } from "../../contexts/AuthContext";
+import stationService from "../../services/stationService";
+import lineService from "../../services/lineService";
+import areaService from "../../services/areaService";
+import type { Area } from "../../types/area";
+import type { Line } from "../../types/line";
+import type { Station } from "../../types/station";
 
 // ── Confirm Modal (Process HRD) ─────────────────────────────────────────────
 const ConfirmModal = ({
@@ -1008,6 +1014,7 @@ const AssignManpowerModal = ({
 };
 
 // ── Modal: Requester isi Area & Line ────────────────────────────────────────
+// ── Modal: Requester isi Area & Line ────────────────────────────────────────
 const AssignAreaLineModal = ({
   isOpen,
   noReq,
@@ -1020,20 +1027,66 @@ const AssignAreaLineModal = ({
   noReq: string;
   requiresLine: boolean;
   isLoading: boolean;
-  onSubmit: (data: { area: string; line: string }) => void;
+  onSubmit: (data: {
+    area_id: number;
+    line_id: number | null;
+    station_id: number | null;
+  }) => void;
   onCancel: () => void;
 }) => {
-  const [area, setArea] = useState("");
-  const [line, setLine] = useState("");
+  const [areaId, setAreaId] = useState<number | "">("");
+  const [lineId, setLineId] = useState<number | "">("");
+  const [stationId, setStationId] = useState<number | "">("");
 
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
+
+  const [loadingAreas, setLoadingAreas] = useState(false);
+  const [loadingLines, setLoadingLines] = useState(false);
+  const [loadingStations, setLoadingStations] = useState(false);
+
+  // Reset & load Area + Station saat modal dibuka
   useEffect(() => {
     if (isOpen) {
-      setArea("");
-      setLine("");
+      setAreaId("");
+      setLineId("");
+      setStationId("");
+      setLines([]);
+
+      setLoadingAreas(true);
+      areaService
+        .getAreas()
+        .then((res) => setAreas(res.data))
+        .catch(() => setAreas([]))
+        .finally(() => setLoadingAreas(false));
+
+      setLoadingStations(true);
+      stationService
+        .getStations()
+        .then((res) => setStations(res.data))
+        .catch(() => setStations([]))
+        .finally(() => setLoadingStations(false));
     }
   }, [isOpen]);
 
-  const canSubmit = area.trim() !== "" && (!requiresLine || line.trim() !== "");
+  // Load Line setiap kali Area berubah
+  useEffect(() => {
+    if (!areaId) {
+      setLines([]);
+      setLineId("");
+      return;
+    }
+    setLoadingLines(true);
+    setLineId(""); // reset pilihan line saat area berganti
+    lineService
+      .getLines({ area_id: Number(areaId) })
+      .then((res) => setLines(res.data))
+      .catch(() => setLines([]))
+      .finally(() => setLoadingLines(false));
+  }, [areaId]);
+
+  const canSubmit = areaId !== "" && (!requiresLine || lineId !== "");
 
   return (
     <ModalShell
@@ -1048,25 +1101,73 @@ const AssignAreaLineModal = ({
     >
       <Box mb={3}>
         <label style={labelStyle}>Area</label>
-        <input
+        <select
           style={inputStyle}
-          value={area}
-          onChange={(e) => setArea(e.target.value)}
-          placeholder="e.g. Plant 1"
-        />
+          value={areaId}
+          onChange={(e) =>
+            setAreaId(e.target.value === "" ? "" : Number(e.target.value))
+          }
+          disabled={loadingAreas}
+        >
+          <option value="">
+            {loadingAreas ? "Loading areas..." : "Select area"}
+          </option>
+          {areas.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
       </Box>
+
       <Box mb={4}>
         <label style={labelStyle}>
           Line {requiresLine ? "" : "(optional)"}
         </label>
-        <input
+        <select
           style={inputStyle}
-          value={line}
-          onChange={(e) => setLine(e.target.value)}
-          placeholder={
-            requiresLine ? "Required for Manufacturing" : "e.g. Line A"
+          value={lineId}
+          onChange={(e) =>
+            setLineId(e.target.value === "" ? "" : Number(e.target.value))
           }
-        />
+          disabled={!areaId || loadingLines}
+        >
+          <option value="">
+            {!areaId
+              ? "Select area first"
+              : loadingLines
+                ? "Loading lines..."
+                : lines.length === 0
+                  ? "No lines in this area"
+                  : "Select line"}
+          </option>
+          {lines.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </Box>
+
+      <Box mb={4}>
+        <label style={labelStyle}>Station</label>
+        <select
+          style={inputStyle}
+          value={stationId}
+          onChange={(e) =>
+            setStationId(e.target.value === "" ? "" : Number(e.target.value))
+          }
+          disabled={loadingStations}
+        >
+          <option value="">
+            {loadingStations ? "Loading stations..." : "Select station"}
+          </option>
+          {stations.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
       </Box>
 
       <Flex justify="flex-end" gap={3}>
@@ -1090,7 +1191,13 @@ const AssignAreaLineModal = ({
         <button
           type="button"
           disabled={isLoading || !canSubmit}
-          onClick={() => onSubmit({ area: area.trim(), line: line.trim() })}
+          onClick={() =>
+            onSubmit({
+              area_id: Number(areaId),
+              line_id: lineId === "" ? null : lineId,
+              station_id: stationId === "" ? null : stationId,
+            })
+          }
           style={{
             padding: "8px 20px",
             fontSize: "14px",
@@ -1148,6 +1255,7 @@ const FptkApprovedList: React.FC = () => {
   const [searchInput, setSearchInput] = useState("");
   const { user } = useAuth();
   const isHrAdmin = user?.role?.name === "HR Admin";
+  const isAdmin = user?.role?.name === "Admin";
 
   const fetchRequisitions = useCallback(
     async (params: RequisitionListParams) => {
@@ -1270,14 +1378,19 @@ const FptkApprovedList: React.FC = () => {
     setAreaLineModal({ isOpen: true, req });
   };
 
-  const handleSubmitAreaLine = async (data: { area: string; line: string }) => {
+  const handleSubmitAreaLine = async (data: {
+    area_id: number;
+    line_id: number | null;
+    station_id: number | null;
+  }) => {
     const req = areaLineModal.req;
     if (!req) return;
     try {
       setProcessingId(req.no_req);
       await fptkService.assignAreaLine(req.no_req, {
-        area: data.area,
-        line: data.line || null,
+        area_id: data.area_id,
+        line_id: data.line_id,
+        station_id: data.station_id,
       });
       setAreaLineModal({ isOpen: false, req: null });
       showSuccess(`FPTK ${req.no_req} completed — manpower has been created.`);
@@ -1321,9 +1434,9 @@ const FptkApprovedList: React.FC = () => {
       };
     if (status === "Manpower Assigned")
       return {
-        backgroundColor: "#f0fdf4",
-        color: "#166534",
-        border: "1px solid #bbf7d0",
+        backgroundColor: "#faf5ff",
+        color: "#7e22ce",
+        border: "1px solid #d8b4fe",
         borderRadius: "6px",
         padding: "2px 8px",
         fontSize: "12px",
@@ -1477,6 +1590,7 @@ const FptkApprovedList: React.FC = () => {
                       "Requester",
                       "Position",
                       "Department",
+                      "Apprenticeship",
                       "Status",
                       "Action",
                     ].map((h) => (
@@ -1503,8 +1617,11 @@ const FptkApprovedList: React.FC = () => {
                 <tbody>
                   {displayedRequisitions.map((req, index) => {
                     const needsAreaLine = !!req.needs_area_line;
-                    const isOwnRequisition = req.requester_name === user?.name;
-                    const canFillAreaLine = needsAreaLine && isOwnRequisition;
+                    const isSameDepartment =
+                      !!user?.department?.name &&
+                      user.department.name === req.department;
+                    const canFillAreaLine =
+                      needsAreaLine && (isAdmin || isSameDepartment);
                     const canAssignManpower =
                       isHrAdmin &&
                       req.approval_status === "Processed HRD" &&
@@ -1588,6 +1705,25 @@ const FptkApprovedList: React.FC = () => {
                           }}
                         >
                           {req.department || "-"}
+                        </td>
+                        <td style={{ padding: "12px 14px" }}>
+                          <span
+                            style={{
+                              backgroundColor: req.apprenticeship_period
+                                ? "#eff6ff"
+                                : "#f8fafc",
+                              color: req.apprenticeship_period
+                                ? "#1d4ed8"
+                                : "#64748b",
+                              border: `1px solid ${req.apprenticeship_period ? "#bfdbfe" : "#e2e8f0"}`,
+                              borderRadius: "6px",
+                              padding: "2px 8px",
+                              fontSize: "12px",
+                              fontWeight: 500,
+                            }}
+                          >
+                            {req.apprenticeship_period ? "Yes" : "No"}
+                          </span>
                         </td>
                         <td style={{ padding: "12px 14px" }}>
                           <HStack gap={2}>
@@ -1738,7 +1874,7 @@ const FptkApprovedList: React.FC = () => {
                               </button>
                             )}
 
-                            {/* Fill Area/Line — requester pembuat FPTK, saat needs_area_line */}
+                            {/* Fill Area/Line — user dari department yang sama dengan FPTK ini, saat needs_area_line */}
                             {canFillAreaLine && (
                               <button
                                 type="button"

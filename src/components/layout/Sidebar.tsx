@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -7,6 +7,7 @@ interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
+  children?: NavItem[];
 }
 
 const IconDashboard = () => (
@@ -43,7 +44,22 @@ const IconFPTK = () => (
     <path d="M16 11l2 2 4-4" />
   </svg>
 );
-
+const IconStation = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 21h18" />
+    <path d="M5 21V7l7-4 7 4v14" />
+    <path d="M9 9h6M9 13h6M9 17h6" />
+  </svg>
+);
 const IconPending = () => (
   <svg
     width="16"
@@ -94,6 +110,23 @@ const IconApproved = () => (
   </svg>
 );
 
+const IconRejected = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="10" />
+    <line x1="15" y1="9" x2="9" y2="15" />
+    <line x1="9" y1="9" x2="15" y2="15" />
+  </svg>
+);
+
 const IconHistory = () => (
   <svg
     width="16"
@@ -141,15 +174,92 @@ const IconIntern = () => (
     <path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5" />
   </svg>
 );
+const IconArea = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
+  </svg>
+);
+
+const IconLine = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="6" cy="6" r="3" />
+    <circle cx="6" cy="18" r="3" />
+    <path d="M6 9v6" />
+    <path d="M9 6h9a3 3 0 0 1 3 3v0a3 3 0 0 1-3 3H9" />
+  </svg>
+);
+
+const IconMasterData = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <ellipse cx="12" cy="5" rx="9" ry="3" />
+    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+  </svg>
+);
+
+const IconChevron = ({ open }: { open: boolean }) => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{
+      transform: open ? "rotate(90deg)" : "rotate(0deg)",
+      transition: "transform 0.15s ease",
+      flexShrink: 0,
+    }}
+  >
+    <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
 
 const approvalNavItems: NavItem[] = [
   { label: "Pending Approvals", path: "/fptk/pending", icon: <IconPending /> },
 ];
 
-// ── Khusus is_admin === true (User Management TIDAK boleh dibuka selain admin) ──
-const adminOnlyNavItems: NavItem[] = [
-  { label: "User Management", path: "/users", icon: <IconUsers /> },
-];
+// ── Menu "Data Master" — submenu, hanya untuk is_admin === true ──
+const masterDataNavItem: NavItem = {
+  label: "Data Master",
+  path: "/master-data",
+  icon: <IconMasterData />,
+  children: [
+    { label: "User Management", path: "/users", icon: <IconUsers /> },
+    { label: "Area Management", path: "/areas", icon: <IconArea /> },
+    { label: "Line Management", path: "/lines", icon: <IconLine /> },
+    { label: "Station Management", path: "/stations", icon: <IconStation /> },
+  ],
+};
 
 // ── Boleh diakses is_admin ATAU can_view_manpower ──
 const manpowerNavItems: NavItem[] = [
@@ -187,7 +297,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   // Item yang benar-benar ditampilkan di section Admin,
   // digabung sesuai hak masing-masing user
   const visibleAdminSectionItems: NavItem[] = [
-    ...(isAdmin ? adminOnlyNavItems : []), // User Management → wajib is_admin
+    ...(isAdmin ? [masterDataNavItem] : []), // Data Master (User/Area/Line/Station) → wajib is_admin
     ...(isAdmin || canViewManpower ? manpowerNavItems : []), // Manpower → admin ATAU permission khusus
   ];
 
@@ -207,6 +317,16 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
           },
         ]
       : []),
+    // "Rejected FPTK" hanya untuk non-approver dan non-HR Admin
+    ...(!isApproverRole && !isHrAdmin
+      ? [
+          {
+            label: "Rejected FPTK",
+            path: "/fptk/rejected",
+            icon: <IconRejected />,
+          },
+        ]
+      : []),
     // Pending Approvals & History hanya untuk approver roles
     ...(isApproverRole ? approvalNavItems : []),
     ...(isApproverRole
@@ -220,48 +340,87 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
       : []),
   ];
 
-  const renderNavItem = (item: NavItem) => {
+  // Submenu otomatis terbuka kalau salah satu child-nya sedang aktif
+  const isChildActive = (item: NavItem) =>
+    !!item.children?.some((c) => c.path === location.pathname);
+
+  // Menyimpan preferensi buka/tutup yang di-klik manual oleh user (override
+  // eksplisit). Kalau belum pernah di-klik untuk path tertentu, statusnya
+  // jatuh balik ke auto-open berdasarkan halaman aktif. Semua dihitung
+  // langsung saat render (derived state) — tanpa useEffect + setState.
+  const [manualOverride, setManualOverride] = useState<Record<string, boolean>>(
+    {},
+  );
+
+  const isMenuOpen = (item: NavItem) => {
+    const override = manualOverride[item.path];
+    if (override !== undefined) return override;
+    return isChildActive(item);
+  };
+
+  const toggleMenu = (item: NavItem) => {
+    setManualOverride((prev) => ({
+      ...prev,
+      [item.path]: !isMenuOpen(item),
+    }));
+  };
+
+  const renderNavItem = (item: NavItem, depth = 0) => {
+    const hasChildren = !!item.children && item.children.length > 0;
     const isActive = location.pathname === item.path;
+    const isOpenMenu = hasChildren ? isMenuOpen(item) : false;
+    const parentHighlighted = hasChildren && isChildActive(item) && !isOpenMenu;
+
     return (
-      <Flex
-        key={item.path}
-        align="center"
-        gap={3}
-        px={4}
-        h="40px"
-        mx={2}
-        borderRadius="md"
-        cursor="pointer"
-        bg={isActive ? "brand.50" : "transparent"}
-        color={isActive ? "brand.500" : "gray.500"}
-        _hover={{
-          bg: isActive ? "brand.50" : "gray.50",
-          color: isActive ? "brand.500" : "gray.700",
-        }}
-        transition="all 0.15s"
-        onClick={() => navigate(item.path)}
-        position="relative"
-      >
-        {isActive && (
-          <Box
-            position="absolute"
-            left={0}
-            top="20%"
-            h="60%"
-            w="3px"
-            bg="brand.500"
-            borderRadius="0 2px 2px 0"
-          />
-        )}
-        <Box flexShrink={0}>{item.icon}</Box>
-        <Text
-          fontSize="13px"
-          fontWeight={isActive ? "500" : "400"}
-          whiteSpace="nowrap"
+      <Box key={item.path}>
+        <Flex
+          align="center"
+          gap={3}
+          px={4}
+          pl={depth > 0 ? 8 : 4}
+          h="40px"
+          mx={2}
+          borderRadius="md"
+          cursor="pointer"
+          bg={isActive || parentHighlighted ? "brand.50" : "transparent"}
+          color={isActive || parentHighlighted ? "brand.500" : "gray.500"}
+          _hover={{
+            bg: isActive || parentHighlighted ? "brand.50" : "gray.50",
+            color: isActive || parentHighlighted ? "brand.500" : "gray.700",
+          }}
+          transition="all 0.15s"
+          onClick={() => (hasChildren ? toggleMenu(item) : navigate(item.path))}
+          position="relative"
         >
-          {item.label}
-        </Text>
-      </Flex>
+          {(isActive || (hasChildren && parentHighlighted)) && (
+            <Box
+              position="absolute"
+              left={0}
+              top="20%"
+              h="60%"
+              w="3px"
+              bg="brand.500"
+              borderRadius="0 2px 2px 0"
+            />
+          )}
+          <Box flexShrink={0}>{item.icon}</Box>
+          <Text
+            fontSize="13px"
+            fontWeight={isActive ? "500" : "400"}
+            whiteSpace="nowrap"
+            flex={1}
+          >
+            {item.label}
+          </Text>
+          {hasChildren && <IconChevron open={isOpenMenu} />}
+        </Flex>
+
+        {hasChildren && isOpenMenu && (
+          <Box>
+            {item.children!.map((child) => renderNavItem(child, depth + 1))}
+          </Box>
+        )}
+      </Box>
     );
   };
 
@@ -360,11 +519,11 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             Menu
           </Text>
 
-          {navItems.map(renderNavItem)}
+          {navItems.map((item) => renderNavItem(item))}
 
           {/* Admin section — tampil untuk is_admin ATAU can_view_manpower.
               Isi barisnya berbeda tergantung hak masing-masing:
-              - User Management HANYA untuk is_admin === true
+              - Data Master (User/Area/Line/Station) HANYA untuk is_admin === true
               - Manpower Management/Pemagangan untuk is_admin ATAU can_view_manpower === true */}
           {showAdminSection && (
             <>
@@ -381,7 +540,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
               >
                 Admin
               </Text>
-              {visibleAdminSectionItems.map(renderNavItem)}
+              {visibleAdminSectionItems.map((item) => renderNavItem(item))}
             </>
           )}
         </Box>

@@ -160,9 +160,9 @@ const InternDetailModal = ({
               <DetailRow label="Department" value={intern.department?.name} />
               <DetailRow label="Section" value={intern.section?.name} />
               <DetailRow label="Role Level" value={intern.role_level} />
-              <DetailRow label="Area" value={intern.area} />
-              <DetailRow label="Line" value={intern.line} />
-              <DetailRow label="Station" value={intern.station} />
+              <DetailRow label="Area" value={intern.area?.name} />
+              <DetailRow label="Line" value={intern.line?.name} />
+              <DetailRow label="Station" value={intern.station?.name} />
             </Grid>
 
             <Box h="1px" bg="gray.100" my={4} />
