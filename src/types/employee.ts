@@ -1,3 +1,18 @@
+export interface Area {
+  id: number;
+  name: string;
+}
+
+export interface Line {
+  id: number;
+  name: string;
+}
+
+export interface Station {
+  id: number;
+  name: string;
+}
+
 export interface Employee {
   id: number;
   npk: string;
@@ -7,9 +22,12 @@ export interface Employee {
   section_id: number | null;
   role_level?: string | null;
   jabatan: string | null;
-  area: string | null;
-  line?: string | null;
-  station: string | null;
+
+  // Foreign keys (baru)
+  area_id?: number | null;
+  line_id?: number | null;
+  station_id?: number | null;
+
   employment_type: "permanent" | "contract" | "apprentice";
   start_contract: string;
   end_contract: string | null;
@@ -19,6 +37,9 @@ export interface Employee {
   // Relasi (dari resource)
   department?: { id: number; name: string };
   section?: { id: number; name: string };
+  area?: Area | null;
+  line?: Line | null;
+  station?: Station | null;
 
   // Accessor dari backend
   is_near_expiry?: boolean;
@@ -33,8 +54,9 @@ export interface CreateEmployeeInput {
   section_id?: number | null;
   role_level?: string | null;
   jabatan?: string | null;
-  area?: string | null;
-  station?: string | null;
+  area_id?: number | null;
+  line_id?: number | null;
+  station_id?: number | null;
   employment_type: "permanent" | "contract" | "apprentice";
   start_contract: string;
   end_contract?: string | null;
@@ -48,8 +70,9 @@ export interface UpdateEmployeeInput {
   section_id?: number | null;
   role_level?: string | null;
   jabatan?: string | null;
-  area?: string | null;
-  station?: string | null;
+  area_id?: number | null;
+  line_id?: number | null;
+  station_id?: number | null;
   employment_type?: "permanent" | "contract" | "apprentice";
   start_contract?: string;
   end_contract?: string | null;

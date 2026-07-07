@@ -3,9 +3,13 @@ import { Box, Text, Flex, Input, HStack, Grid } from "@chakra-ui/react";
 import { FiPlus, FiEdit2, FiTrash2, FiSearch } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
 import employeeService from "../../services/employeeService";
+import areaService from "../../services/areaService";
+import stationService from "../../services/stationService";
 import { toaster } from "../../components/ui/toaster";
 import fptkService from "../../services/fptkService";
 import type { Employee } from "../../types/employee";
+import type { Area } from "../../types/area";
+import type { Station } from "../../types/station";
 import DeleteModal from "./DeleteModal";
 import EmployeeFormModal from "./EmployeeFormModal";
 import type { MasterData } from "../../types/fptk";
@@ -101,6 +105,8 @@ const employmentTypeBadge = (type: string) => {
 const EmployeeList: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [masterData, setMasterData] = useState<MasterData | null>(null);
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterDept, setFilterDept] = useState("");
@@ -145,8 +151,18 @@ const EmployeeList: React.FC = () => {
     [debouncedSearch, filterDept, filterType],
   );
 
+  // Master data (department/section) + Area & Station di-fetch sekali saat
+  // halaman dimuat, supaya modal form tidak perlu loading ulang tiap dibuka.
   useEffect(() => {
     void fptkService.getMasterData().then((res) => setMasterData(res.data));
+    void areaService
+      .getAreas()
+      .then((res) => setAreas(res.data))
+      .catch(() => setAreas([]));
+    void stationService
+      .getStations()
+      .then((res) => setStations(res.data))
+      .catch(() => setStations([]));
   }, []);
 
   useEffect(() => {
@@ -194,6 +210,8 @@ const EmployeeList: React.FC = () => {
         isOpen={formOpen}
         editTarget={editTarget}
         masterData={masterData}
+        areas={areas}
+        stations={stations}
         onClose={() => {
           setFormOpen(false);
           setEditTarget(null);
@@ -344,6 +362,8 @@ const EmployeeList: React.FC = () => {
                   <th style={thStyle}>Name</th>
                   <th style={thStyle}>Department</th>
                   <th style={thStyle}>Position</th>
+                  <th style={thStyle}>Area / Line</th>
+                  <th style={thStyle}>Station</th>
                   <th style={thStyle}>Type</th>
                   <th style={thStyle}>End Contract</th>
                   <th style={{ ...thStyle, textAlign: "center" }}>Action</th>
@@ -353,7 +373,7 @@ const EmployeeList: React.FC = () => {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={9}
                       style={{
                         padding: "40px",
                         textAlign: "center",
@@ -367,7 +387,7 @@ const EmployeeList: React.FC = () => {
                 ) : employees.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={9}
                       style={{
                         padding: "40px",
                         textAlign: "center",
@@ -447,6 +467,29 @@ const EmployeeList: React.FC = () => {
                           }}
                         >
                           {emp.jabatan ?? "-"}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            fontSize: "13px",
+                            color: "#475569",
+                          }}
+                        >
+                          {emp.area?.name || "-"}
+                          {emp.line?.name && (
+                            <div style={{ fontSize: "12px", color: "#94a3b8" }}>
+                              {emp.line.name}
+                            </div>
+                          )}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            fontSize: "13px",
+                            color: "#475569",
+                          }}
+                        >
+                          {emp.station?.name || "-"}
                         </td>
                         <td style={{ padding: "12px 16px" }}>
                           {employmentTypeBadge(emp.employment_type)}

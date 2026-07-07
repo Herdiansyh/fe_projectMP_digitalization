@@ -151,8 +151,10 @@ import type {
   ApprovalInput,
   ApprovalHistory,
   MasterData,
-  AssignManpowerInput,
-  AssignAreaLineInput,
+  // AssignManpowerInput,
+  // AssignAreaLineInput,
+  AssignAreaLineCandidateInput,
+  AssignManpowerCandidateInput,
 } from "../types/fptk";
 
 const fptkService = {
@@ -282,25 +284,48 @@ const fptkService = {
   },
 
   // HRD isi NPK, nama, dan tanggal kontrak kandidat
+  // assignManpower: async (
+  //   noReq: string,
+  //   data: AssignManpowerInput,
+  // ): Promise<ApiResponse<Requisition>> => {
+  //   const response = await axiosInstance.post<ApiResponse<Requisition>>(
+  //     `/fptk/${noReq}/assign-manpower`,
+  //     data,
+  //   );
+  //   return response.data;
+  // },
+
+  // // Requester isi area (dan line jika department Manufacturing)
+  // assignAreaLine: async (
+  //   noReq: string,
+  //   data: AssignAreaLineInput,
+  // ): Promise<ApiResponse<Requisition>> => {
+  //   const response = await axiosInstance.post<ApiResponse<Requisition>>(
+  //     `/fptk/${noReq}/assign-area-line`,
+  //     data,
+  //   );
+  //   return response.data;
+  // },
+
+  // fptkService.ts — ubah signature
   assignManpower: async (
     noReq: string,
-    data: AssignManpowerInput,
-  ): Promise<ApiResponse<Requisition>> => {
-    const response = await axiosInstance.post<ApiResponse<Requisition>>(
+    payload: { candidates: AssignManpowerCandidateInput[] },
+  ) => {
+    const response = await axiosInstance.post(
       `/fptk/${noReq}/assign-manpower`,
-      data,
+      payload,
     );
     return response.data;
   },
 
-  // Requester isi area (dan line jika department Manufacturing)
   assignAreaLine: async (
     noReq: string,
-    data: AssignAreaLineInput,
-  ): Promise<ApiResponse<Requisition>> => {
-    const response = await axiosInstance.post<ApiResponse<Requisition>>(
+    payload: { candidates: AssignAreaLineCandidateInput[] },
+  ) => {
+    const response = await axiosInstance.post(
       `/fptk/${noReq}/assign-area-line`,
-      data,
+      payload,
     );
     return response.data;
   },

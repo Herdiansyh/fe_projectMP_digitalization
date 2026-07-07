@@ -273,8 +273,28 @@ export interface Requisition {
   area?: { id: number; name: string } | null;
   line?: { id: number; name: string } | null;
   station?: { id: number; name: string } | null;
+  pending_candidates:
+    | {
+        npk: string;
+        name: string;
+        start_contract: string;
+        end_contract: string | null;
+      }[]
+    | null;
+  employees: ManpowerRecord[];
+  interns: ManpowerRecord[];
 }
 
+export interface ManpowerRecord {
+  id: number;
+  npk: string;
+  name: string;
+  start_contract: string;
+  end_contract: string | null;
+  area?: { id: number; name: string } | null;
+  line?: { id: number; name: string } | null;
+  station?: { id: number; name: string } | null;
+}
 export interface AssignManpowerInput {
   npk: string;
   name: string;
@@ -445,4 +465,19 @@ export interface UserContext {
     name: string;
     is_system: boolean;
   };
+}
+
+// types/fptk.ts — tambahkan
+export interface AssignManpowerCandidateInput {
+  npk: string;
+  name: string;
+  start_contract: string;
+  end_contract: string | null;
+}
+
+export interface AssignAreaLineCandidateInput {
+  npk: string;
+  area_id: number;
+  line_id: number | null;
+  station_id: number | null;
 }

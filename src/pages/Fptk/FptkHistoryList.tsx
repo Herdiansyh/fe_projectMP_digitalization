@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Box, Text, Badge, Flex, HStack } from "@chakra-ui/react";
-import { FiEye, FiSearch, FiPrinter } from "react-icons/fi";
+import { FiSearch, FiPrinter } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
 import fptkService from "../../services/fptkService";
@@ -153,7 +153,6 @@ const FptkHistoryList: React.FC = () => {
                       "Requester",
                       "Position",
                       "Current Status",
-                      "Actions",
                     ].map((h) => (
                       <th
                         key={h}
@@ -179,7 +178,11 @@ const FptkHistoryList: React.FC = () => {
                   {filtered.map((req, index) => (
                     <tr
                       key={req.no_req}
-                      style={{ borderBottom: "1px solid #f1f5f9" }}
+                      style={{
+                        borderBottom: "1px solid #f1f5f9",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => navigate(`/fptk/${req.no_req}`)}
                       onMouseEnter={(e) =>
                         (e.currentTarget.style.backgroundColor = "#f8fafc")
                       }
@@ -250,38 +253,13 @@ const FptkHistoryList: React.FC = () => {
 
                       <td style={{ padding: "12px 14px" }}>
                         <HStack gap={1}>
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/fptk/${req.no_req}`)}
-                            style={{
-                              width: "30px",
-                              height: "30px",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              borderRadius: "6px",
-                              color: "#3b82f6",
-                              backgroundColor: "#eff6ff",
-                              border: "1px solid #bfdbfe",
-                              cursor: "pointer",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "#dbeafe")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "#eff6ff")
-                            }
-                            title="Detail"
-                          >
-                            <FiEye size={14} />
-                          </button>
-
                           {req.approval_status === "Approved" && (
                             <button
                               type="button"
-                              onClick={() => handlePrint(req.no_req)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrint(req.no_req);
+                              }}
                               style={{
                                 width: "30px",
                                 height: "30px",

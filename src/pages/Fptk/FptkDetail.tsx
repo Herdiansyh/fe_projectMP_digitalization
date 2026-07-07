@@ -733,42 +733,110 @@ const FptkDetail: React.FC = () => {
             {requisition.hrd_assigned_at && (
               <Box>
                 <SectionTitle>Manpower Assignment</SectionTitle>
-                <Flex gap={4} wrap="wrap">
-                  <Field
-                    label="Candidate NPK"
-                    value={requisition.assigned_npk}
-                  />
-                  <Field
-                    label="Candidate Name"
-                    value={requisition.assigned_name}
-                  />
-                  <Field
-                    label="Start Contract"
-                    value={
-                      requisition.assigned_start_contract
-                        ? formatDate(requisition.assigned_start_contract)
-                        : "-"
-                    }
-                  />
-                  <Field
-                    label="End Contract"
-                    value={
-                      requisition.assigned_end_contract
-                        ? formatDate(requisition.assigned_end_contract)
-                        : "-"
-                    }
-                  />
-                  <Field
-                    label="Assigned by"
-                    value={requisition.hrd_assigned_by}
-                  />
-                  {requisition.assigned_area && (
-                    <Field label="Area" value={requisition.assigned_area} />
-                  )}
-                  {requisition.assigned_line && (
-                    <Field label="Line" value={requisition.assigned_line} />
-                  )}
-                </Flex>
+
+                {(() => {
+                  // Kalau sudah lengkap (area/line sudah diisi), datanya ada di
+                  // employees/interns. Kalau belum, tampilkan dari pending_candidates.
+                  const finalized = requisition.apprenticeship_period
+                    ? (requisition.interns ?? [])
+                    : (requisition.employees ?? []);
+
+                  const isFinalized = finalized.length > 0;
+                  const pending = requisition.pending_candidates ?? [];
+
+                  const candidates = isFinalized ? finalized : pending;
+
+                  if (candidates.length === 0) {
+                    return (
+                      <Text fontSize="14px" color="gray.400">
+                        No candidate data yet.
+                      </Text>
+                    );
+                  }
+
+                  return (
+                    <Flex direction="column" gap={3}>
+                      {candidates.map((c, idx) => (
+                        <Box
+                          key={isFinalized ? (c as any).id : (c as any).npk}
+                          borderWidth="1px"
+                          borderColor="gray.100"
+                          borderRadius="10px"
+                          p={4}
+                          bg="#f9fafb"
+                        >
+                          <Flex justify="space-between" align="center" mb={3}>
+                            <Text
+                              fontSize="12px"
+                              fontWeight={700}
+                              color="gray.500"
+                              textTransform="uppercase"
+                              letterSpacing="0.05em"
+                            >
+                              Candidate {idx + 1}
+                            </Text>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                padding: "2px 8px",
+                                borderRadius: "6px",
+                                color: isFinalized ? "#15803d" : "#c2410c",
+                                backgroundColor: isFinalized
+                                  ? "#f0fdf4"
+                                  : "#fff7ed",
+                                border: `1px solid ${isFinalized ? "#bbf7d0" : "#fed7aa"}`,
+                              }}
+                            >
+                              {isFinalized ? "Placed" : "Awaiting Area/Line"}
+                            </span>
+                          </Flex>
+
+                          <Flex gap={4} wrap="wrap">
+                            <Field label="NPK" value={c.npk} />
+                            <Field label="Name" value={c.name} />
+                            <Field
+                              label="Start Contract"
+                              value={
+                                c.start_contract
+                                  ? formatDate(c.start_contract)
+                                  : "-"
+                              }
+                            />
+                            <Field
+                              label="End Contract"
+                              value={
+                                c.end_contract
+                                  ? formatDate(c.end_contract)
+                                  : "-"
+                              }
+                            />
+                            {isFinalized && (
+                              <>
+                                <Field
+                                  label="Area"
+                                  value={(c as any).area?.name}
+                                />
+                                <Field
+                                  label="Line"
+                                  value={(c as any).line?.name}
+                                />
+                                <Field
+                                  label="Station"
+                                  value={(c as any).station?.name}
+                                />
+                              </>
+                            )}
+                          </Flex>
+                        </Box>
+                      ))}
+                    </Flex>
+                  );
+                })()}
+
+                <Text fontSize="12px" color="gray.500" mt={3}>
+                  Assigned by: {requisition.hrd_assigned_by || "-"}
+                </Text>
               </Box>
             )}
 

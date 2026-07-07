@@ -226,8 +226,9 @@ const EmployeeDetailModal = ({
               <DetailRow label="Department" value={employee.department?.name} />
               <DetailRow label="Section" value={employee.section?.name} />
               <DetailRow label="Role Level" value={employee.role_level} />
-              <DetailRow label="Area" value={employee.area} />
-              <DetailRow label="Station" value={employee.station} />
+              <DetailRow label="Area" value={employee.area?.name} />
+              <DetailRow label="Line" value={employee.line?.name} />
+              <DetailRow label="Station" value={employee.station?.name} />
             </Grid>
 
             <Box h="1px" bg="gray.100" my={4} />
