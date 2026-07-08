@@ -1,4 +1,5 @@
 import axiosInstance from "../api/axios";
+import type { Area } from "../types/area";
 import type {
   UserListParams,
   UserFormData,
@@ -16,6 +17,7 @@ export interface MasterDataResponse {
     departments: Department[];
     sections: Section[];
     role_levels: RoleLevel[];
+    areas: Area[];
     companies: { id: number; name: string }[];
     employee_statuses: { id: number; name: string; level_default: string }[];
   };

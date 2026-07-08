@@ -133,7 +133,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
               <SectionTitle>Position & Access Rights</SectionTitle>
               <DetailRow label="Department" value={user.department?.name} />
               <DetailRow label="Section" value={user.section?.name} />{" "}
-              {/* ← ditambahkan */}
+              <DetailRow label="Area" value={user.area?.name} />{" "}
               <DetailRow label="Role Level" value={user.role_level?.name} />
               <DetailRow
                 label="Admin Status"

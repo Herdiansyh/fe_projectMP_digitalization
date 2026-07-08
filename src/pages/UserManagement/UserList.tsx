@@ -45,6 +45,7 @@ const UserList: React.FC = () => {
           departments: res.data.departments ?? [],
           sections: res.data.sections ?? [],
           roleLevels: res.data.role_levels ?? [],
+          areas: res.data.areas ?? [],
           approvers: appRes.data,
         });
       } catch {

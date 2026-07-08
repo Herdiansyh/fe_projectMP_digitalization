@@ -9,6 +9,8 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import EmployeeList from "./pages/Employee/EmployeeList";
 import InternList from "./pages/Intern/InternList";
+import CompetencyAssessmentList from "./pages/Competency/CompetencyAssessmentList";
+import CompetencyMatrixManage from "./pages/Competency/CompetencyMatrixManage";
 
 const Login = lazy(() => import("./pages/Login/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
@@ -178,6 +180,14 @@ function App() {
                   <LineList />
                 </ProtectedRoute>
               }
+            />
+            <Route
+              path="/competency-assessment"
+              element={<CompetencyAssessmentList />}
+            />
+            <Route
+              path="/manage-competency-matrix"
+              element={<CompetencyMatrixManage />}
             />
           </Routes>
         </Suspense>

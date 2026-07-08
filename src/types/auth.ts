@@ -15,10 +15,12 @@ export interface User {
   is_active?: boolean;
   last_login_at?: string;
   role: Role;
-  role_level?: {
-    id: number;
-    name: string;
-  };
+  area_id?: number | null;
+  area?: { id: number; name: string } | null;
+  // role_level?: {
+  //   id: number;
+  //   name: string;
+  // };
   department?: {
     id: number;
     name: string;

@@ -9,6 +9,7 @@ import type {
   Department,
   Section,
   RoleLevel,
+  Area,
 } from "../../types/user";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -17,6 +18,7 @@ export interface MasterData {
   departments: Department[];
   sections: Section[];
   roleLevels: RoleLevel[];
+  areas: Area[];
   approvers: ApproverList;
 }
 
@@ -99,6 +101,7 @@ const buildInitialForm = (user?: UserItem | null): UserFormData => ({
   approver_director_id: user?.approver_director?.id ?? "",
   is_admin: user?.is_admin ?? false,
   can_view_manpower: user?.can_view_manpower ?? false,
+  area_id: user?.area?.id ?? "",
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -127,6 +130,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
   const sections = masterData?.sections ?? [];
   const roleLevels = masterData?.roleLevels ?? [];
   const approvers = masterData?.approvers ?? EMPTY_APPROVERS;
+  const areas = masterData?.areas ?? [];
 
   // Role level yang sedang dipilih di form saat ini
   const selectedRoleLevel = roleLevels.find(
@@ -158,6 +162,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
         department_id: form.department_id || null,
         section_id: form.section_id || null,
         role_level_id: form.role_level_id || null,
+        area_id: form.area_id || null,
         approver_manager_id: form.approver_manager_id || null,
         approver_division_id: form.approver_division_id || null,
         approver_director_id: form.approver_director_id || null,
@@ -395,7 +400,25 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
               </select>
               <FieldError errors={errors.role_level_id} />
             </Box>
-
+            <Box>
+              <FieldLabel label="Area" />
+              <select
+                value={form.area_id ?? ""}
+                onChange={(e) => set("area_id", e.target.value)}
+                style={selectStyle(!!errors.area_id)}
+              >
+                <option value="">-- Select Area --</option>
+                {areas.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              <FieldError errors={errors.area_id} />
+              <Text fontSize="12px" color="gray.400" mt={1}>
+                Required for Leader/Supervisor to access Competency Assessment
+              </Text>
+            </Box>
             {/* Approver Manager */}
             <Box>
               <FieldLabel label="Approver Manager" />

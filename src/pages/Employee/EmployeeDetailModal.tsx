@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Box, Text, Flex, HStack, Grid } from "@chakra-ui/react";
-import { FiUser, FiX } from "react-icons/fi";
+import { FiClock, FiUser, FiX } from "react-icons/fi";
 import type { Employee } from "../../types/employee";
+import type { AssessableSubject } from "../../types/competency";
+import AssessmentHistoryModal from "../Competency/AssessmentHistoryModal";
 
 const formatDate = (dateString?: string | null) => {
   if (!dateString) return "-";
@@ -108,10 +110,22 @@ const EmployeeDetailModal = ({
   employee: Employee | null;
   onClose: () => void;
 }) => {
+  const [historyOpen, setHistoryOpen] = useState(false);
+
   if (!isOpen || !employee) return null;
 
   const isWarning = !!employee.is_near_expiry;
 
+  // Bentuk subject minimal yang dibutuhkan AssessmentHistoryModal
+  const assessmentSubject: AssessableSubject = {
+    id: employee.id,
+    npk: employee.npk,
+    name: employee.name,
+    subject_type: "employee",
+    station_id: employee.station?.id ?? 0,
+    station: employee.station,
+    latest_assessment: null, // tidak dipakai oleh history modal
+  };
   return (
     <>
       <Box
@@ -257,7 +271,26 @@ const EmployeeDetailModal = ({
           </Box>
 
           <Box h="1px" bg="gray.100" />
-          <Flex px={6} py={4} justify="flex-end">
+          <Flex px={6} py={4} justify="space-between" align="center">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 16px",
+                fontSize: "14px",
+                fontWeight: "600",
+                borderRadius: "8px",
+                color: "#1A5EA8",
+                backgroundColor: "#ffffff",
+                border: "1px solid #1A5EA8",
+                cursor: "pointer",
+              }}
+            >
+              <FiClock size={14} /> Assessment History
+            </button>
             <button
               type="button"
               onClick={onClose}
@@ -275,6 +308,12 @@ const EmployeeDetailModal = ({
               Close
             </button>
           </Flex>
+
+          <AssessmentHistoryModal
+            isOpen={historyOpen}
+            subject={assessmentSubject}
+            onClose={() => setHistoryOpen(false)}
+          />
         </Box>
       </Box>
     </>

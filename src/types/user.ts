@@ -14,6 +14,7 @@ export interface UserItem {
   approver_division?: { id: number; name: string; npk: string } | null;
   approver_director?: { id: number; name: string; npk: string } | null;
   last_login_at?: string | null;
+  area?: { id: number; name: string } | null;
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +46,7 @@ export interface UserFormData {
   approver_director_id?: number | string | null;
   is_admin?: boolean;
   can_view_manpower?: boolean;
+  area_id?: number | string | null;
 }
 
 export interface ResetPasswordData {
@@ -80,6 +82,11 @@ export interface Section {
   name: string;
 }
 export interface RoleLevel {
+  id: number;
+  name: string;
+}
+
+export interface Area {
   id: number;
   name: string;
 }

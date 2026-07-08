@@ -224,6 +224,42 @@ const IconMasterData = () => (
   </svg>
 );
 
+// ── Icon baru: Competency Assessment (Leader) ──
+const IconClipboard = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="8" y="2" width="8" height="4" rx="1" />
+    <path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3" />
+    <path d="M9 12h6M9 16h6" />
+  </svg>
+);
+
+// ── Icon baru: Manage Competency Matrix (Admin) ──
+const IconLayers = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+    <polyline points="2 17 12 22 22 17" />
+    <polyline points="2 12 12 17 22 12" />
+  </svg>
+);
+
 const IconChevron = ({ open }: { open: boolean }) => (
   <svg
     width="14"
@@ -258,6 +294,13 @@ const masterDataNavItem: NavItem = {
     { label: "Area Management", path: "/areas", icon: <IconArea /> },
     { label: "Line Management", path: "/lines", icon: <IconLine /> },
     { label: "Station Management", path: "/stations", icon: <IconStation /> },
+    // Rubrik kompetensi juga tergolong "data master" — setup sekali,
+    // dipakai berulang oleh modul Competency Assessment.
+    {
+      label: "Competency Matrix",
+      path: "/manage-competency-matrix",
+      icon: <IconLayers />,
+    },
   ],
 };
 
@@ -291,13 +334,18 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const isAdmin = user?.is_admin === true;
   const canViewManpower = user?.can_view_manpower === true;
 
+  // Leader/Supervisor ditandai dengan punya area_id sendiri (lihat
+  // migration add_area_id_to_users_table) — bukan role terpisah,
+  // supaya siapa pun yang di-assign area otomatis dapat akses menu ini.
+  const isLeader = !!user?.area_id;
+
   // Section "Admin" di sidebar tampil kalau salah satu benar
   const showAdminSection = isAdmin || canViewManpower;
 
   // Item yang benar-benar ditampilkan di section Admin,
   // digabung sesuai hak masing-masing user
   const visibleAdminSectionItems: NavItem[] = [
-    ...(isAdmin ? [masterDataNavItem] : []), // Data Master (User/Area/Line/Station) → wajib is_admin
+    ...(isAdmin ? [masterDataNavItem] : []), // Data Master (User/Area/Line/Station/Competency Matrix) → wajib is_admin
     ...(isAdmin || canViewManpower ? manpowerNavItems : []), // Manpower → admin ATAU permission khusus
   ];
 
@@ -335,6 +383,16 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             label: "FPTK History",
             path: "/fptk/history",
             icon: <IconHistory />,
+          },
+        ]
+      : []),
+    // Competency Assessment — untuk Leader/Supervisor (punya area_id)
+    ...(isLeader
+      ? [
+          {
+            label: "Competency Assessment",
+            path: "/competency-assessment",
+            icon: <IconClipboard />,
           },
         ]
       : []),
@@ -523,7 +581,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
           {/* Admin section — tampil untuk is_admin ATAU can_view_manpower.
               Isi barisnya berbeda tergantung hak masing-masing:
-              - Data Master (User/Area/Line/Station) HANYA untuk is_admin === true
+              - Data Master (User/Area/Line/Station/Competency Matrix) HANYA untuk is_admin === true
               - Manpower Management/Pemagangan untuk is_admin ATAU can_view_manpower === true */}
           {showAdminSection && (
             <>
