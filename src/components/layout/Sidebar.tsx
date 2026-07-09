@@ -336,26 +336,15 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const isLeaderRole = roleName === "Leader";
 
   // ── Dua flag akses terpisah ──
-  const isAdmin = user?.is_admin === true;
+  // isAdmin selaras dengan backend (EmployeeAssessmentController::isAdmin):
+  // is_admin === true ATAU roleLevel->name === 'Admin'.
+  const isAdmin = user?.is_admin === true || roleName === "Admin";
   const canViewManpower = user?.can_view_manpower === true;
-
-  // Dipakai untuk kondisi "apakah user punya area" — tetap dipertahankan
-  // untuk kasus role lain (mis. Supervisor) yang di-assign area_id.
-  const isLeader = !!user?.area_id;
-
-  // Section "Admin" di sidebar tampil kalau salah satu benar — role Leader
-  // murni SELALU disembunyikan dari section ini, apa pun flag lainnya.
   const showAdminSection = !isLeaderRole && (isAdmin || canViewManpower);
-
-  // Item yang benar-benar ditampilkan di section Admin,
-  // digabung sesuai hak masing-masing user
   const visibleAdminSectionItems: NavItem[] = [
     ...(isAdmin ? [masterDataNavItem] : []), // Data Master (User/Area/Line/Station/Competency Matrix) → wajib is_admin
     ...(isAdmin || canViewManpower ? manpowerNavItems : []), // Manpower → admin ATAU permission khusus
   ];
-
-  // ── Kalau role-nya "Leader", short-circuit total: cuma satu menu ini,
-  //    tidak digabung dengan menu lain sama sekali. ──
   const navItems: NavItem[] = isLeaderRole
     ? [
         { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
@@ -409,10 +398,12 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
               },
             ]
           : []),
-        // Competency Assessment — untuk siapa pun yang punya area_id
-        // (di luar role Leader murni yang sudah ditangani short-circuit di atas,
-        // misal Supervisor yang di-assign area tapi role-nya bukan "Leader")
-        ...(isLeader
+        // Competency Assessment — di branch ini (role Leader murni sudah
+        // ditangani short-circuit terpisah di atas), hanya Admin yang
+        // berhak. Role lain (mis. Supervisor ber-area_id) TIDAK
+        // ditampilkan menunya, karena backend sekarang menolak mereka
+        // dengan 403 (lihat EmployeeAssessmentController::isWithinLeaderScope).
+        ...(isAdmin
           ? [
               {
                 label: "Competency Assessment",

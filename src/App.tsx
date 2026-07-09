@@ -181,13 +181,26 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* Competency Assessment — Leader (area sendiri) atau Admin (semua area).
+                Selaras dengan backend EmployeeAssessmentController::isAdmin/isLeader. */}
             <Route
               path="/competency-assessment"
-              element={<CompetencyAssessmentList />}
+              element={
+                <ProtectedRoute assessorOnly>
+                  <CompetencyAssessmentList />
+                </ProtectedRoute>
+              }
             />
+
+            {/* Manage Competency Matrix — admin only (setup rubrik penilaian) */}
             <Route
               path="/manage-competency-matrix"
-              element={<CompetencyMatrixManage />}
+              element={
+                <ProtectedRoute adminOnly>
+                  <CompetencyMatrixManage />
+                </ProtectedRoute>
+              }
             />
           </Routes>
         </Suspense>
