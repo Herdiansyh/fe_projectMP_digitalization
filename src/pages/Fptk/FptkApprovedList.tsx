@@ -2008,6 +2008,7 @@ import areaService from "../../services/areaService";
 import type { Area } from "../../types/area";
 import type { Line } from "../../types/line";
 import type { Station } from "../../types/station";
+import { v4 as uuidv4 } from "uuid";
 
 // ── Confirm Modal (Process HRD) ─────────────────────────────────────────────
 const ConfirmModal = ({
@@ -2290,7 +2291,7 @@ interface ManpowerCandidate {
 }
 
 const makeEmptyManpowerCandidate = (): ManpowerCandidate => ({
-  key: crypto.randomUUID(),
+  key: uuidv4(),
   npk: "",
   name: "",
   start_contract: "",
