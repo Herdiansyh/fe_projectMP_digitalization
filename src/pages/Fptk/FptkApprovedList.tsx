@@ -2966,6 +2966,7 @@ const FptkApprovedList: React.FC = () => {
 
   const handleSubmitAreaLine = async (
     candidates: {
+      npk: string;
       area_id: number;
       line_id: number | null;
       station_id: number | null;

@@ -9,7 +9,7 @@ import type {
 import type { Area } from "../../types/area";
 import type { Line } from "../../types/line";
 import type { Station } from "../../types/station";
-import type { MasterData } from "../UserManagement/UserFormModal";
+import type { MasterData } from "../../types/fptk";
 import internService from "../../services/internService";
 import lineService from "../../services/lineService";
 import { toaster } from "../../components/ui/toaster";

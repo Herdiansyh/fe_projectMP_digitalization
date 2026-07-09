@@ -60,7 +60,7 @@ const matrixManagementService = {
 
   createCheckpoint: async (
     categoryId: number,
-    payload: { description: string; weight: number; order?: number },
+    payload: { description: string; weight: number; order?: number; sequence?: number; main_process?: string },
   ) => {
     const response = await axiosInstance.post(
       `/competency-categories/${categoryId}/checkpoints`,

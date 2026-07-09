@@ -123,7 +123,7 @@ const EmployeeDetailModal = ({
     name: employee.name,
     subject_type: "employee",
     station_id: employee.station?.id ?? 0,
-    station: employee.station,
+    station: employee.station || undefined,
     latest_assessment: null, // tidak dipakai oleh history modal
   };
   return (
