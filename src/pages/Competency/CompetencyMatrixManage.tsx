@@ -10,6 +10,7 @@ import {
   FiList,
 } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 import matrixManagementService from "../../services/matrixManagementService";
 import stationService from "../../services/stationService";
 import CompetencyMatrixGrid from "../../components/competency/CompetencyMatrixGrid";
@@ -245,6 +246,14 @@ const CategoryBlock = ({
   const [expanded, setExpanded] = useState(true);
   const existingGroups = collectExistingGroups(matrix);
 
+  // ── State konfirmasi hapus: bisa untuk checkpoint ATAU kategori ini sendiri ──
+  const [confirmTarget, setConfirmTarget] = useState<
+    | { type: "checkpoint"; id: number; label: string }
+    | { type: "category" }
+    | null
+  >(null);
+  const [deleting, setDeleting] = useState(false);
+
   const handleAddCheckpoint = async (
     description: string,
     sequence: number | null,
@@ -260,26 +269,27 @@ const CategoryBlock = ({
     onRefresh();
   };
 
-  const handleDeleteCheckpoint = async (id: number) => {
-    if (!confirm("Delete this checkpoint?")) return;
+  const handleConfirmDelete = async () => {
+    if (!confirmTarget) return;
+    setDeleting(true);
     try {
-      await matrixManagementService.deleteCheckpoint(id);
+      if (confirmTarget.type === "checkpoint") {
+        await matrixManagementService.deleteCheckpoint(confirmTarget.id);
+      } else {
+        await matrixManagementService.deleteCategory(category.id);
+      }
+      setConfirmTarget(null);
       onRefresh();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
-      alert(e.response?.data?.message ?? "Failed to delete checkpoint.");
-    }
-  };
-
-  const handleDeleteCategory = async () => {
-    if (!confirm(`Delete category "${category.name}" and all its checkpoints?`))
-      return;
-    try {
-      await matrixManagementService.deleteCategory(category.id);
-      onRefresh();
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      alert(e.response?.data?.message ?? "Failed to delete category.");
+      alert(
+        e.response?.data?.message ??
+          (confirmTarget.type === "checkpoint"
+            ? "Failed to delete checkpoint."
+            : "Failed to delete category."),
+      );
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -311,7 +321,7 @@ const CategoryBlock = ({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            void handleDeleteCategory();
+            setConfirmTarget({ type: "category" });
           }}
           style={{ ...smallBtn, color: "#be123c", backgroundColor: "#fff1f2" }}
         >
@@ -325,7 +335,13 @@ const CategoryBlock = ({
             <CheckpointRow
               key={cp.id}
               checkpoint={cp}
-              onDelete={() => void handleDeleteCheckpoint(cp.id)}
+              onDelete={() =>
+                setConfirmTarget({
+                  type: "checkpoint",
+                  id: cp.id,
+                  label: cp.description,
+                })
+              }
             />
           ))}
           <AddCheckpointForm
@@ -334,6 +350,41 @@ const CategoryBlock = ({
           />
         </Box>
       )}
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        onClose={() => setConfirmTarget(null)}
+        onConfirm={handleConfirmDelete}
+        loading={deleting}
+        title={
+          confirmTarget?.type === "checkpoint"
+            ? "Delete Checkpoint?"
+            : "Delete Category?"
+        }
+        message={
+          confirmTarget?.type === "checkpoint" ? (
+            <>
+              You are about to delete checkpoint{" "}
+              <Text as="span" fontWeight="600" color="gray.700">
+                "{confirmTarget.label}"
+              </Text>
+              . This action cannot be undone.
+            </>
+          ) : (
+            <>
+              You are about to delete category{" "}
+              <Text as="span" fontWeight="600" color="gray.700">
+                "{category.name}"
+              </Text>{" "}
+              and all its checkpoints. This action cannot be undone.
+            </>
+          )
+        }
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+        confirmColor="#ef4444"
+        icon={<FiTrash2 size={22} color="#ef4444" />}
+      />
     </Box>
   );
 };
@@ -393,6 +444,8 @@ const MatrixCard = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleAddCategory = async (name: string) => {
     await matrixManagementService.createCategory(matrix.id, { name });
@@ -412,13 +465,16 @@ const MatrixCard = ({
   };
 
   const handleDeleteMatrix = async () => {
-    if (!confirm(`Delete matrix "${matrix.name}"?`)) return;
+    setDeleting(true);
     try {
       await matrixManagementService.deleteMatrix(matrix.id);
+      setConfirmDeleteOpen(false);
       onRefresh();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
       alert(e.response?.data?.message ?? "Failed to delete matrix.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -447,9 +503,25 @@ const MatrixCard = ({
             <FiChevronRight size={16} />
           )}
           <Box>
-            <Text fontSize="14px" fontWeight="700" color="gray.800">
-              {matrix.name}
-            </Text>
+            <HStack gap={2} align="center">
+              <Text fontSize="14px" fontWeight="700" color="gray.800">
+                {matrix.name}
+              </Text>
+              <span
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  padding: "2px 8px",
+                  borderRadius: "999px",
+                  color: "#1A5EA8",
+                  backgroundColor: "#eaf1f9",
+                  border: "1px solid #bfdbfe",
+                  textTransform: "uppercase",
+                }}
+              >
+                {matrix.station?.name ?? "Unknown Station"}
+              </span>
+            </HStack>
             <Text fontSize="12px" color="gray.500">
               {matrix.categories.length} categories •{" "}
               {matrix.categories.reduce((s, c) => s + c.checkpoints.length, 0)}{" "}
@@ -498,7 +570,7 @@ const MatrixCard = ({
           </span>
           <button
             type="button"
-            onClick={() => void handleDeleteMatrix()}
+            onClick={() => setConfirmDeleteOpen(true)}
             style={{
               ...smallBtn,
               color: "#be123c",
@@ -533,6 +605,27 @@ const MatrixCard = ({
           )}
         </Box>
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={handleDeleteMatrix}
+        loading={deleting}
+        title="Delete Matrix?"
+        message={
+          <>
+            You are about to delete matrix{" "}
+            <Text as="span" fontWeight="600" color="gray.700">
+              "{matrix.name}"
+            </Text>{" "}
+            and all its categories & checkpoints. This action cannot be undone.
+          </>
+        }
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+        confirmColor="#ef4444"
+        icon={<FiTrash2 size={22} color="#ef4444" />}
+      />
     </Box>
   );
 };

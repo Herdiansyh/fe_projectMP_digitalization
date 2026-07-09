@@ -10,9 +10,9 @@ interface Props {
   /** "setup" = tampilan Admin (cuma weight, kolom Point/Total Point kosong).
    *  "assessment" = tampilan Leader saat menilai (weight + point interaktif). */
   mode: "setup" | "assessment";
-  /** Hanya dipakai saat mode="assessment" — checkpoint_id -> point (1-4) yang sudah dipilih. */
+  /** Hanya dipakai saat mode="assessment" — checkpoint_id -> point (0-4) yang sudah dipilih. */
   scores?: Record<number, number>;
-  /** Hanya dipakai saat mode="assessment" — dipanggil saat leader pilih point 1-4. */
+  /** Hanya dipakai saat mode="assessment" — dipanggil saat leader pilih point 0-4. */
   onScoreChange?: (checkpointId: number, point: number) => void;
 }
 

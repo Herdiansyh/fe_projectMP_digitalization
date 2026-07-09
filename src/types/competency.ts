@@ -19,6 +19,7 @@ export interface CompetencyCategory {
 export interface CompetencyMatrix {
   id: number;
   station_id: number;
+  station?: { id: number; name: string };
   name: string;
   is_active: boolean;
   categories: CompetencyCategory[];

@@ -330,17 +330,22 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
   const isHrAdmin = roleName === "HR Admin";
 
+  // ── Role "Leader" murni HANYA boleh lihat menu Competency Assessment —
+  //    tidak ada menu lain sama sekali (Dashboard, FPTK, section Admin, dsb),
+  //    walaupun kebetulan user itu juga is_admin/can_view_manpower true. ──
+  const isLeaderRole = roleName === "Leader";
+
   // ── Dua flag akses terpisah ──
   const isAdmin = user?.is_admin === true;
   const canViewManpower = user?.can_view_manpower === true;
 
-  // Leader/Supervisor ditandai dengan punya area_id sendiri (lihat
-  // migration add_area_id_to_users_table) — bukan role terpisah,
-  // supaya siapa pun yang di-assign area otomatis dapat akses menu ini.
+  // Dipakai untuk kondisi "apakah user punya area" — tetap dipertahankan
+  // untuk kasus role lain (mis. Supervisor) yang di-assign area_id.
   const isLeader = !!user?.area_id;
 
-  // Section "Admin" di sidebar tampil kalau salah satu benar
-  const showAdminSection = isAdmin || canViewManpower;
+  // Section "Admin" di sidebar tampil kalau salah satu benar — role Leader
+  // murni SELALU disembunyikan dari section ini, apa pun flag lainnya.
+  const showAdminSection = !isLeaderRole && (isAdmin || canViewManpower);
 
   // Item yang benar-benar ditampilkan di section Admin,
   // digabung sesuai hak masing-masing user
@@ -349,54 +354,74 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
     ...(isAdmin || canViewManpower ? manpowerNavItems : []), // Manpower → admin ATAU permission khusus
   ];
 
-  const navItems: NavItem[] = [
-    { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
-    // "On Progress FPTK" hanya untuk non-approver dan non-HR Admin
-    ...(!isApproverRole && !isHrAdmin
-      ? [{ label: "On Progress FPTK", path: "/fptklist", icon: <IconFPTK /> }]
-      : []),
-    // "Approved FPTK" tampil untuk semua kecuali approver murni
-    ...(!isApproverRole
-      ? [
-          {
-            label: "Approved FPTK",
-            path: "/fptk/approved",
-            icon: <IconApproved />,
-          },
-        ]
-      : []),
-    // "Rejected FPTK" hanya untuk non-approver dan non-HR Admin
-    ...(!isApproverRole && !isHrAdmin
-      ? [
-          {
-            label: "Rejected FPTK",
-            path: "/fptk/rejected",
-            icon: <IconRejected />,
-          },
-        ]
-      : []),
-    // Pending Approvals & History hanya untuk approver roles
-    ...(isApproverRole ? approvalNavItems : []),
-    ...(isApproverRole
-      ? [
-          {
-            label: "FPTK History",
-            path: "/fptk/history",
-            icon: <IconHistory />,
-          },
-        ]
-      : []),
-    // Competency Assessment — untuk Leader/Supervisor (punya area_id)
-    ...(isLeader
-      ? [
-          {
-            label: "Competency Assessment",
-            path: "/competency-assessment",
-            icon: <IconClipboard />,
-          },
-        ]
-      : []),
-  ];
+  // ── Kalau role-nya "Leader", short-circuit total: cuma satu menu ini,
+  //    tidak digabung dengan menu lain sama sekali. ──
+  const navItems: NavItem[] = isLeaderRole
+    ? [
+        { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
+
+        {
+          label: "Competency Assessment",
+          path: "/competency-assessment",
+          icon: <IconClipboard />,
+        },
+      ]
+    : [
+        { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
+        // "On Progress FPTK" hanya untuk non-approver dan non-HR Admin
+        ...(!isApproverRole && !isHrAdmin
+          ? [
+              {
+                label: "On Progress FPTK",
+                path: "/fptklist",
+                icon: <IconFPTK />,
+              },
+            ]
+          : []),
+        // "Approved FPTK" tampil untuk semua kecuali approver murni
+        ...(!isApproverRole
+          ? [
+              {
+                label: "Approved FPTK",
+                path: "/fptk/approved",
+                icon: <IconApproved />,
+              },
+            ]
+          : []),
+        // "Rejected FPTK" hanya untuk non-approver dan non-HR Admin
+        ...(!isApproverRole && !isHrAdmin
+          ? [
+              {
+                label: "Rejected FPTK",
+                path: "/fptk/rejected",
+                icon: <IconRejected />,
+              },
+            ]
+          : []),
+        // Pending Approvals & History hanya untuk approver roles
+        ...(isApproverRole ? approvalNavItems : []),
+        ...(isApproverRole
+          ? [
+              {
+                label: "FPTK History",
+                path: "/fptk/history",
+                icon: <IconHistory />,
+              },
+            ]
+          : []),
+        // Competency Assessment — untuk siapa pun yang punya area_id
+        // (di luar role Leader murni yang sudah ditangani short-circuit di atas,
+        // misal Supervisor yang di-assign area tapi role-nya bukan "Leader")
+        ...(isLeader
+          ? [
+              {
+                label: "Competency Assessment",
+                path: "/competency-assessment",
+                icon: <IconClipboard />,
+              },
+            ]
+          : []),
+      ];
 
   // Submenu otomatis terbuka kalau salah satu child-nya sedang aktif
   const isChildActive = (item: NavItem) =>
@@ -579,7 +604,8 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
           {navItems.map((item) => renderNavItem(item))}
 
-          {/* Admin section — tampil untuk is_admin ATAU can_view_manpower.
+          {/* Admin section — tampil untuk is_admin ATAU can_view_manpower,
+              KECUALI role Leader murni (selalu disembunyikan).
               Isi barisnya berbeda tergantung hak masing-masing:
               - Data Master (User/Area/Line/Station/Competency Matrix) HANYA untuk is_admin === true
               - Manpower Management/Pemagangan untuk is_admin ATAU can_view_manpower === true */}
