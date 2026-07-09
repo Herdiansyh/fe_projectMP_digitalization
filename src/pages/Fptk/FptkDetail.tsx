@@ -47,6 +47,23 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   </Text>
 );
 
+// ── Bentuk gabungan candidate yang ditampilkan di "Manpower Assignment".
+//    Bisa berasal dari 3 sumber berbeda: requisition.employees (sudah final,
+//    punya id+area+line+station), requisition.interns (sama), atau
+//    requisition.pending_candidates (belum final, cuma npk/name/tanggal
+//    kontrak, tanpa id/area/line/station). Field opsional di bawah ini
+//    merefleksikan itu — dipakai sebagai pengganti `any` saat casting. ──
+interface AssignedCandidate {
+  id?: number;
+  npk: string;
+  name: string;
+  start_contract?: string | null;
+  end_contract?: string | null;
+  area?: { name?: string | null } | null;
+  line?: { name?: string | null } | null;
+  station?: { name?: string | null } | null;
+}
+
 // ── Confirm Modal ─────────────────────────────────────────────────────────────
 const ConfirmModal = ({
   isOpen,
@@ -460,17 +477,37 @@ const FptkDetail: React.FC = () => {
               </Flex>
             </Box>
 
+            {/* ── Requester Data — dipisah tegas dari data requirement,
+                 supaya jelas mana identitas SIAPA yang mengajukan vs APA
+                 yang diminta. Field ini sejalan dengan yang ditampilkan
+                 disabled/auto-fill di form pembuatan FPTK. ── */}
+            <Box>
+              <SectionTitle>Requester Data</SectionTitle>
+              <Flex gap={4} wrap="wrap">
+                <Field
+                  label="Requested By"
+                  value={requisition.requester_name}
+                />
+                <Field
+                  label="Request Date"
+                  value={formatDate(requisition.request_date)}
+                />
+                <Field label="Department" value={requisition.department} />
+                <Field label="Section" value={requisition.section} />
+              </Flex>
+            </Box>
+
             {/* ── 2-Column Layout ── */}
             <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={10}>
               {/* Left Column */}
               <Flex direction="column" gap={8}>
-                {/* ── Requirement ── */}
+                {/* ── Requirement (Department/Section sudah dipindah ke
+                     "Requester Data" di atas, supaya tidak duplikat) ── */}
                 <Box>
                   <SectionTitle>Requirement</SectionTitle>
                   <Flex gap={4} wrap="wrap">
-                    <Field label="Department" value={requisition.department} />
-                    <Field label="Section" value={requisition.section} />
                     <Field label="Position" value={requisition.position} />
+                    <Field label="Fullfillment Type" value={requisition.type} />
                     <Field label="Status" value={requisition.status} />
                     <Field
                       label="Duration"
@@ -758,7 +795,11 @@ const FptkDetail: React.FC = () => {
                     <Flex direction="column" gap={3}>
                       {candidates.map((c, idx) => (
                         <Box
-                          key={isFinalized ? (c as any).id : (c as any).npk}
+                          key={
+                            isFinalized
+                              ? (c as AssignedCandidate).id
+                              : (c as AssignedCandidate).npk
+                          }
                           borderWidth="1px"
                           borderColor="gray.100"
                           borderRadius="10px"
@@ -815,15 +856,15 @@ const FptkDetail: React.FC = () => {
                               <>
                                 <Field
                                   label="Area"
-                                  value={(c as any).area?.name}
+                                  value={(c as AssignedCandidate).area?.name}
                                 />
                                 <Field
                                   label="Line"
-                                  value={(c as any).line?.name}
+                                  value={(c as AssignedCandidate).line?.name}
                                 />
                                 <Field
                                   label="Station"
-                                  value={(c as any).station?.name}
+                                  value={(c as AssignedCandidate).station?.name}
                                 />
                               </>
                             )}
@@ -840,16 +881,12 @@ const FptkDetail: React.FC = () => {
               </Box>
             )}
 
-            {/* ── Approval Information ── */}
+            {/* ── Approval Information (Requested By dipindah ke section
+                 "Requester Data" di atas, supaya tidak duplikat di sini) ── */}
             <Box>
               <SectionTitle>Approver</SectionTitle>
               <Flex gap={4} wrap="wrap">
                 {[
-                  {
-                    label: "Requested By",
-                    name: requisition.requester_name,
-                    date: requisition.request_date,
-                  },
                   {
                     label: "Acknowledged By (Manager)",
                     name: requisition.manager,
@@ -882,8 +919,7 @@ const FptkDetail: React.FC = () => {
                     </Text>
                     {date && (
                       <Text fontSize="12px" color="green.600" mt="2px">
-                        ✓ {label === "Requested By" ? "Date" : "Approved"}:{" "}
-                        {formatDate(date)}
+                        ✓ Approved: {formatDate(date)}
                       </Text>
                     )}
                   </Box>

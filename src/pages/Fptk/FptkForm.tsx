@@ -24,8 +24,8 @@ const FptkForm: React.FC = () => {
     requester_name: user?.name ?? "",
     request_date: new Date().toISOString().split("T")[0],
     group: "",
-    department: "",
-    section: "",
+    department: user?.department?.name ?? "",
+    section: user?.section?.name ?? "",
     type: "",
     position: "",
     status: "",
@@ -61,6 +61,12 @@ const FptkForm: React.FC = () => {
       boxShadow: "0 0 0 1px #3182ce",
       backgroundColor: "#f9fafb",
     },
+  };
+
+  const disabledInputStyle: React.CSSProperties = {
+    opacity: 0.7,
+    cursor: "not-allowed",
+    backgroundColor: "#f1f5f9",
   };
 
   const selectStyle: React.CSSProperties = {
@@ -102,6 +108,16 @@ const FptkForm: React.FC = () => {
     };
 
     void loadData();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    setFormData((prev) => ({
+      ...prev,
+      requester_name: user.name ?? "",
+      department: user.department?.name ?? "",
+      section: user.section?.name ?? "",
+    }));
   }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -241,18 +257,22 @@ const FptkForm: React.FC = () => {
             borderWidth="1px"
             borderColor="gray.100"
           >
-            {/* 1. Requirement Section */}
+            {/* 1. Data Requester — SELALU mengikuti data user login, disabled */}
             <Box>
               <Text
                 fontSize="xl"
                 fontWeight="bold"
                 color="brand.700"
-                mb={4}
+                mb={1}
                 borderBottomWidth="2px"
                 borderColor="brand.100"
                 pb={2}
               >
-                1. Requirement
+                1. Data Requester
+              </Text>
+              <Text fontSize="12px" color="gray.500" mb={4}>
+                Data ini otomatis mengikuti akun yang sedang login dan tidak
+                dapat diubah manual.
               </Text>
               <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
                 <Box>
@@ -269,11 +289,7 @@ const FptkForm: React.FC = () => {
                     {...inputStyle}
                     value={formData.requester_name}
                     disabled
-                    style={{
-                      opacity: 0.7,
-                      cursor: "not-allowed",
-                      backgroundColor: "#f1f5f9",
-                    }}
+                    style={disabledInputStyle}
                   />
                 </Box>
                 <Box>
@@ -290,9 +306,8 @@ const FptkForm: React.FC = () => {
                     required
                     {...inputStyle}
                     value={formData.request_date}
-                    onChange={(e) =>
-                      handleChange("request_date", e.target.value)
-                    }
+                    disabled
+                    style={disabledInputStyle}
                   />
                 </Box>
                 <Box>
@@ -304,18 +319,12 @@ const FptkForm: React.FC = () => {
                   >
                     Departement
                   </Text>
-                  <select
-                    value={formData.department}
-                    onChange={(e) => handleChange("department", e.target.value)}
-                    style={selectStyle}
-                  >
-                    <option value="">Select Department</option>
-                    {masterData?.departments.map((d) => (
-                      <option key={d.id} value={d.name}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Input
+                    {...inputStyle}
+                    value={formData.department || "-"}
+                    disabled
+                    style={disabledInputStyle}
+                  />
                 </Box>
                 <Box>
                   <Text
@@ -326,19 +335,30 @@ const FptkForm: React.FC = () => {
                   >
                     Section
                   </Text>
-                  <select
-                    value={formData.section}
-                    onChange={(e) => handleChange("section", e.target.value)}
-                    style={selectStyle}
-                  >
-                    <option value="">Select Section</option>
-                    {masterData?.sections.map((s) => (
-                      <option key={s.id} value={s.name}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Input
+                    {...inputStyle}
+                    value={formData.section || "-"}
+                    disabled
+                    style={disabledInputStyle}
+                  />
                 </Box>
+              </Grid>
+            </Box>
+
+            {/* 2. Requirement Section */}
+            <Box>
+              <Text
+                fontSize="xl"
+                fontWeight="bold"
+                color="brand.700"
+                mb={4}
+                borderBottomWidth="2px"
+                borderColor="brand.100"
+                pb={2}
+              >
+                2. Requirement
+              </Text>
+              <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
                 <Box>
                   <Text
                     mb="2px"
@@ -353,6 +373,25 @@ const FptkForm: React.FC = () => {
                     value={formData.position}
                     onChange={(e) => handleChange("position", e.target.value)}
                   />
+                </Box>
+                <Box>
+                  <Text
+                    mb="2px"
+                    fontWeight="600"
+                    fontSize="sm"
+                    color="gray.700"
+                  >
+                    Fullfillment Type
+                  </Text>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => handleChange("type", e.target.value)}
+                    style={selectStyle}
+                  >
+                    <option value="">Select Type</option>
+                    <option value="Eksternal">Eksternal</option>
+                    <option value="Internal">Internal</option>
+                  </select>
                 </Box>
                 <Box>
                   <Text
@@ -452,7 +491,7 @@ const FptkForm: React.FC = () => {
               </Grid>
             </Box>
 
-            {/* 2. Specifications Section */}
+            {/* 3. Specifications Section */}
             <Box>
               <Text
                 fontSize="xl"
@@ -463,7 +502,7 @@ const FptkForm: React.FC = () => {
                 borderColor="brand.100"
                 pb={2}
               >
-                2. Man Spesification & Job Spesification
+                3. Man Spesification & Job Spesification
               </Text>
               <Grid
                 templateColumns={{ base: "1fr", md: "1fr 1fr" }}
@@ -679,7 +718,7 @@ const FptkForm: React.FC = () => {
               </Grid>
             </Box>
 
-            {/* 3. Detail Requisition */}
+            {/* 4. Detail Requisition */}
             <Box>
               <Text
                 fontSize="xl"
@@ -690,7 +729,7 @@ const FptkForm: React.FC = () => {
                 borderColor="brand.100"
                 pb={2}
               >
-                3. Detail Requisition
+                4. Detail Requisition
               </Text>
 
               <Grid
@@ -931,7 +970,7 @@ const FptkForm: React.FC = () => {
               </Grid>
             </Box>
 
-            {/* 4. Acknowledgement Section */}
+            {/* 5. Acknowledgement Section */}
             <Box>
               <Text
                 fontSize="xl"
@@ -942,7 +981,7 @@ const FptkForm: React.FC = () => {
                 borderColor="brand.100"
                 pb={2}
               >
-                4. Acknowledge
+                5. Acknowledge
               </Text>
               <Box maxW="400px">
                 <Text mb="2px" fontWeight="600" fontSize="sm" color="gray.700">

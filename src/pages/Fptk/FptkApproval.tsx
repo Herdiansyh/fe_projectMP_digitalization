@@ -418,6 +418,7 @@ const FptkApproval: React.FC = () => {
               <SectionTitle>Position Information</SectionTitle>
               <Flex gap={4} wrap="wrap">
                 <Field label="Position" value={requisition.position} />
+                <Field label="Fullfillment Type" value={requisition.type} />
                 <Field label="Status" value={requisition.status} />
                 <Field label="Level" value={requisition.level} />
                 <Field
