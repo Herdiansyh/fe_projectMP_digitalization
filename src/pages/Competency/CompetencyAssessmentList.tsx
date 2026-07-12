@@ -1,18 +1,45 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Box, Text, Flex, HStack } from "@chakra-ui/react";
-import { FiClipboard, FiTrendingUp, FiTrendingDown } from "react-icons/fi";
+import { FiTrendingUp, FiTrendingDown, FiClock } from "react-icons/fi";
 import competencyService from "../../services/competencyService";
 import type { AssessableSubject } from "../../types/competency";
 import MainLayout from "../../components/layout/MainLayout";
-import AssessmentFormModal from "./AssessmentFormModal";
+import AssessmentPanel from "./AssessmentPanel";
+import AssessmentHistoryModal from "./AssessmentHistoryModal";
+import stationService from "../../services/stationService";
+import type { Station } from "../../types/station";
+const selectStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "8px 12px",
+  fontSize: "14px",
+  color: "#1a202c",
+  backgroundColor: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: "8px",
+  outline: "none",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: "13px",
+  fontWeight: 600,
+  color: "#334155",
+  marginBottom: "6px",
+  display: "block",
+};
 
 const CompetencyAssessmentList: React.FC = () => {
   const [subjects, setSubjects] = useState<AssessableSubject[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const [formModal, setFormModal] = useState<{
+  // ── Step 1 & 2: pilih station lalu pilih user ──
+  const [selectedStationId, setSelectedStationId] = useState<string>("");
+  const [selectedSubjectKey, setSelectedSubjectKey] = useState<string>("");
+
+  // ── Modal riwayat ──
+  const [historyModal, setHistoryModal] = useState<{
     isOpen: boolean;
     subject: AssessableSubject | null;
   }>({ isOpen: false, subject: null });
@@ -32,9 +59,18 @@ const CompetencyAssessmentList: React.FC = () => {
       setLoading(false);
     }
   };
-
+  const fetchStations = async () => {
+    try {
+      const res = await stationService.getStations();
+      setStations(res.data);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setErrorMsg(e.response?.data?.message ?? "Failed to load stations.");
+    }
+  };
   useEffect(() => {
     void fetchSubjects();
+    void fetchStations();
   }, []);
 
   const showSuccess = (msg: string) => {
@@ -49,21 +85,38 @@ const CompetencyAssessmentList: React.FC = () => {
       year: "numeric",
     });
 
+  // ── User-user yang berada di station terpilih ──
+  const subjectsInStation = useMemo(() => {
+    if (!selectedStationId) return [];
+    return subjects.filter(
+      (s) => String(s.station?.id ?? "") === selectedStationId,
+    );
+  }, [subjects, selectedStationId]);
+
+  const selectedSubject = useMemo(() => {
+    if (!selectedSubjectKey) return null;
+    return (
+      subjectsInStation.find(
+        (s) => `${s.subject_type}-${s.id}` === selectedSubjectKey,
+      ) ?? null
+    );
+  }, [subjectsInStation, selectedSubjectKey]);
+
+  // Reset pilihan user tiap kali station berubah
+  const handleStationChange = (val: string) => {
+    setSelectedStationId(val);
+    setSelectedSubjectKey("");
+  };
+
+  // ── Data untuk tabel riwayat (yang sudah pernah dinilai) ──
+  const assessedSubjects = useMemo(
+    () => subjects.filter((s) => s.latest_assessment),
+    [subjects],
+  );
+
   return (
     <MainLayout>
       <Box>
-        {/* Assessment form modal */}
-        <AssessmentFormModal
-          isOpen={formModal.isOpen}
-          subject={formModal.subject}
-          onClose={() => setFormModal({ isOpen: false, subject: null })}
-          onSuccess={(msg) => {
-            setFormModal({ isOpen: false, subject: null });
-            showSuccess(msg);
-            void fetchSubjects();
-          }}
-        />
-
         {/* Success toast */}
         {successMsg && (
           <Box
@@ -84,6 +137,13 @@ const CompetencyAssessmentList: React.FC = () => {
           </Box>
         )}
 
+        {/* Modal riwayat */}
+        <AssessmentHistoryModal
+          isOpen={historyModal.isOpen}
+          subject={historyModal.subject}
+          onClose={() => setHistoryModal({ isOpen: false, subject: null })}
+        />
+
         <Flex justify="space-between" align="center" mb={6}>
           <Box>
             <Text fontSize="2xl" fontWeight="bold" color="gray.800">
@@ -95,20 +155,89 @@ const CompetencyAssessmentList: React.FC = () => {
           </Box>
         </Flex>
 
-        <Box bg="white" rounded="lg" shadow="sm" p={6}>
-          {errorMsg && (
-            <Box
-              mb={4}
-              p={3}
-              bg="#fff1f2"
-              border="1px solid #fecdd3"
-              borderRadius="8px"
-            >
-              <Text fontSize="13px" color="#be123c">
-                {errorMsg}
-              </Text>
+        {errorMsg && (
+          <Box
+            mb={4}
+            p={3}
+            bg="#fff1f2"
+            border="1px solid #fecdd3"
+            borderRadius="8px"
+          >
+            <Text fontSize="13px" color="#be123c">
+              {errorMsg}
+            </Text>
+          </Box>
+        )}
+
+        {/* ─────────────── SECTION 1: Buat Penilaian Baru ─────────────── */}
+        <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
+          <Text fontSize="16px" fontWeight="700" color="gray.800" mb={4}>
+            Buat Penilaian
+          </Text>
+
+          <HStack gap={4} align="flex-start" mb={selectedSubject ? 5 : 0}>
+            <Box flex={1} maxW="280px">
+              <label style={labelStyle}>Station</label>
+              <select
+                style={selectStyle}
+                value={selectedStationId}
+                onChange={(e) => handleStationChange(e.target.value)}
+              >
+                <option value="">-- Pilih Station --</option>
+                {stations.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.name}
+                  </option>
+                ))}
+              </select>
             </Box>
+
+            <Box flex={1} maxW="320px">
+              <label style={labelStyle}>Manpower</label>
+              <select
+                style={selectStyle}
+                value={selectedSubjectKey}
+                disabled={!selectedStationId}
+                onChange={(e) => setSelectedSubjectKey(e.target.value)}
+              >
+                <option value="">
+                  {selectedStationId
+                    ? "-- Pilih Manpower --"
+                    : "Pilih station dulu"}
+                </option>
+                {subjectsInStation.map((s) => (
+                  <option
+                    key={`${s.subject_type}-${s.id}`}
+                    value={`${s.subject_type}-${s.id}`}
+                  >
+                    {s.name} ({s.npk})
+                  </option>
+                ))}
+              </select>
+            </Box>
+          </HStack>
+
+          {/* Panel assessment muncul begitu user dipilih */}
+          {selectedSubject && (
+            <AssessmentPanel
+              key={`${selectedSubject.subject_type}-${selectedSubject.id}`}
+              subject={selectedSubject}
+              onCancel={() => setSelectedSubjectKey("")}
+              onSuccess={(msg) => {
+                setSelectedSubjectKey("");
+                setSelectedStationId("");
+                showSuccess(msg);
+                void fetchSubjects();
+              }}
+            />
           )}
+        </Box>
+
+        {/* ─────────────── SECTION 2: Riwayat Penilaian ─────────────── */}
+        <Box bg="white" rounded="lg" shadow="sm" p={6}>
+          <Text fontSize="16px" fontWeight="700" color="gray.800" mb={4}>
+            Manpower Sudah Dinilai
+          </Text>
 
           {loading ? (
             <Flex justify="center" py={10}>
@@ -116,10 +245,10 @@ const CompetencyAssessmentList: React.FC = () => {
                 Loading...
               </Text>
             </Flex>
-          ) : subjects.length === 0 ? (
+          ) : assessedSubjects.length === 0 ? (
             <Flex justify="center" py={10}>
               <Text color="gray.400" fontSize="14px">
-                No manpower found in your area
+                Belum ada manpower yang dinilai
               </Text>
             </Flex>
           ) : (
@@ -134,7 +263,7 @@ const CompetencyAssessmentList: React.FC = () => {
                       "Station",
                       "Latest Score",
                       "Last Assessed",
-                      "Action",
+                      "Riwayat",
                     ].map((h) => (
                       <th
                         key={h}
@@ -156,7 +285,7 @@ const CompetencyAssessmentList: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {subjects.map((s, index) => (
+                  {assessedSubjects.map((s, index) => (
                     <tr
                       key={`${s.subject_type}-${s.id}`}
                       style={{ borderBottom: "1px solid #f1f5f9" }}
@@ -181,7 +310,7 @@ const CompetencyAssessmentList: React.FC = () => {
                           padding: "12px 14px",
                           fontSize: "13px",
                           color: "#1e293b",
-                          fontWeight: "500",
+                          fontWeight: 500,
                         }}
                       >
                         {s.npk}
@@ -205,7 +334,7 @@ const CompetencyAssessmentList: React.FC = () => {
                         {s.station?.name || "-"}
                       </td>
                       <td style={{ padding: "12px 14px" }}>
-                        {s.latest_assessment ? (
+                        {s.latest_assessment && (
                           <HStack gap={1}>
                             <Text
                               fontSize="14px"
@@ -220,20 +349,6 @@ const CompetencyAssessmentList: React.FC = () => {
                               <FiTrendingDown size={13} color="#c2410c" />
                             )}
                           </HStack>
-                        ) : (
-                          <span
-                            style={{
-                              fontSize: "12px",
-                              fontWeight: 600,
-                              color: "#94a3b8",
-                              backgroundColor: "#f8fafc",
-                              border: "1px solid #e2e8f0",
-                              borderRadius: "6px",
-                              padding: "2px 8px",
-                            }}
-                          >
-                            Not assessed yet
-                          </span>
                         )}
                       </td>
                       <td
@@ -251,7 +366,7 @@ const CompetencyAssessmentList: React.FC = () => {
                         <button
                           type="button"
                           onClick={() =>
-                            setFormModal({ isOpen: true, subject: s })
+                            setHistoryModal({ isOpen: true, subject: s })
                           }
                           style={{
                             display: "inline-flex",
@@ -261,19 +376,13 @@ const CompetencyAssessmentList: React.FC = () => {
                             fontSize: "13px",
                             fontWeight: 600,
                             borderRadius: "8px",
-                            color: "#ffffff",
-                            backgroundColor: "#1A5EA8",
-                            border: "1px solid #1A5EA8",
+                            color: "#1A5EA8",
+                            backgroundColor: "#eaf1f9",
+                            border: "1px solid #cfe0f2",
                             cursor: "pointer",
                           }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor = "#164e8a")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor = "#1A5EA8")
-                          }
                         >
-                          <FiClipboard size={13} /> Assess
+                          <FiClock size={13} /> Riwayat
                         </button>
                       </td>
                     </tr>
