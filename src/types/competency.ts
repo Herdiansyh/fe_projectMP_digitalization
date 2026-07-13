@@ -7,6 +7,7 @@ export interface CompetencyCheckpoint {
   weight: number;
   order: number;
 }
+export type AssessmentStatus = "pending_qc" | "approved";
 
 export interface CompetencyCategory {
   id: number;
@@ -30,6 +31,7 @@ export interface LatestAssessment {
   period_label: string;
   assessed_at: string;
   final_score: number;
+  status: AssessmentStatus;
 }
 
 export interface AssessableSubject {
@@ -55,7 +57,70 @@ export interface AssessmentHistoryItem {
   period_label: string;
   assessed_at: string;
   notes: string | null;
+  status: AssessmentStatus;
   final_score: number;
   category_scores: CategoryScore[];
+  assessor: { id: number; name: string };
+  qc_reviewer: { id: number; name: string } | null;
+}
+
+export interface QcQueueItem {
+  id: number;
+  period_label: string;
+  assessed_at: string;
+  notes: string | null;
+  assessor: { id: number; name: string };
+  subject: { id: number; npk: string; name: string };
+  subject_type: "employee" | "intern";
+  matrix_id: number;
+  leader_category_scores: CategoryScore[];
+  leader_scores: Record<number, number>;
+}
+
+export interface MySubmissionItem {
+  id: number;
+  period_label: string;
+  assessed_at: string;
+  status: AssessmentStatus;
+  final_score: number;
+  subject: {
+    id: number;
+    npk: string;
+    name: string;
+    station?: { id: number; name: string };
+  };
+  subject_type: "employee" | "intern";
+  qc_reviewer: { id: number; name: string } | null;
+  qc_at: string | null;
+}
+
+export interface AssessmentDetail {
+  id: number;
+  period_label: string;
+  assessed_at: string;
+  notes: string | null;
+  status: AssessmentStatus;
+  assessor: { id: number; name: string };
+  qc_reviewer: { id: number; name: string } | null;
+  qc_at: string | null;
+  matrix: CompetencyMatrix;
+  leader_scores: Record<number, number>;
+  qc_scores: Record<number, number>;
+  category_scores: CategoryScore[];
+  final_score: number;
+}
+export interface MyReviewItem {
+  id: number;
+  period_label: string;
+  assessed_at: string;
+  qc_at: string;
+  final_score: number;
+  subject: {
+    id: number;
+    npk: string;
+    name: string;
+    station?: { id: number; name: string };
+  };
+  subject_type: "employee" | "intern";
   assessor: { id: number; name: string };
 }

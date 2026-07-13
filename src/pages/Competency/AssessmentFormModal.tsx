@@ -41,41 +41,49 @@ const AssessmentFormModal: React.FC<Props> = ({
   onSuccess,
 }) => {
   const [matrix, setMatrix] = useState<CompetencyMatrix | null>(null);
-  const [loadingMatrix, setLoadingMatrix] = useState(false);
+  const [loadingMatrix, setLoadingMatrix] = useState(true); // ← langsung true sebagai initial
   const [matrixError, setMatrixError] = useState<string | null>(null);
 
   const [scores, setScores] = useState<Record<number, number>>({});
-  const [periodLabel, setPeriodLabel] = useState("");
+  const [periodLabel, setPeriodLabel] = useState(
+    () =>
+      `Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()}`,
+  ); // ← initial value dari lazy initializer, bukan di-set di effect
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // ── Effect ini SEKARANG hanya untuk fetch data (side effect ke luar), ──
+  // ── bukan untuk reset state form. Reset dilakukan lewat remount (key). ──
   useEffect(() => {
-    if (isOpen && subject) {
-      setScores({});
-      setNotes("");
-      setSubmitError(null);
-      setPeriodLabel(
-        `Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()}`,
-      );
+    if (!isOpen || !subject) return;
 
-      setLoadingMatrix(true);
-      setMatrixError(null);
-      competencyService
-        .getMatrixForSubject(subject.subject_type, subject.id)
-        .then((res) => setMatrix(res.data))
-        .catch((err) => {
-          const e = err as { response?: { data?: { message?: string } } };
-          setMatrixError(
-            e.response?.data?.message ??
-              "Failed to load competency matrix for this station.",
-          );
-          setMatrix(null);
-        })
-        .finally(() => setLoadingMatrix(false));
-    }
+    let cancelled = false;
+
+    competencyService
+      .getMatrixForSubject(subject.subject_type, subject.id)
+      .then((res) => {
+        if (!cancelled) setMatrix(res.data);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const e = err as { response?: { data?: { message?: string } } };
+        setMatrixError(
+          e.response?.data?.message ??
+            "Failed to load competency matrix for this station.",
+        );
+        setMatrix(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingMatrix(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, subject]);
 
+  // ...sisanya (categoryAverages, finalScore, totalCheckpoints, dst) tetap sama...
   // ── Live scoring, dihitung ulang setiap kali "scores" berubah ──
   const categoryAverages = useMemo(() => {
     if (!matrix) return [];

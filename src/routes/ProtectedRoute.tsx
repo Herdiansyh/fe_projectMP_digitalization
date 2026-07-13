@@ -8,6 +8,7 @@ interface ProtectedRouteProps {
   adminOnly?: boolean;
   manpowerOnly?: boolean;
   assessorOnly?: boolean;
+  qcOnly?: boolean;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
@@ -16,6 +17,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   adminOnly = false,
   manpowerOnly = false,
   assessorOnly = false,
+  qcOnly = false,
 }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
 
@@ -32,7 +34,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   const isAdmin = user?.is_admin === true || user?.role?.name === "Admin";
-
+  if (qcOnly && !isAdmin && user?.role?.name !== "Quality Control") {
+    return <Navigate to="/unauthorized" replace />;
+  }
   if (adminOnly && !isAdmin) {
     return <Navigate to="/unauthorized" replace />;
   }

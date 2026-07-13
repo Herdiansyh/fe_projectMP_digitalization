@@ -17,7 +17,11 @@ const matrixManagementService = {
 
   updateMatrix: async (
     id: number,
-    payload: { name?: string; is_active?: boolean },
+    payload: {
+      name?: string;
+      station_id?: number;
+      is_active?: boolean;
+    },
   ) => {
     const response = await axiosInstance.put(
       `/competency-matrices/${id}`,

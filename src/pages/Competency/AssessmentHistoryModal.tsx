@@ -20,35 +20,64 @@ const formatDate = (dateString: string) =>
     year: "numeric",
   });
 
+// ── Badge status, sama seperti di CompetencyAssessmentList ──
+const StatusBadge: React.FC<{ status: "pending_qc" | "approved" }> = ({
+  status,
+}) => {
+  const isApproved = status === "approved";
+  return (
+    <Box
+      display="inline-flex"
+      alignItems="center"
+      px="7px"
+      py="2px"
+      borderRadius="6px"
+      fontSize="10px"
+      fontWeight="600"
+      bg={isApproved ? "#ecfdf5" : "#fffbeb"}
+      color={isApproved ? "#15803d" : "#b45309"}
+      border={`1px solid ${isApproved ? "#bbf7d0" : "#fde68a"}`}
+    >
+      {isApproved ? "Approved" : "Pending QC"}
+    </Box>
+  );
+};
+
 const AssessmentHistoryModal: React.FC<Props> = ({
   isOpen,
   subject,
   onClose,
 }) => {
   const [history, setHistory] = useState<AssessmentHistoryItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // ← initial true, bukan di-set di effect
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null); // ← initial null sudah cukup, tidak perlu di-reset lagi
 
+  // ── Effect ini sekarang murni untuk fetch (side effect ke luar) ──
   useEffect(() => {
-    if (isOpen && subject) {
-      setLoading(true);
-      setErrorMsg(null);
-      setExpandedId(null);
-      competencyService
-        .getHistory(subject.subject_type, subject.id)
-        .then((res) => {
-          // urutkan terbaru dulu untuk tampilan (backend kirim ascending by assessed_at)
-          setHistory([...res.data].reverse());
-        })
-        .catch((err) => {
-          const e = err as { response?: { data?: { message?: string } } };
-          setErrorMsg(
-            e.response?.data?.message ?? "Failed to load assessment history.",
-          );
-        })
-        .finally(() => setLoading(false));
-    }
+    if (!isOpen || !subject) return;
+
+    let cancelled = false;
+
+    competencyService
+      .getHistory(subject.subject_type, subject.id)
+      .then((res) => {
+        if (!cancelled) setHistory([...res.data].reverse());
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const e = err as { response?: { data?: { message?: string } } };
+        setErrorMsg(
+          e.response?.data?.message ?? "Failed to load assessment history.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, subject]);
 
   if (!isOpen || !subject) return null;
@@ -170,10 +199,18 @@ const AssessmentHistoryModal: React.FC<Props> = ({
             ) : (
               <Flex direction="column" gap={3}>
                 {history.map((item, idx) => {
-                  const prev = history[idx + 1]; // item sesudahnya di array = periode sebelumnya (karena sudah di-reverse)
-                  const trendUp = prev
-                    ? item.final_score >= prev.final_score
-                    : null;
+                  const isApproved = item.status === "approved";
+
+                  // Trend hanya dibandingkan antar item yang sama-sama approved,
+                  // supaya tidak membandingkan dengan skor 0 milik item pending_qc.
+                  const prevApproved = history
+                    .slice(idx + 1)
+                    .find((h) => h.status === "approved");
+                  const trendUp =
+                    isApproved && prevApproved
+                      ? item.final_score >= prevApproved.final_score
+                      : null;
+
                   const isExpanded = expandedId === item.id;
 
                   return (
@@ -196,64 +233,109 @@ const AssessmentHistoryModal: React.FC<Props> = ({
                         }
                       >
                         <Box>
-                          <Text
-                            fontSize="13px"
-                            fontWeight="700"
-                            color="gray.700"
-                          >
-                            {item.period_label}
-                          </Text>
+                          <HStack gap={2} mb="2px">
+                            <Text
+                              fontSize="13px"
+                              fontWeight="700"
+                              color="gray.700"
+                            >
+                              {item.period_label}
+                            </Text>
+                            <StatusBadge status={item.status} />
+                          </HStack>
                           <Text fontSize="11px" color="gray.500">
                             {formatDate(item.assessed_at)} — by{" "}
                             {item.assessor.name}
                           </Text>
                         </Box>
                         <HStack gap={2}>
-                          <Text
-                            fontSize="18px"
-                            fontWeight="800"
-                            color="#1A5EA8"
-                          >
-                            {item.final_score.toFixed(2)}
-                          </Text>
-                          {trendUp !== null &&
-                            (trendUp ? (
-                              <FiTrendingUp size={14} color="#15803d" />
-                            ) : (
-                              <FiTrendingDown size={14} color="#c2410c" />
-                            ))}
+                          {isApproved ? (
+                            <>
+                              <Text
+                                fontSize="18px"
+                                fontWeight="800"
+                                color="#1A5EA8"
+                              >
+                                {item.final_score.toFixed(2)}
+                              </Text>
+                              {trendUp !== null &&
+                                (trendUp ? (
+                                  <FiTrendingUp size={14} color="#15803d" />
+                                ) : (
+                                  <FiTrendingDown size={14} color="#c2410c" />
+                                ))}
+                            </>
+                          ) : (
+                            <Text
+                              fontSize="12px"
+                              fontWeight="600"
+                              color="#b45309"
+                            >
+                              Waiting QC
+                            </Text>
+                          )}
                         </HStack>
                       </Flex>
 
                       {isExpanded && (
                         <Box px={4} py={3}>
-                          <Flex direction="column" gap={2}>
-                            {item.category_scores.map((cat) => (
-                              <Flex
-                                key={cat.category_id}
-                                justify="space-between"
-                                align="center"
-                              >
-                                <Text fontSize="13px" color="gray.600">
-                                  {cat.category_name}
-                                </Text>
-                                <Text
-                                  fontSize="13px"
-                                  fontWeight="600"
-                                  color="gray.700"
-                                >
-                                  {cat.average.toFixed(2)}{" "}
-                                  <Text
-                                    as="span"
-                                    fontSize="11px"
-                                    color="gray.400"
+                          {isApproved ? (
+                            <>
+                              <Flex direction="column" gap={2}>
+                                {item.category_scores.map((cat) => (
+                                  <Flex
+                                    key={cat.category_id}
+                                    justify="space-between"
+                                    align="center"
                                   >
-                                    ({cat.checkpoint_count} checkpoints)
-                                  </Text>
-                                </Text>
+                                    <Text fontSize="13px" color="gray.600">
+                                      {cat.category_name}
+                                    </Text>
+                                    <Text
+                                      fontSize="13px"
+                                      fontWeight="600"
+                                      color="gray.700"
+                                    >
+                                      {cat.average.toFixed(2)}{" "}
+                                      <Text
+                                        as="span"
+                                        fontSize="11px"
+                                        color="gray.400"
+                                      >
+                                        ({cat.checkpoint_count} checkpoints)
+                                      </Text>
+                                    </Text>
+                                  </Flex>
+                                ))}
                               </Flex>
-                            ))}
-                          </Flex>
+                              {item.qc_reviewer && (
+                                <Box
+                                  mt={3}
+                                  pt={3}
+                                  borderTop="1px solid #f1f5f9"
+                                >
+                                  <Text fontSize="11px" color="gray.400">
+                                    Reviewed by {item.qc_reviewer.name}
+                                  </Text>
+                                </Box>
+                              )}
+                            </>
+                          ) : (
+                            <Box
+                              p={3}
+                              bg="#fffbeb"
+                              border="1px solid #fde68a"
+                              borderRadius="8px"
+                            >
+                              <Text fontSize="12px" color="#b45309">
+                                Submitted by the Leader and waiting for QC
+                                review. Category scores and final score will
+                                appear here once QC has reviewed this
+                                assessment.
+                              </Text>
+                            </Box>
+                          )}
+
                           {item.notes && (
                             <Box mt={3} pt={3} borderTop="1px solid #f1f5f9">
                               <Text

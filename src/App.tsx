@@ -11,6 +11,9 @@ import EmployeeList from "./pages/Employee/EmployeeList";
 import InternList from "./pages/Intern/InternList";
 import CompetencyAssessmentList from "./pages/Competency/CompetencyAssessmentList";
 import CompetencyMatrixManage from "./pages/Competency/CompetencyMatrixManage";
+import QcReviewList from "./pages/Competency/QcReviewList";
+import MySubmissionsList from "./pages/Competency/MySubmissionList";
+import MyReviewsList from "./pages/Competency/MyReviewList";
 
 const Login = lazy(() => import("./pages/Login/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
@@ -199,6 +202,32 @@ function App() {
               element={
                 <ProtectedRoute adminOnly>
                   <CompetencyMatrixManage />
+                </ProtectedRoute>
+              }
+            />
+            {/* QC Review — role Quality Control (semua area) atau Admin */}
+            <Route
+              path="/qc-review"
+              element={
+                <ProtectedRoute qcOnly>
+                  <QcReviewList />
+                </ProtectedRoute>
+              }
+            />
+            {/* My Submissions — Leader melihat assessment yang dia submit sendiri */}
+            <Route
+              path="/my-submissions"
+              element={
+                <ProtectedRoute assessorOnly>
+                  <MySubmissionsList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-reviews"
+              element={
+                <ProtectedRoute qcOnly>
+                  <MyReviewsList />
                 </ProtectedRoute>
               }
             />
