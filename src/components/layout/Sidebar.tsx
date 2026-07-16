@@ -279,8 +279,8 @@ const IconChevron = ({ open }: { open: boolean }) => (
     <polyline points="9 18 15 12 9 6" />
   </svg>
 );
-// ── Icon baru: QC Review ──
-const IconQcReview = () => (
+// ── Icon baru: QA Review ──
+const IconQaReview = () => (
   <svg
     width="16"
     height="16"
@@ -307,8 +307,14 @@ const IconListCheck = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M9 6h11M9 12h11M9 18h11" />
-    <path d="M4 6h.01M4 12h.01M4 18h.01" />
+    <path d="M9 2h6" />
+    <rect x="5" y="3" width="14" height="19" rx="2" />
+    <path d="M8 8l1.5 1.5L12 7" />
+    <path d="M14 8h2" />
+    <path d="M8 13l1.5 1.5L12 12" />
+    <path d="M14 13h2" />
+    <path d="M8 18l1.5 1.5L12 17" />
+    <path d="M14 18h2" />
   </svg>
 );
 const approvalNavItems: NavItem[] = [
@@ -330,6 +336,11 @@ const masterDataNavItem: NavItem = {
     {
       label: "Competency Matrix",
       path: "/manage-competency-matrix",
+      icon: <IconLayers />,
+    },
+    {
+      label: "Evaluation Form",
+      path: "/manage-evaluation-form",
       icon: <IconLayers />,
     },
   ],
@@ -361,15 +372,21 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
   const isHrAdmin = roleName === "HR Admin";
   const isLeaderRole = roleName === "Leader";
-  const isQCRole = roleName === "Quality Control";
-
+  const isQARole = roleName === "Quality Assurance";
+  const isSectionHeadRole = roleName === "Section Head";
   const isAdmin = user?.is_admin === true || roleName === "Admin";
   const canViewManpower = user?.can_view_manpower === true;
-  const showAdminSection =
-    !isLeaderRole && !isQCRole && (isAdmin || canViewManpower);
+  const showAdminOnlySection = !isLeaderRole && !isQARole && isAdmin;
+  const isManagerRole = roleName === "Manager";
+  // "Manpower" muncul untuk SIAPAPUN yang admin atau can_view_manpower = true,
+  // tanpa terikat role Leader/QA
+  const showManpowerSection = isAdmin || canViewManpower;
+
+  const showAdminSection = showAdminOnlySection || showManpowerSection;
+
   const visibleAdminSectionItems: NavItem[] = [
-    ...(isAdmin ? [masterDataNavItem] : []), // Data Master (User/Area/Line/Station/Competency Matrix) → wajib is_admin
-    ...(isAdmin || canViewManpower ? manpowerNavItems : []), // Manpower → admin ATAU permission khusus
+    ...(showAdminOnlySection ? [masterDataNavItem] : []),
+    ...(showManpowerSection ? manpowerNavItems : []),
   ];
   const navItems: NavItem[] = isLeaderRole
     ? [
@@ -385,14 +402,19 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
           path: "/my-submissions",
           icon: <IconListCheck />,
         },
+        {
+          label: "Evaluations",
+          path: "/evaluations",
+          icon: <IconClipboard />,
+        },
       ]
-    : isQCRole
+    : isQARole
       ? [
           { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
           {
-            label: "QC Review",
-            path: "/qc-review",
-            icon: <IconQcReview />,
+            label: "QA Review",
+            path: "/qa-review",
+            icon: <IconQaReview />,
           },
           {
             label: "My Reviews",
@@ -475,13 +497,22 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                 },
               ]
             : []),
+          ...(isAdmin || isSectionHeadRole || isManagerRole
+            ? [
+                {
+                  label: "Evaluations",
+                  path: "/evaluations",
+                  icon: <IconClipboard />,
+                },
+              ]
+            : []),
 
           ...(isAdmin
             ? [
                 {
-                  label: "QC Review",
-                  path: "/qc-review",
-                  icon: <IconQcReview />,
+                  label: "QA Review",
+                  path: "/qa-review",
+                  icon: <IconQaReview />,
                 },
               ]
             : []),

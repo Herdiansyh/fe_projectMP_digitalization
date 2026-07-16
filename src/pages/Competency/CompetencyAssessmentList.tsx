@@ -12,7 +12,11 @@ import MainLayout from "../../components/layout/MainLayout";
 import AssessmentPanel from "./AssessmentPanel";
 import AssessmentHistoryModal from "./AssessmentHistoryModal";
 import stationService from "../../services/stationService";
+import lineService from "../../services/lineService";
+import areaService from "../../services/areaService";
 import type { Station } from "../../types/station";
+import type { Line } from "../../types/line";
+import type { Area } from "../../types/area";
 
 const selectStyle: React.CSSProperties = {
   width: "100%",
@@ -34,7 +38,7 @@ const labelStyle: React.CSSProperties = {
 };
 
 // ── Badge status assessment ──
-const StatusBadge: React.FC<{ status: "pending_qc" | "approved" }> = ({
+const StatusBadge: React.FC<{ status: "pending_qa" | "approved" }> = ({
   status,
 }) => {
   const isApproved = status === "approved";
@@ -52,7 +56,7 @@ const StatusBadge: React.FC<{ status: "pending_qc" | "approved" }> = ({
       color={isApproved ? "#15803d" : "#b45309"}
       border={`1px solid ${isApproved ? "#bbf7d0" : "#fde68a"}`}
     >
-      {isApproved ? "Approved" : "Pending QC"}
+      {isApproved ? "Approved" : "Pending QA"}
     </Box>
   );
 };
@@ -60,10 +64,14 @@ const StatusBadge: React.FC<{ status: "pending_qc" | "approved" }> = ({
 const CompetencyAssessmentList: React.FC = () => {
   const [subjects, setSubjects] = useState<AssessableSubject[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true); // ← initial true, bukan di-set di effect
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  const [selectedAreaId, setSelectedAreaId] = useState<string>("");
+  const [selectedLineId, setSelectedLineId] = useState<string>("");
   const [selectedStationId, setSelectedStationId] = useState<string>("");
   const [selectedSubjectKey, setSelectedSubjectKey] = useState<string>("");
 
@@ -98,11 +106,15 @@ const CompetencyAssessmentList: React.FC = () => {
     Promise.all([
       competencyService.getAssessableEmployees(),
       stationService.getStations(),
+      lineService.getLines(),
+      areaService.getAreas(),
     ])
-      .then(([subjectsRes, stationsRes]) => {
+      .then(([subjectsRes, stationsRes, linesRes, areasRes]) => {
         if (cancelled) return;
         setSubjects(subjectsRes.data);
         setStations(stationsRes.data);
+        setLines(linesRes.data);
+        setAreas(areasRes.data);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -132,6 +144,18 @@ const CompetencyAssessmentList: React.FC = () => {
       year: "numeric",
     });
 
+  // Line difilter berdasarkan Area terpilih
+  const filteredLines = useMemo(() => {
+    if (!selectedAreaId) return [];
+    return lines.filter((l) => Number(l.area_id) === Number(selectedAreaId));
+  }, [lines, selectedAreaId]);
+
+  // Station difilter berdasarkan Line terpilih
+  const filteredStations = useMemo(() => {
+    if (!selectedLineId) return [];
+    return stations.filter((s) => Number(s.line_id) === Number(selectedLineId));
+  }, [stations, selectedLineId]);
+
   const subjectsInStation = useMemo(() => {
     if (!selectedStationId) return [];
     return subjects.filter(
@@ -147,6 +171,19 @@ const CompetencyAssessmentList: React.FC = () => {
       ) ?? null
     );
   }, [subjectsInStation, selectedSubjectKey]);
+
+  const handleAreaChange = (val: string) => {
+    setSelectedAreaId(val);
+    setSelectedLineId("");
+    setSelectedStationId("");
+    setSelectedSubjectKey("");
+  };
+
+  const handleLineChange = (val: string) => {
+    setSelectedLineId(val);
+    setSelectedStationId("");
+    setSelectedSubjectKey("");
+  };
 
   const handleStationChange = (val: string) => {
     setSelectedStationId(val);
@@ -222,19 +259,70 @@ const CompetencyAssessmentList: React.FC = () => {
             Create New Assessment
           </Text>
           <Text fontSize="12px" color="gray.500" mb={4} mt={-2}>
-            Your scores will be submitted for QC review before becoming final.
+            Your scores will be submitted for QA review before becoming final.
           </Text>
 
-          <HStack gap={4} align="flex-start" mb={selectedSubject ? 5 : 0}>
-            <Box flex={1} maxW="280px">
+          <HStack
+            gap={4}
+            align="flex-start"
+            mb={selectedSubject ? 5 : 0}
+            wrap="wrap"
+          >
+            <Box flex={1} minW="200px" maxW="240px">
+              <label style={labelStyle}>Area</label>
+              <select
+                style={selectStyle}
+                value={selectedAreaId}
+                onChange={(e) => handleAreaChange(e.target.value)}
+              >
+                <option value="">-- Choose Area --</option>
+                {areas.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </Box>
+
+            <Box flex={1} minW="200px" maxW="240px">
+              <label style={labelStyle}>Line</label>
+              <select
+                style={selectStyle}
+                value={selectedLineId}
+                disabled={!selectedAreaId}
+                onChange={(e) => handleLineChange(e.target.value)}
+              >
+                <option value="">
+                  {!selectedAreaId
+                    ? "Choose area first"
+                    : filteredLines.length === 0
+                      ? "No lines in this area"
+                      : "-- Choose Line --"}
+                </option>
+                {filteredLines.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </Box>
+
+            <Box flex={1} minW="200px" maxW="240px">
               <label style={labelStyle}>Station</label>
               <select
                 style={selectStyle}
                 value={selectedStationId}
+                disabled={!selectedLineId}
                 onChange={(e) => handleStationChange(e.target.value)}
               >
-                <option value="">-- Choose Station --</option>
-                {stations.map((st) => (
+                <option value="">
+                  {!selectedLineId
+                    ? "Choose line first"
+                    : filteredStations.length === 0
+                      ? "No stations in this line"
+                      : "-- Choose Station --"}
+                </option>
+                {filteredStations.map((st) => (
                   <option key={st.id} value={st.id}>
                     {st.name}
                   </option>
@@ -242,7 +330,7 @@ const CompetencyAssessmentList: React.FC = () => {
               </select>
             </Box>
 
-            <Box flex={1} maxW="320px">
+            <Box flex={1} minW="220px" maxW="320px">
               <label style={labelStyle}>Manpower</label>
               <select
                 style={selectStyle}
@@ -275,8 +363,10 @@ const CompetencyAssessmentList: React.FC = () => {
               onSuccess={(msg) => {
                 setSelectedSubjectKey("");
                 setSelectedStationId("");
+                setSelectedLineId("");
+                setSelectedAreaId("");
                 showSuccess(msg);
-                void refetchSubjects(); 
+                void refetchSubjects();
               }}
             />
           )}
@@ -413,7 +503,7 @@ const CompetencyAssessmentList: React.FC = () => {
                               <HStack gap={1}>
                                 <FiPending size={12} color="#b45309" />
                                 <Text fontSize="12px" color="#b45309">
-                                  Waiting QC
+                                  Waiting QA
                                 </Text>
                               </HStack>
                             ))}

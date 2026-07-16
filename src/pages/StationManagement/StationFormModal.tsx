@@ -1,13 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Box, Text, Flex } from "@chakra-ui/react";
 import { FiMapPin, FiX } from "react-icons/fi";
 import stationService from "../../services/stationService";
 import { toaster } from "../../components/ui/toaster";
 import type { Station } from "../../types/station";
+import type { Line } from "../../types/line";
+import type { Area } from "../../types/area";
 
 interface StationFormModalProps {
   isOpen: boolean;
   editTarget: Station | null;
+  areas: Area[];
+  lines: Line[];
+  defaultLineId?: number | null;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -23,43 +28,77 @@ const inputStyle = (hasError?: boolean): React.CSSProperties => ({
   outline: "none",
 });
 
+const selectStyle = (hasError?: boolean): React.CSSProperties => ({
+  ...inputStyle(hasError),
+  cursor: "pointer",
+});
+
 const StationFormModal: React.FC<StationFormModalProps> = ({
   isOpen,
   editTarget,
+  areas,
+  lines,
+  defaultLineId,
   onClose,
   onSaved,
 }) => {
   const isEdit = !!editTarget;
   const [name, setName] = useState("");
+  const [areaId, setAreaId] = useState<string>("");
+  const [lineId, setLineId] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<{ name?: string; line_id?: string }>({});
 
   useEffect(() => {
     if (isOpen) {
       setName(editTarget?.name ?? "");
-      setError(null);
+      const initialLine = editTarget?.line_id ?? defaultLineId ?? "";
+      setLineId(initialLine ? String(initialLine) : "");
+
+      // Tentukan area awal dari line target/default, kalau ada
+      const initialLineObj =
+        editTarget?.line ??
+        lines.find((l) => String(l.id) === String(initialLine));
+      setAreaId(initialLineObj?.area_id ? String(initialLineObj.area_id) : "");
+
+      setErrors({});
     }
-  }, [isOpen, editTarget]);
+  }, [isOpen, editTarget, defaultLineId, lines]);
+
+  // Line yang ditampilkan di dropdown, difilter berdasarkan area terpilih
+  const filteredLines = useMemo(() => {
+    if (!areaId) return [];
+    return lines.filter((l) => String(l.area_id) === areaId);
+  }, [lines, areaId]);
 
   if (!isOpen) return null;
 
+  const handleAreaChange = (value: string) => {
+    setAreaId(value);
+    setLineId(""); // reset line saat area berubah
+  };
+
   const handleSubmit = async () => {
-    if (!name.trim()) {
-      setError("Station name is required");
+    const newErrors: { name?: string; line_id?: string } = {};
+    if (!name.trim()) newErrors.name = "Station name is required";
+    if (!lineId) newErrors.line_id = "Line is required";
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
+
     try {
       setLoading(true);
+      const payload = { name: name.trim(), line_id: lineId };
+
       if (isEdit && editTarget) {
-        await stationService.updateStation(editTarget.id, {
-          name: name.trim(),
-        });
+        await stationService.updateStation(editTarget.id, payload);
         toaster.create({
           title: "Station updated successfully",
           type: "success",
         });
       } else {
-        await stationService.createStation({ name: name.trim() });
+        await stationService.createStation(payload);
         toaster.create({
           title: "Station created successfully",
           type: "success",
@@ -73,8 +112,18 @@ const StationFormModal: React.FC<StationFormModalProps> = ({
           data?: { errors?: Record<string, string[]>; message?: string };
         };
       };
-      const fieldError = e.response?.data?.errors?.name?.[0];
-      setError(fieldError ?? e.response?.data?.message ?? "An error occurred.");
+      const apiErrors = e.response?.data?.errors;
+      if (apiErrors) {
+        setErrors({
+          name: apiErrors.name?.[0],
+          line_id: apiErrors.line_id?.[0],
+        });
+      } else {
+        toaster.create({
+          title: e.response?.data?.message ?? "An error occurred.",
+          type: "error",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -103,7 +152,7 @@ const StationFormModal: React.FC<StationFormModalProps> = ({
         borderRadius="12px"
         shadow="xl"
         w="full"
-        maxW="420px"
+        maxW="440px"
         mx={4}
         overflow="hidden"
       >
@@ -144,25 +193,80 @@ const StationFormModal: React.FC<StationFormModalProps> = ({
           </button>
         </Flex>
 
-        <Box px={6} py={5}>
-          <Text fontSize="13px" fontWeight="500" color="gray.700" mb={1}>
-            Station Name{" "}
-            <Text as="span" color="red.400">
-              *
+        <Box px={6} py={5} display="flex" flexDirection="column" gap={4}>
+          {/* Area — hanya untuk filter, tidak dikirim ke API */}
+          <Box>
+            <Text fontSize="13px" fontWeight="500" color="gray.700" mb={1}>
+              Area{" "}
+              <Text as="span" color="red.400">
+                *
+              </Text>
             </Text>
-          </Text>
-          <input
-            placeholder="e.g. Station 3"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={inputStyle(!!error)}
-            autoFocus
-          />
-          {error && (
-            <Text fontSize="12px" color="red.500" mt={1}>
-              {error}
+            <select
+              value={areaId}
+              onChange={(e) => handleAreaChange(e.target.value)}
+              style={selectStyle(!!errors.line_id && !areaId)}
+            >
+              <option value="">-- Select Area --</option>
+              {areas.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </Box>
+
+          {/* Line — difilter berdasarkan Area */}
+          <Box>
+            <Text fontSize="13px" fontWeight="500" color="gray.700" mb={1}>
+              Line{" "}
+              <Text as="span" color="red.400">
+                *
+              </Text>
             </Text>
-          )}
+            <select
+              value={lineId}
+              onChange={(e) => setLineId(e.target.value)}
+              disabled={!areaId}
+              style={selectStyle(!!errors.line_id)}
+            >
+              <option value="">
+                {areaId ? "-- Select Line --" : "Select an area first"}
+              </option>
+              {filteredLines.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+            {errors.line_id && (
+              <Text fontSize="12px" color="red.500" mt={1}>
+                {errors.line_id}
+              </Text>
+            )}
+          </Box>
+
+          {/* Station Name */}
+          <Box>
+            <Text fontSize="13px" fontWeight="500" color="gray.700" mb={1}>
+              Station Name{" "}
+              <Text as="span" color="red.400">
+                *
+              </Text>
+            </Text>
+            <input
+              placeholder="e.g. Station 3"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={inputStyle(!!errors.name)}
+              autoFocus
+            />
+            {errors.name && (
+              <Text fontSize="12px" color="red.500" mt={1}>
+                {errors.name}
+              </Text>
+            )}
+          </Box>
         </Box>
 
         <Flex

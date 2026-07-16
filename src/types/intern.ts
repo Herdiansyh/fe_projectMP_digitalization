@@ -21,11 +21,15 @@ export interface Area {
 export interface Line {
   id: number;
   name: string;
+  area_id: number;
+  area?: Area;
 }
 
 export interface Station {
   id: number;
   name: string;
+  line_id: number;
+  line?: Line;
 }
 
 export interface Intern {

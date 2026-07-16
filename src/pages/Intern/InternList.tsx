@@ -4,12 +4,10 @@ import { FiPlus, FiEdit2, FiTrash2, FiSearch } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
 import internService from "../../services/internService";
 import areaService from "../../services/areaService";
-import stationService from "../../services/stationService";
 import { toaster } from "../../components/ui/toaster";
 import fptkService from "../../services/fptkService";
 import type { Intern } from "../../types/intern";
 import type { Area } from "../../types/area";
-import type { Station } from "../../types/station";
 import DeleteModal from "./DeleteModal";
 import InternFormModal from "./InternFormModal";
 import type { MasterData } from "../../types/fptk";
@@ -57,7 +55,6 @@ const InternList: React.FC = () => {
   const [interns, setInterns] = useState<Intern[]>([]);
   const [masterData, setMasterData] = useState<MasterData | null>(null);
   const [areas, setAreas] = useState<Area[]>([]);
-  const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterDept, setFilterDept] = useState("");
@@ -96,18 +93,16 @@ const InternList: React.FC = () => {
     [debouncedSearch, filterDept],
   );
 
-  // Master data (department/section) + Area & Station di-fetch sekali saat
-  // halaman dimuat, supaya modal form tidak perlu loading ulang tiap dibuka.
+  // Master data (department/section) + Area di-fetch sekali saat halaman
+  // dimuat, supaya modal form tidak perlu loading ulang tiap dibuka.
+  // Station TIDAK di-fetch di sini — InternFormModal fetch Station-nya
+  // sendiri secara dinamis berdasarkan Line yang dipilih (cascade Area -> Line -> Station).
   useEffect(() => {
     void fptkService.getMasterData().then((res) => setMasterData(res.data));
     void areaService
       .getAreas()
       .then((res) => setAreas(res.data))
       .catch(() => setAreas([]));
-    void stationService
-      .getStations()
-      .then((res) => setStations(res.data))
-      .catch(() => setStations([]));
   }, []);
 
   useEffect(() => {
@@ -151,7 +146,6 @@ const InternList: React.FC = () => {
         editTarget={editTarget}
         masterData={masterData}
         areas={areas}
-        stations={stations}
         onClose={() => {
           setFormOpen(false);
           setEditTarget(null);

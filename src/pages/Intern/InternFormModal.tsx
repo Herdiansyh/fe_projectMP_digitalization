@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Box, Text, Flex, Grid, Stack } from "@chakra-ui/react";
 import { FiX, FiSave } from "react-icons/fi";
 import type {
@@ -12,6 +12,7 @@ import type { Station } from "../../types/station";
 import type { MasterData } from "../../types/fptk";
 import internService from "../../services/internService";
 import lineService from "../../services/lineService";
+import stationService from "../../services/stationService";
 import { toaster } from "../../components/ui/toaster";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -63,13 +64,16 @@ const labelStyle: React.CSSProperties = {
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+// NOTE: prop "stations" sengaja TIDAK ada di sini — modal ini fetch daftar
+// Station-nya sendiri secara dinamis (cascade Area -> Line -> Station) lewat
+// stationService.getStations({ line_id }), jadi tidak perlu daftar Station
+// statis dikirim dari parent (InternList).
 
 interface InternFormModalProps {
   isOpen: boolean;
   editTarget: Intern | null;
   masterData: MasterData | null;
   areas: Area[];
-  stations: Station[];
   onClose: () => void;
   onSaved: () => void;
 }
@@ -81,7 +85,6 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
   editTarget,
   masterData,
   areas,
-  stations,
   onClose,
   onSaved,
 }) => {
@@ -89,10 +92,13 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
-  // Line tetap fetch dinamis karena bergantung pada area_id yang dipilih —
-  // tidak bisa di-preload di parent seperti Area & Station.
+  // Line fetch dinamis berdasarkan area_id yang dipilih
   const [lines, setLines] = useState<Line[]>([]);
   const [loadingLines, setLoadingLines] = useState(false);
+
+  // Station fetch dinamis berdasarkan line_id yang dipilih (cascade dari Line)
+  const [stationOptions, setStationOptions] = useState<Station[]>([]);
+  const [loadingStations, setLoadingStations] = useState(false);
 
   // Isi form saat editTarget berubah / modal dibuka
   useEffect(() => {
@@ -134,6 +140,41 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
       .finally(() => setLoadingLines(false));
   }, [form.area_id, isOpen]);
 
+  // Load Station setiap kali Line berubah (termasuk saat edit sudah punya line_id)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (!form.line_id) {
+      setStationOptions([]);
+      return;
+    }
+
+    setLoadingStations(true);
+    stationService
+      .getStations({ line_id: form.line_id })
+      .then((res) => setStationOptions(res.data))
+      .catch(() => setStationOptions([]))
+      .finally(() => setLoadingStations(false));
+  }, [form.line_id, isOpen]);
+
+  // Fallback: pastikan station lama (dari data intern saat edit) tetap tampil
+  // walau belum/tidak termuat di hasil fetch stationOptions.
+  const stationSelectOptions = useMemo(() => {
+    const options = [...stationOptions];
+    const hasCurrent = options.some((s) => s.id === form.station_id);
+    const fallbackStation = editTarget?.station;
+
+    if (
+      !hasCurrent &&
+      fallbackStation &&
+      fallbackStation.id === form.station_id
+    ) {
+      options.unshift(fallbackStation as Station);
+    }
+
+    return options;
+  }, [stationOptions, form.station_id, editTarget]);
+
   if (!isOpen) return null;
 
   const handleChange = (field: keyof CreateInternInput, value: unknown) => {
@@ -145,9 +186,24 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
     setForm((prev) => ({
       ...prev,
       area_id: value,
-      line_id: null, // reset line saat area berganti
+      line_id: null,
+      station_id: null,
     }));
-    setErrors((prev) => ({ ...prev, area_id: [], line_id: [] }));
+    setErrors((prev) => ({
+      ...prev,
+      area_id: [],
+      line_id: [],
+      station_id: [],
+    }));
+  };
+
+  const handleLineChange = (value: number | null) => {
+    setForm((prev) => ({
+      ...prev,
+      line_id: value,
+      station_id: null,
+    }));
+    setErrors((prev) => ({ ...prev, line_id: [], station_id: [] }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -419,8 +475,7 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
                       value={form.line_id ?? ""}
                       disabled={!form.area_id || loadingLines}
                       onChange={(e) =>
-                        handleChange(
-                          "line_id",
+                        handleLineChange(
                           e.target.value ? Number(e.target.value) : null,
                         )
                       }
@@ -447,6 +502,7 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
                     <select
                       style={selectStyle}
                       value={form.station_id ?? ""}
+                      disabled={!form.line_id || loadingStations}
                       onChange={(e) =>
                         handleChange(
                           "station_id",
@@ -455,11 +511,15 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
                       }
                     >
                       <option value="">
-                        {stations.length === 0
-                          ? "Loading stations..."
-                          : "Select station"}
+                        {!form.line_id
+                          ? "Select line first"
+                          : loadingStations
+                            ? "Loading stations..."
+                            : stationSelectOptions.length === 0
+                              ? "No stations in this line"
+                              : "Select station"}
                       </option>
-                      {stations.map((s) => (
+                      {stationSelectOptions.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
                         </option>

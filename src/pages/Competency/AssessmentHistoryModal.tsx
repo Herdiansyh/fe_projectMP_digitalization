@@ -21,7 +21,7 @@ const formatDate = (dateString: string) =>
   });
 
 // ── Badge status, sama seperti di CompetencyAssessmentList ──
-const StatusBadge: React.FC<{ status: "pending_qc" | "approved" }> = ({
+const StatusBadge: React.FC<{ status: "pending_qa" | "approved" }> = ({
   status,
 }) => {
   const isApproved = status === "approved";
@@ -38,7 +38,7 @@ const StatusBadge: React.FC<{ status: "pending_qc" | "approved" }> = ({
       color={isApproved ? "#15803d" : "#b45309"}
       border={`1px solid ${isApproved ? "#bbf7d0" : "#fde68a"}`}
     >
-      {isApproved ? "Approved" : "Pending QC"}
+      {isApproved ? "Approved" : "Pending QA"}
     </Box>
   );
 };
@@ -202,7 +202,7 @@ const AssessmentHistoryModal: React.FC<Props> = ({
                   const isApproved = item.status === "approved";
 
                   // Trend hanya dibandingkan antar item yang sama-sama approved,
-                  // supaya tidak membandingkan dengan skor 0 milik item pending_qc.
+                  // supaya tidak membandingkan dengan skor 0 milik item pending_qa.
                   const prevApproved = history
                     .slice(idx + 1)
                     .find((h) => h.status === "approved");
@@ -271,7 +271,7 @@ const AssessmentHistoryModal: React.FC<Props> = ({
                               fontWeight="600"
                               color="#b45309"
                             >
-                              Waiting QC
+                              Waiting QA
                             </Text>
                           )}
                         </HStack>
@@ -308,14 +308,14 @@ const AssessmentHistoryModal: React.FC<Props> = ({
                                   </Flex>
                                 ))}
                               </Flex>
-                              {item.qc_reviewer && (
+                              {item.qa_reviewer && (
                                 <Box
                                   mt={3}
                                   pt={3}
                                   borderTop="1px solid #f1f5f9"
                                 >
                                   <Text fontSize="11px" color="gray.400">
-                                    Reviewed by {item.qc_reviewer.name}
+                                    Reviewed by {item.qa_reviewer.name}
                                   </Text>
                                 </Box>
                               )}
@@ -328,9 +328,9 @@ const AssessmentHistoryModal: React.FC<Props> = ({
                               borderRadius="8px"
                             >
                               <Text fontSize="12px" color="#b45309">
-                                Submitted by the Leader and waiting for QC
+                                Submitted by the Leader and waiting for QA
                                 review. Category scores and final score will
-                                appear here once QC has reviewed this
+                                appear here once QA has reviewed this
                                 assessment.
                               </Text>
                             </Box>

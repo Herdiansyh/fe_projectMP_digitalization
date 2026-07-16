@@ -18,7 +18,7 @@ const formatDate = (dateString: string) =>
     year: "numeric",
   });
 
-const StatusBadge: React.FC<{ status: "pending_qc" | "approved" }> = ({
+const StatusBadge: React.FC<{ status: "pending_qa" | "approved" }> = ({
   status,
 }) => {
   const isApproved = status === "approved";
@@ -35,7 +35,7 @@ const StatusBadge: React.FC<{ status: "pending_qc" | "approved" }> = ({
       color={isApproved ? "#15803d" : "#b45309"}
       border={`1px solid ${isApproved ? "#bbf7d0" : "#fde68a"}`}
     >
-      {isApproved ? "Approved" : "Pending QC"}
+      {isApproved ? "Approved" : "Pending QA"}
     </Box>
   );
 };
@@ -72,7 +72,7 @@ const MySubmissionsList: React.FC = () => {
   }, []);
 
   const pendingCount = submissions.filter(
-    (s) => s.status === "pending_qc",
+    (s) => s.status === "pending_qa",
   ).length;
 
   return (
@@ -84,7 +84,7 @@ const MySubmissionsList: React.FC = () => {
               My Submissions
             </Text>
             <Text fontSize="13px" color="gray.500" mt={0.5}>
-              Assessments you have submitted and their QC review status
+              Assessments you have submitted and their QA review status
             </Text>
           </Box>
           {pendingCount > 0 && (
@@ -96,7 +96,7 @@ const MySubmissionsList: React.FC = () => {
               borderRadius="8px"
             >
               <Text fontSize="12px" color="#b45309" fontWeight="600">
-                {pendingCount} waiting for QC review
+                {pendingCount} waiting for QA review
               </Text>
             </Box>
           )}
@@ -263,7 +263,7 @@ const MySubmissionsList: React.FC = () => {
                             color: "#475569",
                           }}
                         >
-                          {s.qc_reviewer ? s.qc_reviewer.name : "-"}
+                          {s.qa?.name ?? "-"}
                         </td>
                         <td style={{ padding: "12px 14px" }}>
                           <button

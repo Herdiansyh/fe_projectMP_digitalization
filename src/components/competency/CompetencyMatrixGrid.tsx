@@ -10,7 +10,7 @@ interface Props {
   mode: "setup" | "assessment";
   scores?: Record<number, number>;
   onScoreChange?: (checkpointId: number, point: number) => void;
-  /** Opsional: nilai Leader, ditampilkan sebagai referensi kecil saat QC menilai. */
+  /** Opsional: nilai Leader, ditampilkan sebagai referensi kecil saat QA menilai. */
   referenceScores?: Record<number, number>;
 }
 
@@ -91,7 +91,7 @@ const PointSelect: React.FC<{
       <option value="" disabled>
         -
       </option>
-      {[0, 1, 2, 3, 4].map((p) => (
+      {[0, 1].map((p) => (
         <option key={p} value={p}>
           {p}
         </option>

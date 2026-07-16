@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Box, Text, Flex, HStack } from "@chakra-ui/react";
 import {
   FiTrash2,
@@ -14,12 +14,16 @@ import CategoryBlock from "./CategoryBlock";
 import AddCategoryForm from "./AddCategoryForm";
 import type { CompetencyMatrix } from "../types/competency";
 import type { Station } from "../types/station";
+import type { Line } from "../types/line";
+import type { Area } from "../types/area";
 import matrixManagementService from "../services/matrixManagementService";
 import CompetencyMatrixGrid from "./competency/CompetencyMatrixGrid";
 import ConfirmDialog from "./common/ConfirmDialog";
 
 interface MatrixCardProps {
   matrix: CompetencyMatrix;
+  areas: Area[];
+  lines: Line[];
   stations: Station[];
   onRefresh: () => void;
 }
@@ -27,6 +31,8 @@ interface MatrixCardProps {
 // ── Card: satu matrix, expandable, berisi kategori ──
 const MatrixCard: React.FC<MatrixCardProps> = ({
   matrix,
+  areas,
+  lines,
   stations,
   onRefresh,
 }) => {
@@ -37,10 +43,50 @@ const MatrixCard: React.FC<MatrixCardProps> = ({
 
   const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [editName, setEditName] = useState(matrix.name);
+
+  // Station saat ini yang dipakai matrix (untuk tahu line & area awal)
+  const currentStation = useMemo(
+    () => stations.find((s) => Number(s.id) === Number(matrix.station?.id)),
+    [stations, matrix.station?.id],
+  );
+  const currentLine = useMemo(
+    () => lines.find((l) => Number(l.id) === Number(currentStation?.line_id)),
+    [lines, currentStation],
+  );
+
+  const [editAreaId, setEditAreaId] = useState<number | "">(
+    currentLine?.area_id ?? "",
+  );
+  const [editLineId, setEditLineId] = useState<number | "">(
+    currentStation?.line_id ?? "",
+  );
   const [editStationId, setEditStationId] = useState<number | "">(
     matrix.station?.id ?? "",
   );
   const [savingHeader, setSavingHeader] = useState(false);
+
+  // Line difilter berdasarkan Area yang sedang diedit
+  const filteredEditLines = useMemo(() => {
+    if (!editAreaId) return [];
+    return lines.filter((l) => Number(l.area_id) === Number(editAreaId));
+  }, [lines, editAreaId]);
+
+  // Station difilter berdasarkan Line yang sedang diedit
+  const filteredEditStations = useMemo(() => {
+    if (!editLineId) return [];
+    return stations.filter((s) => Number(s.line_id) === Number(editLineId));
+  }, [stations, editLineId]);
+
+  const handleEditAreaChange = (value: number | "") => {
+    setEditAreaId(value);
+    setEditLineId("");
+    setEditStationId("");
+  };
+
+  const handleEditLineChange = (value: number | "") => {
+    setEditLineId(value);
+    setEditStationId("");
+  };
 
   const handleAddCategory = async (name: string) => {
     await matrixManagementService.createCategory(matrix.id, { name });
@@ -79,6 +125,8 @@ const MatrixCard: React.FC<MatrixCardProps> = ({
 
   const handleCancelHeader = () => {
     setEditName(matrix.name);
+    setEditAreaId(currentLine?.area_id ?? "");
+    setEditLineId(currentStation?.line_id ?? "");
     setEditStationId(matrix.station?.id ?? "");
     setIsEditingHeader(false);
   };
@@ -135,16 +183,54 @@ const MatrixCard: React.FC<MatrixCardProps> = ({
                 onChange={(e) => setEditName(e.target.value)}
               />
               <select
-                style={{ ...inputStyle, minWidth: "180px" }}
+                style={{ ...inputStyle, minWidth: "140px" }}
+                value={editAreaId}
+                onChange={(e) =>
+                  handleEditAreaChange(
+                    e.target.value === "" ? "" : Number(e.target.value),
+                  )
+                }
+              >
+                <option value="">Select area</option>
+                {areas.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                style={{ ...inputStyle, minWidth: "140px" }}
+                value={editLineId}
+                disabled={!editAreaId}
+                onChange={(e) =>
+                  handleEditLineChange(
+                    e.target.value === "" ? "" : Number(e.target.value),
+                  )
+                }
+              >
+                <option value="">
+                  {!editAreaId ? "Select area first" : "Select line"}
+                </option>
+                {filteredEditLines.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                style={{ ...inputStyle, minWidth: "140px" }}
                 value={editStationId}
+                disabled={!editLineId}
                 onChange={(e) =>
                   setEditStationId(
                     e.target.value === "" ? "" : Number(e.target.value),
                   )
                 }
               >
-                <option value="">Select station</option>
-                {stations.map((s) => (
+                <option value="">
+                  {!editLineId ? "Select line first" : "Select station"}
+                </option>
+                {filteredEditStations.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
                   </option>
@@ -196,14 +282,30 @@ const MatrixCard: React.FC<MatrixCardProps> = ({
                   {matrix.station?.name ?? "Unknown Station"}
                 </span>
               </HStack>
-              <Text fontSize="12px" color="gray.500">
-                {matrix.categories.length} categories •{" "}
-                {matrix.categories.reduce(
-                  (s, c) => s + c.checkpoints.length,
-                  0,
-                )}{" "}
-                checkpoints
-              </Text>
+              <HStack gap={1} mt={1}>
+                <Text fontSize="12px" color="gray.500">
+                  {currentLine?.area?.name ??
+                    currentStation?.line?.area?.name ??
+                    "-"}
+                </Text>
+                <Text fontSize="12px" color="gray.400">
+                  /
+                </Text>
+                <Text fontSize="12px" color="gray.500">
+                  {currentLine?.name ?? currentStation?.line?.name ?? "-"}
+                </Text>
+                <Text fontSize="12px" color="gray.400">
+                  •
+                </Text>
+                <Text fontSize="12px" color="gray.500">
+                  {matrix.categories.length} categories •{" "}
+                  {matrix.categories.reduce(
+                    (s, c) => s + c.checkpoints.length,
+                    0,
+                  )}{" "}
+                  checkpoints
+                </Text>
+              </HStack>
             </Box>
           )}
         </HStack>

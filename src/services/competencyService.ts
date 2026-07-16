@@ -3,7 +3,7 @@ import type {
   AssessableSubject,
   CompetencyMatrix,
   AssessmentHistoryItem,
-  QcQueueItem,
+  QaQueueItem,
   MySubmissionItem,
   AssessmentDetail,
   MyReviewItem,
@@ -50,17 +50,17 @@ const competencyService = {
     return response.data;
   },
 
-  getQcQueue: async (): Promise<{ success: boolean; data: QcQueueItem[] }> => {
-    const response = await axiosInstance.get("/assessments/qc-queue");
+  getQaQueue: async (): Promise<{ success: boolean; data: QaQueueItem[] }> => {
+    const response = await axiosInstance.get("/assessments/qa-queue");
     return response.data;
   },
 
-  submitQcReview: async (
+  submitQaReview: async (
     assessmentId: number,
     payload: { scores: { checkpoint_id: number; point: number }[] },
   ) => {
     const response = await axiosInstance.post(
-      `/assessments/${assessmentId}/qc`,
+      `/assessments/${assessmentId}/qa`,
       payload,
     );
     return response.data;

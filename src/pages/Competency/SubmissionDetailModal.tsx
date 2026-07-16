@@ -125,8 +125,8 @@ const SubmissionDetailModal: React.FC<Props> = ({
                   <Text fontSize="13px" color="gray.500">
                     Submitted {formatDate(detail.assessed_at)} by{" "}
                     {detail.assessor.name}
-                    {detail.qc_reviewer &&
-                      ` · Reviewed by ${detail.qc_reviewer.name}`}
+                    {detail.qa_reviewer &&
+                      ` · Reviewed by ${detail.qa_reviewer.name}`}
                   </Text>
                 )}
               </Box>
@@ -189,7 +189,7 @@ const SubmissionDetailModal: React.FC<Props> = ({
                   />
                 </Box>
 
-                {isApproved && Object.keys(detail.qc_scores).length > 0 && (
+                {isApproved && Object.keys(detail.qa_scores).length > 0 && (
                   <Box>
                     <Text
                       fontSize="13px"
@@ -197,12 +197,12 @@ const SubmissionDetailModal: React.FC<Props> = ({
                       color="gray.700"
                       mb={2}
                     >
-                      QC Final Score
+                      QA Final Score
                     </Text>
                     <CompetencyMatrixGrid
                       matrix={detail.matrix}
                       mode="assessment"
-                      scores={detail.qc_scores}
+                      scores={detail.qa_scores}
                     />
                   </Box>
                 )}
@@ -215,7 +215,7 @@ const SubmissionDetailModal: React.FC<Props> = ({
                     borderRadius="8px"
                   >
                     <Text fontSize="12px" color="#b45309">
-                      This assessment is still waiting for QC review. The final
+                      This assessment is still waiting for QA review. The final
                       score will appear here once reviewed.
                     </Text>
                   </Box>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Box, Text, Flex, Grid, Stack } from "@chakra-ui/react";
 import { FiX, FiSave } from "react-icons/fi";
 import type {
@@ -12,6 +12,7 @@ import type { Station } from "../../types/station";
 import type { MasterData } from "../../types/fptk";
 import employeeService from "../../services/employeeService";
 import lineService from "../../services/lineService";
+import stationService from "../../services/stationService";
 import { toaster } from "../../components/ui/toaster";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -28,6 +29,7 @@ const EMPTY_FORM: CreateEmployeeInput = {
   line_id: null,
   station_id: null,
   employment_type: "permanent",
+  join_date: "",
   start_contract: "",
   end_contract: null,
 };
@@ -64,13 +66,16 @@ const labelStyle: React.CSSProperties = {
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+// NOTE: prop "stations" sengaja TIDAK ada di sini — modal ini fetch daftar
+// Station-nya sendiri secara dinamis (cascade Area -> Line -> Station) lewat
+// stationService.getStations({ line_id }), jadi tidak perlu daftar Station
+// statis dikirim dari parent (EmployeeList).
 
 interface EmployeeFormModalProps {
   isOpen: boolean;
   editTarget: Employee | null;
   masterData: MasterData | null;
   areas: Area[];
-  stations: Station[];
   onClose: () => void;
   onSaved: () => void;
 }
@@ -82,15 +87,18 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
   editTarget,
   masterData,
   areas,
-  stations,
   onClose,
   onSaved,
 }) => {
   const [form, setForm] = useState<CreateEmployeeInput>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
+
   const [lines, setLines] = useState<Line[]>([]);
   const [loadingLines, setLoadingLines] = useState(false);
+
+  const [stationOptions, setStationOptions] = useState<Station[]>([]);
+  const [loadingStations, setLoadingStations] = useState(false);
 
   useEffect(() => {
     if (editTarget) {
@@ -106,6 +114,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
         line_id: editTarget.line_id ?? editTarget.line?.id ?? null,
         station_id: editTarget.station_id ?? editTarget.station?.id ?? null,
         employment_type: editTarget.employment_type,
+        join_date: editTarget.join_date ?? "",
         start_contract: editTarget.start_contract,
         end_contract: editTarget.end_contract ?? null,
       });
@@ -132,6 +141,41 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
       .finally(() => setLoadingLines(false));
   }, [form.area_id, isOpen]);
 
+  // Load Station setiap kali Line berubah (termasuk saat edit sudah punya line_id)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (!form.line_id) {
+      setStationOptions([]);
+      return;
+    }
+
+    setLoadingStations(true);
+    stationService
+      .getStations({ line_id: form.line_id })
+      .then((res) => setStationOptions(res.data))
+      .catch(() => setStationOptions([]))
+      .finally(() => setLoadingStations(false));
+  }, [form.line_id, isOpen]);
+
+  // Fallback: pastikan station lama (dari data employee saat edit) tetap tampil
+  // di dropdown walau belum termuat / tidak ikut di hasil fetch stationOptions.
+  const stationSelectOptions = useMemo(() => {
+    const options = [...stationOptions];
+    const hasCurrent = options.some((s) => s.id === form.station_id);
+    const fallbackStation = editTarget?.station;
+
+    if (
+      !hasCurrent &&
+      fallbackStation &&
+      fallbackStation.id === form.station_id
+    ) {
+      options.unshift(fallbackStation as Station);
+    }
+
+    return options;
+  }, [stationOptions, form.station_id, editTarget]);
+
   if (!isOpen) return null;
 
   const handleChange = (field: keyof CreateEmployeeInput, value: unknown) => {
@@ -143,9 +187,24 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
     setForm((prev) => ({
       ...prev,
       area_id: value,
-      line_id: null, // reset line saat area berganti
+      line_id: null,
+      station_id: null,
     }));
-    setErrors((prev) => ({ ...prev, area_id: [], line_id: [] }));
+    setErrors((prev) => ({
+      ...prev,
+      area_id: [],
+      line_id: [],
+      station_id: [],
+    }));
+  };
+
+  const handleLineChange = (value: number | null) => {
+    setForm((prev) => ({
+      ...prev,
+      line_id: value,
+      station_id: null,
+    }));
+    setErrors((prev) => ({ ...prev, line_id: [], station_id: [] }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -405,8 +464,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                       value={form.line_id ?? ""}
                       disabled={!form.area_id || loadingLines}
                       onChange={(e) =>
-                        handleChange(
-                          "line_id",
+                        handleLineChange(
                           e.target.value ? Number(e.target.value) : null,
                         )
                       }
@@ -437,6 +495,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                     <select
                       style={selectStyle}
                       value={form.station_id ?? ""}
+                      disabled={!form.line_id || loadingStations}
                       onChange={(e) =>
                         handleChange(
                           "station_id",
@@ -445,11 +504,15 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                       }
                     >
                       <option value="">
-                        {stations.length === 0
-                          ? "Loading stations..."
-                          : "Select station"}
+                        {!form.line_id
+                          ? "Select line first"
+                          : loadingStations
+                            ? "Loading stations..."
+                            : stationSelectOptions.length === 0
+                              ? "No stations in this line"
+                              : "Select station"}
                       </option>
-                      {stations.map((s) => (
+                      {stationSelectOptions.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
                         </option>
@@ -490,7 +553,19 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                     </select>
                     {errorText("employment_type")}
                   </Box>
-                  <Box />
+                  <Box>
+                    <label style={labelStyle}>Join Date *</label>
+                    <input
+                      type="date"
+                      style={inputStyle}
+                      required
+                      value={form.join_date}
+                      onChange={(e) =>
+                        handleChange("join_date", e.target.value)
+                      }
+                    />
+                    {errorText("join_date")}
+                  </Box>
                 </Grid>
 
                 {/* Start & End Contract */}

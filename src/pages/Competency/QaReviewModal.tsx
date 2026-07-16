@@ -3,16 +3,16 @@ import { Box, Text, Flex, HStack } from "@chakra-ui/react";
 import { FiCheckCircle } from "react-icons/fi";
 import competencyService from "../../services/competencyService";
 import CompetencyMatrixGrid from "../../components/competency/CompetencyMatrixGrid";
-import type { QcQueueItem, CompetencyMatrix } from "../../types/competency";
+import type { QaQueueItem, CompetencyMatrix } from "../../types/competency";
 
 interface Props {
   isOpen: boolean;
-  item: QcQueueItem | null;
+  item: QaQueueItem | null;
   onClose: () => void;
   onSuccess: (message: string) => void;
 }
 
-const QcReviewModal: React.FC<Props> = ({
+const QaReviewModal: React.FC<Props> = ({
   isOpen,
   item,
   onClose,
@@ -68,16 +68,16 @@ const QcReviewModal: React.FC<Props> = ({
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const res = await competencyService.submitQcReview(item.id, {
+      const res = await competencyService.submitQaReview(item.id, {
         scores: Object.entries(scores).map(([checkpointId, point]) => ({
           checkpoint_id: Number(checkpointId),
           point,
         })),
       });
-      onSuccess(res.message ?? "QC review saved.");
+      onSuccess(res.message ?? "QA review saved.");
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
-      setSubmitError(e.response?.data?.message ?? "Failed to save QC review.");
+      setSubmitError(e.response?.data?.message ?? "Failed to save QA review.");
     } finally {
       setSubmitting(false);
     }
@@ -136,7 +136,7 @@ const QcReviewModal: React.FC<Props> = ({
               </Box>
               <Box flex={1}>
                 <Text fontSize="16px" fontWeight="700" color="gray.800">
-                  QC Review — {item.subject.name}
+                  QA Review — {item.subject.name}
                 </Text>
                 <Text fontSize="13px" color="gray.500">
                   NPK: {item.subject.npk} — Period: {item.period_label} —
@@ -267,4 +267,4 @@ const QcReviewModal: React.FC<Props> = ({
   );
 };
 
-export default QcReviewModal;
+export default QaReviewModal;

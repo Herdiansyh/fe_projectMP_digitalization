@@ -299,7 +299,7 @@ const MyReviewsList: React.FC = () => {
             My Reviews
           </Text>
           <Text fontSize="13px" color="gray.500" mt={0.5}>
-            Assessments you have reviewed and approved as QC
+            Assessments you have reviewed and approved as QA
           </Text>
         </Box>
 
@@ -449,7 +449,7 @@ const MyReviewsList: React.FC = () => {
                           color: "#475569",
                         }}
                       >
-                        {formatDate(r.qc_at)}
+                        {formatDate(r.qa_at)}
                       </td>
                       <td style={{ padding: "12px 14px" }}>
                         <button

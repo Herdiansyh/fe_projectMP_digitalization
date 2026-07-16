@@ -7,7 +7,7 @@ export interface CompetencyCheckpoint {
   weight: number;
   order: number;
 }
-export type AssessmentStatus = "pending_qc" | "approved";
+export type AssessmentStatus = "pending_qa" | "approved";
 
 export interface CompetencyCategory {
   id: number;
@@ -61,10 +61,10 @@ export interface AssessmentHistoryItem {
   final_score: number;
   category_scores: CategoryScore[];
   assessor: { id: number; name: string };
-  qc_reviewer: { id: number; name: string } | null;
+  qa_reviewer: { id: number; name: string } | null;
 }
 
-export interface QcQueueItem {
+export interface QaQueueItem {
   id: number;
   period_label: string;
   assessed_at: string;
@@ -90,8 +90,9 @@ export interface MySubmissionItem {
     station?: { id: number; name: string };
   };
   subject_type: "employee" | "intern";
-  qc_reviewer: { id: number; name: string } | null;
-  qc_at: string | null;
+  qa: { id: number; name: string } | null;
+  qa_at: string | null;
+  qa_reviewer?: { id: number; name: string } | null;
 }
 
 export interface AssessmentDetail {
@@ -101,11 +102,11 @@ export interface AssessmentDetail {
   notes: string | null;
   status: AssessmentStatus;
   assessor: { id: number; name: string };
-  qc_reviewer: { id: number; name: string } | null;
-  qc_at: string | null;
+  qa_reviewer: { id: number; name: string } | null;
+  qa_at: string | null;
   matrix: CompetencyMatrix;
   leader_scores: Record<number, number>;
-  qc_scores: Record<number, number>;
+  qa_scores: Record<number, number>;
   category_scores: CategoryScore[];
   final_score: number;
 }
@@ -113,7 +114,7 @@ export interface MyReviewItem {
   id: number;
   period_label: string;
   assessed_at: string;
-  qc_at: string;
+  qa_at: string;
   final_score: number;
   subject: {
     id: number;

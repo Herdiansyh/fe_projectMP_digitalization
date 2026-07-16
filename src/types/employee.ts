@@ -29,6 +29,7 @@ export interface Employee {
   station_id?: number | null;
 
   employment_type: "permanent" | "contract" | "apprentice";
+  join_date: string;
   start_contract: string;
   end_contract: string | null;
   created_at: string;
@@ -58,6 +59,7 @@ export interface CreateEmployeeInput {
   line_id?: number | null;
   station_id?: number | null;
   employment_type: "permanent" | "contract" | "apprentice";
+  join_date: string;
   start_contract: string;
   end_contract?: string | null;
 }
@@ -74,6 +76,7 @@ export interface UpdateEmployeeInput {
   line_id?: number | null;
   station_id?: number | null;
   employment_type?: "permanent" | "contract" | "apprentice";
+  join_date?: string;
   start_contract?: string;
   end_contract?: string | null;
 }

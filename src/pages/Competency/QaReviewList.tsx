@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Box, Text, Flex } from "@chakra-ui/react";
 import { FiCheckCircle } from "react-icons/fi";
 import competencyService from "../../services/competencyService";
-import type { QcQueueItem } from "../../types/competency";
+import type { QaQueueItem } from "../../types/competency";
 import MainLayout from "../../components/layout/MainLayout";
-import QcReviewModal from "./QcReviewModal";
+import QaReviewModal from "./QaReviewModal";
 
 const formatDate = (dateString: string) =>
   new Date(dateString).toLocaleDateString("id-ID", {
@@ -13,22 +13,22 @@ const formatDate = (dateString: string) =>
     year: "numeric",
   });
 
-const QcReviewList: React.FC = () => {
-  const [queue, setQueue] = useState<QcQueueItem[]>([]);
+const QaReviewList: React.FC = () => {
+  const [queue, setQueue] = useState<QaQueueItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [selected, setSelected] = useState<QcQueueItem | null>(null);
+  const [selected, setSelected] = useState<QaQueueItem | null>(null);
 
   const fetchQueue = async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await competencyService.getQcQueue();
+      const res = await competencyService.getQaQueue();
       setQueue(res.data);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
-      setErrorMsg(e.response?.data?.message ?? "Failed to load QC queue.");
+      setErrorMsg(e.response?.data?.message ?? "Failed to load QA queue.");
     } finally {
       setLoading(false);
     }
@@ -65,7 +65,7 @@ const QcReviewList: React.FC = () => {
           </Box>
         )}
 
-        <QcReviewModal
+        <QaReviewModal
           key={selected?.id ?? "none"}
           isOpen={selected !== null}
           item={selected}
@@ -79,10 +79,10 @@ const QcReviewList: React.FC = () => {
 
         <Box mb={6}>
           <Text fontSize="2xl" fontWeight="bold" color="gray.800">
-            QC Review Queue
+            QA Review Queue
           </Text>
           <Text fontSize="13px" color="gray.500" mt={0.5}>
-            Assessments submitted by Leaders, waiting for QC final score
+            Assessments submitted by Leaders, waiting for QA final score
           </Text>
         </Box>
 
@@ -110,7 +110,7 @@ const QcReviewList: React.FC = () => {
           ) : queue.length === 0 ? (
             <Flex justify="center" py={10}>
               <Text color="gray.400" fontSize="14px">
-                No assessments waiting for QC review
+                No assessments waiting for QA review
               </Text>
             </Flex>
           ) : (
@@ -240,4 +240,4 @@ const QcReviewList: React.FC = () => {
   );
 };
 
-export default QcReviewList;
+export default QaReviewList;
