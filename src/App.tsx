@@ -21,7 +21,9 @@ import EvaluationDetail from "./pages/Evaluation/EvaluationDetail";
 const Login = lazy(() => import("./pages/Login/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
-const EvaluationFormManage = lazy(() => import("./pages/EvaluationFormManagement/EvaluationFormManage"));
+const EvaluationFormManage = lazy(
+  () => import("./pages/EvaluationFormManagement/EvaluationFormManage"),
+);
 const FptkList = lazy(() => import("./pages/Fptk/FptkList"));
 const FptkApprovedList = lazy(() => import("./pages/Fptk/FptkApprovedList"));
 const FptkRejectedList = lazy(() => import("./pages/Fptk/FptkRejectedList"));
@@ -254,6 +256,14 @@ function App() {
             />
             <Route
               path="/evaluations/create"
+              element={
+                <ProtectedRoute assessorOnly>
+                  <EvaluationForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/evaluations/:id/edit"
               element={
                 <ProtectedRoute assessorOnly>
                   <EvaluationForm />

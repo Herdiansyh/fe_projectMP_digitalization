@@ -211,6 +211,7 @@ const EvaluationForm: React.FC = () => {
           join_date: form.join_date || null,
           start_date: form.start_date || null,
           end_date: form.end_date || null,
+          pkwt: form.pkwt || null,
         };
       } else {
         const employee = employees.find(
@@ -223,6 +224,7 @@ const EvaluationForm: React.FC = () => {
           join_date: employee?.join_date ?? null,
           start_date: employee?.start_contract ?? null,
           end_date: employee?.end_contract ?? null,
+          pkwt: form.pkwt || null,
         };
       }
       const response = await evaluationService.createEvaluation(payload);
@@ -554,7 +556,7 @@ const EvaluationForm: React.FC = () => {
               <Text fontSize="13px" fontWeight="600" mb={2}>
                 Employee Status
               </Text>
-              <Input
+              <select
                 value={recommendation.employee_status ?? ""}
                 onChange={(event) =>
                   setRecommendation((prev) => ({
@@ -562,7 +564,20 @@ const EvaluationForm: React.FC = () => {
                     employee_status: event.target.value,
                   }))
                 }
-              />
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  backgroundColor: "#fff",
+                  fontSize: "14px",
+                  color: "#1a202c",
+                }}
+              >
+                <option value="">Pilih status</option>
+                <option value="permanen">Permanen</option>
+                <option value="kontrak_berakhir">Kontrak Berakhir</option>
+              </select>
             </Box>
             <Box flex={1} minW="220px">
               <Text fontSize="13px" fontWeight="600" mb={2}>
