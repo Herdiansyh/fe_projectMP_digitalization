@@ -37,9 +37,10 @@ const UserList: React.FC = () => {
   useEffect(() => {
     const loadMaster = async () => {
       try {
-        const [res, appRes] = await Promise.all([
+        const [res, appRes, sectionHeadsRes] = await Promise.all([
           userService.getMasterData(),
           fptkService.getApprovers(),
+          userService.getSectionHeads(),
         ]);
         setMasterData({
           departments: res.data.departments ?? [],
@@ -47,6 +48,7 @@ const UserList: React.FC = () => {
           roleLevels: res.data.role_levels ?? [],
           areas: res.data.areas ?? [],
           approvers: appRes.data,
+          sectionHeads: sectionHeadsRes.data ?? [],
         });
       } catch {
         // Dropdown kosong tapi tidak crash

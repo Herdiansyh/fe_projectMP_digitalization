@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Flex, HStack, Input, Text, Textarea } from "@chakra-ui/react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { FiAlertCircle, FiInfo } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
 import { useAuth } from "../../contexts/AuthContext";
 import evaluationService from "../../services/evaluationService";
@@ -13,6 +14,15 @@ import type {
 } from "../../types/evaluation";
 import type { Employee } from "../../types/employee";
 import ScoringRubricTable from "./ScoringRubricTable";
+import AlertDialog from "../../components/common/AlertDialog";
+
+type AlertVariant = "warning" | "error";
+
+interface AlertState {
+  title: string;
+  message: string;
+  variant: AlertVariant;
+}
 
 const EvaluationForm: React.FC = () => {
   const navigate = useNavigate();
@@ -58,6 +68,17 @@ const EvaluationForm: React.FC = () => {
       extend_months: null,
       notes: "",
     });
+
+  // ─── Dialog alert (menggantikan window.alert) ──────────────────────────────
+  const [alertInfo, setAlertInfo] = useState<AlertState | null>(null);
+
+  const showAlert = (
+    title: string,
+    message: string,
+    variant: AlertVariant = "warning",
+  ) => {
+    setAlertInfo({ title, message, variant });
+  };
 
   // Mode form penilaian ditentukan dari role user & stage evaluation saat ini.
   // - create mode (belum ada evaluation) selalu dianggap "leader"
@@ -198,8 +219,39 @@ const EvaluationForm: React.FC = () => {
     }
   }, [selectedEmployeeId, employees, isEditMode, isPrefilled]);
 
+  // Kumpulkan semua criteria_id dari seluruh grup & subgrup rubrik
+  const allCriteriaIds = useMemo(() => {
+    return criteriaGroups.flatMap((group) =>
+      group.subgroups.flatMap((subgroup) =>
+        subgroup.criteria.map((criterion) => criterion.id),
+      ),
+    );
+  }, [criteriaGroups]);
+
+  // State untuk menyimpan id kriteria yang belum diisi (dipakai untuk highlight)
+  const [unfilledIds, setUnfilledIds] = useState<number[]>([]);
+
+  // Cek apakah masih ada kriteria yang skornya belum diisi
+  const getUnfilledCriteria = () => {
+    return allCriteriaIds.filter(
+      (criteriaId) =>
+        scores[criteriaId] === undefined || scores[criteriaId] === null,
+    );
+  };
   const handleCreate = async () => {
     if (!selectedEmployeeId) return;
+
+    const unfilled = getUnfilledCriteria();
+    if (unfilled.length > 0) {
+      setUnfilledIds(unfilled);
+      showAlert(
+        "Skor Belum Lengkap",
+        "Harap isi seluruh skor penilaian sebelum menyimpan evaluasi.",
+      );
+      return;
+    }
+    setUnfilledIds([]);
+
     setSaving(true);
     try {
       let payload;
@@ -228,22 +280,20 @@ const EvaluationForm: React.FC = () => {
         };
       }
       const response = await evaluationService.createEvaluation(payload);
+      const newId = response.data.id;
 
-      // Kirim skor yang sudah diisi Leader di form create (kalau ada),
-      // supaya tidak hilang begitu saja setelah evaluation dibuat.
-      if (Object.keys(scores).length > 0) {
-        const scorePayload: EvaluationScorePayload = {
-          scores: Object.entries(scores).map(([criteriaId, score]) => ({
-            criteria_id: Number(criteriaId),
-            score,
-          })),
-        };
-        await evaluationService.updateScores(response.data.id, scorePayload);
-      }
+      const scorePayload: EvaluationScorePayload = {
+        scores: Object.entries(scores).map(([criteriaId, score]) => ({
+          criteria_id: Number(criteriaId),
+          score,
+        })),
+      };
+      await evaluationService.updateScores(newId, scorePayload);
+      await evaluationService.updateRecommendation(newId, recommendation);
 
-      navigate(`/evaluations/${response.data.id}`);
+      navigate(`/evaluations/${newId}`);
     } catch {
-      alert("Failed to create evaluation");
+      showAlert("Gagal Menyimpan", "Failed to create evaluation", "error");
     } finally {
       setSaving(false);
     }
@@ -251,12 +301,24 @@ const EvaluationForm: React.FC = () => {
 
   const handleSave = async () => {
     if (!evaluation) return;
+
+    if (scoringMode === "leader" || scoringMode === "section_head") {
+      const unfilled = getUnfilledCriteria();
+      if (unfilled.length > 0) {
+        setUnfilledIds(unfilled);
+        showAlert(
+          "Skor Belum Lengkap",
+          "Harap isi seluruh skor penilaian sebelum menyimpan evaluasi.",
+        );
+        return;
+      }
+    }
+    setUnfilledIds([]);
+
     setSaving(true);
     try {
       await evaluationService.updateEvaluation(evaluation.id, form);
 
-      // Hanya kirim skor kalau user memang sedang di mode yang boleh edit
-      // (leader/section_head). Mode readonly tidak boleh mengirim scores.
       if (scoringMode === "leader" || scoringMode === "section_head") {
         const payload: EvaluationScorePayload = {
           scores: Object.entries(scores).map(([criteriaId, score]) => ({
@@ -273,7 +335,7 @@ const EvaluationForm: React.FC = () => {
       );
       navigate(`/evaluations/${evaluation.id}`);
     } catch {
-      alert("Failed to save evaluation");
+      showAlert("Gagal Menyimpan", "Failed to save evaluation", "error");
     } finally {
       setSaving(false);
     }
@@ -290,7 +352,7 @@ const EvaluationForm: React.FC = () => {
       await evaluationService.deleteEvaluation(evaluation.id);
       navigate("/evaluations");
     } catch {
-      alert("Failed to delete evaluation");
+      showAlert("Gagal Menghapus", "Failed to delete evaluation", "error");
       setSaving(false);
     }
   };
@@ -541,9 +603,12 @@ const EvaluationForm: React.FC = () => {
             scores={scores}
             leaderScores={leaderScores}
             mode={scoringMode}
-            onChange={(criteriaId, value) =>
-              setScores((prev) => ({ ...prev, [criteriaId]: value }))
-            }
+            unfilledIds={unfilledIds}
+            onChange={(criteriaId, value) => {
+              setScores((prev) => ({ ...prev, [criteriaId]: value }));
+              // hapus highlight begitu user mengisi kriteria tsb
+              setUnfilledIds((prev) => prev.filter((id) => id !== criteriaId));
+            }}
           />
         </Box>
 
@@ -646,6 +711,22 @@ const EvaluationForm: React.FC = () => {
           </label>
         </Box>
       </Box>
+
+      {/* ── Dialog alert (menggantikan window.alert) ── */}
+      <AlertDialog
+        open={alertInfo !== null}
+        onClose={() => setAlertInfo(null)}
+        title={alertInfo?.title ?? ""}
+        message={alertInfo?.message ?? ""}
+        confirmColor={alertInfo?.variant === "error" ? "#ef4444" : "#3b82f6"}
+        icon={
+          alertInfo?.variant === "error" ? (
+            <FiAlertCircle size={24} color="#ef4444" />
+          ) : (
+            <FiInfo size={24} color="#f59e0b" />
+          )
+        }
+      />
     </MainLayout>
   );
 };

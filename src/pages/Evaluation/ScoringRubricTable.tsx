@@ -13,6 +13,7 @@ interface Props {
   leaderScores?: Record<number, number>;
   onChange: (criteriaId: number, value: number) => void;
   mode?: Mode;
+  unfilledIds?: number[]; // tambahan
 }
 
 // Grid kolom tetap: Kriteria | Bobot | N1 | N2 | N3 | N4 | N5 | Persetujuan
@@ -24,6 +25,7 @@ const ScoringRubricTable: React.FC<Props> = ({
   leaderScores = {},
   onChange,
   mode = "leader",
+  unfilledIds = [],
 }) => {
   const isSectionHead = mode === "section_head";
   const isReadonly = mode === "readonly";
@@ -194,7 +196,7 @@ const ScoringRubricTable: React.FC<Props> = ({
                     const rowBg = idx % 2 === 0 ? "#eef6fb" : "#fdf6e8";
                     const shScore = scores[criterion.id];
                     const ldScore = leaderScores[criterion.id];
-
+                    const isUnfilled = unfilledIds.includes(criterion.id);
                     const shSelectedOption = criterion.scale_options.find(
                       (o) => o.score === shScore,
                     );
@@ -228,8 +230,13 @@ const ScoringRubricTable: React.FC<Props> = ({
                           key={criterion.id}
                           display="grid"
                           style={{ gridTemplateColumns: GRID_TEMPLATE }}
-                          bg={rowBg}
+                          bg={isUnfilled ? "#fef2f2" : rowBg}
                           borderTop="1px solid #ffffff"
+                          borderLeft={
+                            isUnfilled
+                              ? "3px solid #ef4444"
+                              : "3px solid transparent"
+                          }
                         >
                           {/* Kriteria */}
                           <Box px={4} py={3} display="flex" alignItems="center">
@@ -452,8 +459,13 @@ const ScoringRubricTable: React.FC<Props> = ({
                         key={criterion.id}
                         display="grid"
                         style={{ gridTemplateColumns: GRID_TEMPLATE }}
-                        bg={rowBg}
+                        bg={isUnfilled ? "#fef2f2" : rowBg}
                         borderTop="1px solid #ffffff"
+                        borderLeft={
+                          isUnfilled
+                            ? "3px solid #ef4444"
+                            : "3px solid transparent"
+                        }
                       >
                         <Box px={4} py={3} display="flex" alignItems="center">
                           <Text
@@ -463,6 +475,16 @@ const ScoringRubricTable: React.FC<Props> = ({
                           >
                             {criterion.name}
                           </Text>
+                          {isUnfilled && (
+                            <Text
+                              fontSize="10px"
+                              fontWeight="700"
+                              color="#ef4444"
+                              mt={0.5}
+                            >
+                              Wajib diisi
+                            </Text>
+                          )}
                         </Box>
                         <Box
                           px={2}

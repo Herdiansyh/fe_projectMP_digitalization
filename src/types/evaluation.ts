@@ -76,6 +76,15 @@ export interface EvaluationApproval {
   notes: string | null;
   acted_at: string | null;
 }
+
+// Ringkasan user approval chain (Leader/Section Head/Manager) — dikirim
+// backend sebagai object supaya frontend tidak perlu lookup ID manual.
+export interface EvaluationApprover {
+  id: number;
+  name: string;
+  npk: string;
+}
+
 export type PendingTrigger = EvaluationEmployee;
 export interface Evaluation {
   id: number;
@@ -100,6 +109,13 @@ export interface Evaluation {
   is_locked_for_current_user: boolean;
   is_leader_fields_locked: boolean;
   employee: EvaluationEmployee | null;
+  // Object approver — leader selalu ada, section_head bisa null (Leader
+  // belum punya Approver Section Head di-set), manager bisa null sampai
+  // Section Head approve (manager ditentukan dinamis dari approver Section
+  // Head yang bertindak, bukan dari Leader).
+  leader: EvaluationApprover | null;
+  section_head: EvaluationApprover | null;
+  manager: EvaluationApprover | null;
   scores: EvaluationScore[];
   recommendation: EvaluationRecommendation | null;
   approvals: EvaluationApproval[];

@@ -9,6 +9,7 @@ import type {
   Department,
   Section,
   RoleLevel,
+  SectionHeadApprover,
 } from "../types/user";
 
 export interface MasterDataResponse {
@@ -21,6 +22,12 @@ export interface MasterDataResponse {
     companies: { id: number; name: string }[];
     employee_statuses: { id: number; name: string; level_default: string }[];
   };
+}
+
+export interface SectionHeadListResponse {
+  success: boolean;
+  message: string;
+  data: SectionHeadApprover[];
 }
 
 const userService = {
@@ -95,6 +102,15 @@ const userService = {
   getMasterData: async (): Promise<MasterDataResponse> => {
     const response =
       await axiosInstance.get<MasterDataResponse>("/master-data");
+    return response.data;
+  },
+
+  // Get list of users with role level "Section Head", untuk dropdown
+  // Approver Section Head — dipakai untuk routing approval Evaluation form
+  getSectionHeads: async (): Promise<SectionHeadListResponse> => {
+    const response = await axiosInstance.get<SectionHeadListResponse>(
+      "/users/section-heads",
+    );
     return response.data;
   },
 };

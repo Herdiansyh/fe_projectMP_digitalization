@@ -1,15 +1,79 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Badge, Box, Flex, HStack, Text, Textarea } from "@chakra-ui/react";
+import {
+  Badge,
+  Box,
+  Button,
+  Flex,
+  HStack,
+  Text,
+  Textarea,
+} from "@chakra-ui/react";
 import { useNavigate, useParams } from "react-router-dom";
+import { FiAlertTriangle, FiAlertCircle, FiInfo } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
 import { useAuth } from "../../contexts/AuthContext";
 import evaluationService from "../../services/evaluationService";
 import type {
   Evaluation,
+  EvaluationApprover,
   EvaluationGroup,
   EvaluationScorePayload,
 } from "../../types/evaluation";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import AlertDialog from "../../components/common/AlertDialog";
 import ScoringRubricTable from "./ScoringRubricTable";
+
+// ─── Approval Chain sub-component ──────────────────────────────────────────
+
+interface ApprovalChainCardProps {
+  label: string;
+  approver: EvaluationApprover | null;
+  pendingLabel: string;
+}
+
+const ApprovalChainCard: React.FC<ApprovalChainCardProps> = ({
+  label,
+  approver,
+  pendingLabel,
+}) => (
+  <Box
+    p={4}
+    bg="gray.50"
+    borderRadius="8px"
+    border="1px solid"
+    borderColor="gray.200"
+  >
+    <Text
+      fontSize="11px"
+      fontWeight="700"
+      color="gray.500"
+      textTransform="uppercase"
+      mb={1}
+    >
+      {label}
+    </Text>
+    <Text
+      fontSize="14px"
+      fontWeight="600"
+      color={approver ? "gray.800" : "orange.500"}
+    >
+      {approver?.name ?? pendingLabel}
+    </Text>
+    {approver && (
+      <Text fontSize="12px" color="gray.500" mt={1}>
+        NPK: {approver.npk}
+      </Text>
+    )}
+  </Box>
+);
+
+type AlertVariant = "warning" | "error";
+
+interface AlertState {
+  title: string;
+  message: string;
+  variant: AlertVariant;
+}
 
 const EvaluationDetail: React.FC = () => {
   const { id } = useParams();
@@ -24,8 +88,23 @@ const EvaluationDetail: React.FC = () => {
   const [savingScores, setSavingScores] = useState(false);
   const [notes, setNotes] = useState("");
 
-  // SH scores (editable for section head)
   const [shScores, setShScores] = useState<Record<number, number>>({});
+  const [unfilledIds, setUnfilledIds] = useState<number[]>([]);
+
+  // ─── Dialog konfirmasi (menggantikan window.confirm) ──────────────────────
+  const [showManagerConfirm, setShowManagerConfirm] = useState(false);
+  const [approveConfirmLoading, setApproveConfirmLoading] = useState(false);
+
+  // ─── Dialog alert (menggantikan window.alert) ──────────────────────────────
+  const [alertInfo, setAlertInfo] = useState<AlertState | null>(null);
+
+  const showAlert = (
+    title: string,
+    message: string,
+    variant: AlertVariant = "warning",
+  ) => {
+    setAlertInfo({ title, message, variant });
+  };
 
   const loadData = async () => {
     if (!id) return;
@@ -39,7 +118,6 @@ const EvaluationDetail: React.FC = () => {
       setEvaluation(evalData);
       setCriteriaGroups(criteriaResponse.data ?? []);
 
-      // Pre-populate SH scores from existing data
       const initialShScores: Record<number, number> = {};
       evalData.scores.forEach((score) => {
         if (score.filled_by_role === "section_head" && score.score !== null) {
@@ -69,7 +147,6 @@ const EvaluationDetail: React.FC = () => {
   const canApproveManager =
     roleName === "Manager" && evaluation?.current_stage === "manager";
 
-  // LD scores map (filled_by_role === "leader")
   const leaderScores = useMemo(() => {
     const map: Record<number, number> = {};
     evaluation?.scores.forEach((score) => {
@@ -80,7 +157,6 @@ const EvaluationDetail: React.FC = () => {
     return map;
   }, [evaluation]);
 
-  // SH scores map (untuk ditampilkan di readonly summary, misal saat Manager lihat)
   const sectionHeadScoresMap = useMemo(() => {
     const map: Record<number, number> = {};
     evaluation?.scores.forEach((score) => {
@@ -91,6 +167,21 @@ const EvaluationDetail: React.FC = () => {
     return map;
   }, [evaluation]);
 
+  const allCriteriaIds = useMemo(() => {
+    return criteriaGroups.flatMap((group) =>
+      group.subgroups.flatMap((subgroup) =>
+        subgroup.criteria.map((criterion) => criterion.id),
+      ),
+    );
+  }, [criteriaGroups]);
+
+  const getUnfilledShCriteria = () => {
+    return allCriteriaIds.filter(
+      (criteriaId) =>
+        shScores[criteriaId] === undefined || shScores[criteriaId] === null,
+    );
+  };
+
   const formatDate = (value?: string | null) => {
     if (!value) return "-";
     return new Date(value).toLocaleDateString("id-ID", {
@@ -100,12 +191,23 @@ const EvaluationDetail: React.FC = () => {
     });
   };
 
+  const formatDateTime = (value?: string | null) => {
+    if (!value) return "-";
+    return new Date(value).toLocaleString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const handleSubmit = async () => {
     if (!evaluation) return;
 
-    // Validasi wajib isi sebelum submit ke Section Head
     if (!evaluation.pkwt) {
-      alert(
+      showAlert(
+        "PKWT Belum Diisi",
         "PKWT wajib diisi sebelum submit. Silakan edit evaluasi terlebih dahulu.",
       );
       return;
@@ -114,8 +216,16 @@ const EvaluationDetail: React.FC = () => {
       !evaluation.recommendation ||
       !evaluation.recommendation.employee_status
     ) {
-      alert(
+      showAlert(
+        "Recommendation Belum Diisi",
         "Recommendation wajib diisi sebelum submit. Silakan edit evaluasi terlebih dahulu.",
+      );
+      return;
+    }
+    if (!evaluation.section_head) {
+      showAlert(
+        "Approver Belum Diatur",
+        "Anda belum memiliki Approver Section Head. Hubungi Admin untuk mengatur ini sebelum submit.",
       );
       return;
     }
@@ -123,9 +233,10 @@ const EvaluationDetail: React.FC = () => {
     setSubmitting(true);
     try {
       await evaluationService.submitEvaluation(evaluation.id);
+      setNotes("");
       await loadData();
     } catch {
-      alert("Failed to submit evaluation");
+      showAlert("Gagal Submit", "Failed to submit evaluation", "error");
     } finally {
       setSubmitting(false);
     }
@@ -133,6 +244,18 @@ const EvaluationDetail: React.FC = () => {
 
   const handleSaveShScores = async () => {
     if (!evaluation) return;
+
+    const unfilled = getUnfilledShCriteria();
+    if (unfilled.length > 0) {
+      setUnfilledIds(unfilled);
+      showAlert(
+        "Skor Belum Lengkap",
+        "Harap isi seluruh skor penilaian (SH) sebelum menyimpan.",
+      );
+      return;
+    }
+    setUnfilledIds([]);
+
     setSavingScores(true);
     try {
       const payload: EvaluationScorePayload = {
@@ -144,23 +267,68 @@ const EvaluationDetail: React.FC = () => {
       await evaluationService.updateScores(evaluation.id, payload);
       await loadData();
     } catch {
-      alert("Failed to save scores");
+      showAlert("Gagal Menyimpan", "Failed to save scores", "error");
     } finally {
       setSavingScores(false);
     }
   };
 
-  const handleApprove = async () => {
+  // Proses approve yang sesungguhnya — dipanggil langsung kalau tidak perlu
+  // konfirmasi tambahan, atau dari dialog konfirmasi setelah user klik "Ya".
+  const runApprove = async () => {
     if (!evaluation) return;
     setApproving(true);
     try {
+      if (canApprove) {
+        const scorePayload: EvaluationScorePayload = {
+          scores: Object.entries(shScores).map(([criteriaId, score]) => ({
+            criteria_id: Number(criteriaId),
+            score,
+          })),
+        };
+        await evaluationService.updateScores(evaluation.id, scorePayload);
+      }
+
       await evaluationService.approveEvaluation(evaluation.id, { notes });
+      setNotes("");
+      setUnfilledIds([]);
       await loadData();
     } catch {
-      alert("Failed to approve evaluation");
+      showAlert(
+        "Gagal Approve",
+        "Failed to approve evaluation. Jika Anda Section Head, pastikan Approver Manager Anda sudah di-set oleh Admin.",
+        "error",
+      );
     } finally {
       setApproving(false);
+      setApproveConfirmLoading(false);
+      setShowManagerConfirm(false);
     }
+  };
+
+  const handleApprove = async () => {
+    if (!evaluation) return;
+
+    // Section Head: pastikan skor lengkap sebelum approve
+    if (canApprove) {
+      const unfilled = getUnfilledShCriteria();
+      if (unfilled.length > 0) {
+        setUnfilledIds(unfilled);
+        showAlert(
+          "Skor Belum Lengkap",
+          "Harap isi seluruh skor penilaian (SH) sebelum approve.",
+        );
+        return;
+      }
+    }
+
+    // Section Head tanpa Approver Manager akan ditolak backend saat approve.
+    if (canApprove && !evaluation.manager) {
+      setShowManagerConfirm(true);
+      return;
+    }
+
+    await runApprove();
   };
 
   const handleReject = async () => {
@@ -168,9 +336,10 @@ const EvaluationDetail: React.FC = () => {
     setRejecting(true);
     try {
       await evaluationService.rejectEvaluation(evaluation.id, { notes });
+      setNotes("");
       await loadData();
     } catch {
-      alert("Failed to reject evaluation");
+      showAlert("Gagal Reject", "Failed to reject evaluation", "error");
     } finally {
       setRejecting(false);
     }
@@ -188,24 +357,34 @@ const EvaluationDetail: React.FC = () => {
 
   if (!evaluation) return null;
 
-  // Determine rubric display mode
   const rubricMode = canFillScoresSH
     ? "section_head"
     : roleName === "Leader" && evaluation.current_stage === "leader"
       ? "leader"
       : "readonly";
 
-  // Only show rubric table for Leader (editing) or Section Head (editing)
   const showRubricTable =
     (roleName === "Leader" && evaluation.current_stage === "leader") ||
     canFillScoresSH;
 
   const recommendation = evaluation.recommendation;
 
+  const sortedApprovals = evaluation.approvals.slice().sort((a, b) => {
+    if (!a.acted_at) return 1;
+    if (!b.acted_at) return -1;
+    return new Date(b.acted_at).getTime() - new Date(a.acted_at).getTime();
+  });
+
   return (
     <MainLayout>
       <Box>
-        <Flex justify="space-between" align="center" mb={6}>
+        <Flex
+          justify="space-between"
+          align={{ base: "stretch", md: "center" }}
+          direction={{ base: "column", md: "row" }}
+          gap={4}
+          mb={6}
+        >
           <Box>
             <Text fontSize="2xl" fontWeight="bold" color="gray.800">
               Evaluation Detail
@@ -214,102 +393,100 @@ const EvaluationDetail: React.FC = () => {
               {evaluation.employee?.name ?? "-"}
             </Text>
           </Box>
-          <HStack gap={2}>
-            <button
+
+          {/* ── Action toolbar — wraps on small screens, full width per button on mobile ── */}
+          <Flex
+            gap={2}
+            wrap="wrap"
+            direction={{ base: "column", sm: "row" }}
+            align={{ base: "stretch", sm: "center" }}
+          >
+            <Button
               type="button"
               onClick={() => navigate("/evaluations")}
-              style={{
-                padding: "8px 14px",
-                borderRadius: "8px",
-                border: "1px solid #e2e8f0",
-                backgroundColor: "#fff",
-                color: "#475569",
-              }}
+              variant="outline"
+              colorPalette="brand"
+              size="sm"
+              w={{ base: "full", sm: "auto" }}
             >
               Back
-            </button>
+            </Button>
+
             {canFillScoresSH && (
-              <button
+              <Button
                 type="button"
                 onClick={handleSaveShScores}
-                disabled={savingScores}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  border: "none",
-                  backgroundColor: "#7c3aed",
-                  color: "#fff",
-                  opacity: savingScores ? 0.7 : 1,
-                }}
+                loading={savingScores}
+                loadingText="Saving..."
+                colorPalette="accent"
+                size="sm"
+                w={{ base: "full", sm: "auto" }}
               >
-                {savingScores ? "Saving..." : "Save Scores (SH)"}
-              </button>
+                Save Scores (SH)
+              </Button>
             )}
+
             {canSubmit && (
-              <button
+              <Button
                 type="button"
                 onClick={() => navigate(`/evaluations/${evaluation.id}/edit`)}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  border: "1px solid #3b82f6",
-                  backgroundColor: "#fff",
-                  color: "#3b82f6",
-                  fontWeight: 600,
-                }}
+                variant="outline"
+                colorPalette="brand"
+                size="sm"
+                w={{ base: "full", sm: "auto" }}
               >
                 Edit Details & Recommendation
-              </button>
+              </Button>
             )}
+
             {canSubmit && (
-              <button
+              <Button
                 type="button"
                 onClick={handleSubmit}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  border: "none",
-                  backgroundColor: "#3b82f6",
-                  color: "#fff",
-                }}
+                loading={submitting}
+                loadingText="Submitting..."
+                colorPalette="brand"
+                size="sm"
+                w={{ base: "full", sm: "auto" }}
               >
-                {submitting ? "Submitting..." : "Submit"}
-              </button>
+                Submit
+              </Button>
             )}
+
             {(canApprove || canApproveManager) && (
-              <button
+              <Button
                 type="button"
                 onClick={handleApprove}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  border: "none",
-                  backgroundColor: "#16a34a",
-                  color: "#fff",
-                }}
+                loading={approving}
+                loadingText="Approving..."
+                colorPalette="green"
+                size="sm"
+                w={{ base: "full", sm: "auto" }}
               >
-                {approving ? "Approving..." : "Approve"}
-              </button>
+                Approve
+              </Button>
             )}
+
             {(canApprove || canApproveManager) && (
-              <button
+              <Button
                 type="button"
                 onClick={handleReject}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  border: "none",
-                  backgroundColor: "#dc2626",
-                  color: "#fff",
-                }}
+                loading={rejecting}
+                loadingText="Rejecting..."
+                colorPalette="red"
+                size="sm"
+                w={{ base: "full", sm: "auto" }}
               >
-                {rejecting ? "Rejecting..." : "Reject"}
-              </button>
+                Reject
+              </Button>
             )}
-          </HStack>
+          </Flex>
         </Flex>
+
         {canSubmit &&
-          (!evaluation.pkwt || !evaluation.recommendation?.employee_status) && (
+          (!evaluation.pkwt ||
+            !evaluation.recommendation?.employee_status ||
+            !evaluation.section_head) && (
             <Box
               bg="orange.50"
               border="1px solid"
@@ -332,28 +509,89 @@ const EvaluationDetail: React.FC = () => {
                     Recommendation (Employee Status) belum diisi
                   </Text>
                 )}
+                {!evaluation.section_head && (
+                  <Text as="li" fontSize="12px" color="orange.700">
+                    Anda belum memiliki Approver Section Head — hubungi Admin
+                    untuk mengatur ini di User Management
+                  </Text>
+                )}
               </Box>
-              <button
-                type="button"
-                onClick={() => navigate(`/evaluations/${evaluation.id}/edit`)}
-                style={{
-                  padding: "6px 12px",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  borderRadius: "6px",
-                  color: "#ffffff",
-                  backgroundColor: "#ea580c",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                Lengkapi Sekarang
-              </button>
+              {(!evaluation.pkwt ||
+                !evaluation.recommendation?.employee_status) && (
+                <Button
+                  type="button"
+                  onClick={() => navigate(`/evaluations/${evaluation.id}/edit`)}
+                  size="xs"
+                  colorPalette="accent"
+                >
+                  Lengkapi Sekarang
+                </Button>
+              )}
             </Box>
           )}
+
+        {canFillScoresSH && unfilledIds.length > 0 && (
+          <Box
+            bg="red.50"
+            border="1px solid"
+            borderColor="red.200"
+            rounded="md"
+            p={3}
+            mb={4}
+          >
+            <Text fontSize="13px" color="red.700" fontWeight="600">
+              ⚠️ Masih ada {unfilledIds.length} kriteria yang belum diisi
+              skornya. Lihat baris bertanda merah di tabel rubrik di bawah.
+            </Text>
+          </Box>
+        )}
+
+        {/* ── Approval Chain — Leader / Section Head / Manager ── */}
+        <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
+          <Text fontSize="16px" fontWeight="700" color="gray.800" mb={4}>
+            Approval Chain
+          </Text>
+          <Box
+            display="grid"
+            gridTemplateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }}
+            gap={4}
+          >
+            <ApprovalChainCard
+              label="Leader"
+              approver={evaluation.leader}
+              pendingLabel="-"
+            />
+            <ApprovalChainCard
+              label="Section Head"
+              approver={evaluation.section_head}
+              pendingLabel="Belum ditentukan"
+            />
+            <ApprovalChainCard
+              label="Manager"
+              approver={evaluation.manager}
+              pendingLabel={
+                evaluation.current_stage === "leader" ||
+                evaluation.current_stage === "section_head"
+                  ? "Menunggu review Section Head"
+                  : "Belum ditentukan"
+              }
+            />
+          </Box>
+          <Text fontSize="11px" color="gray.400" mt={3}>
+            Manager ditentukan otomatis dari Approver Manager milik Section Head
+            saat evaluasi ini disetujui, bukan dari Leader.
+          </Text>
+        </Box>
+
         {/* Summary */}
         <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
-          <Flex justify="space-between" align="center" mb={4}>
+          <Flex
+            justify="space-between"
+            align={{ base: "flex-start", md: "center" }}
+            direction={{ base: "column", md: "row" }}
+            gap={2}
+            mb={4}
+          >
             <Box>
               <Text fontSize="16px" fontWeight="700" color="gray.800">
                 Summary
@@ -368,7 +606,7 @@ const EvaluationDetail: React.FC = () => {
                   ? "green"
                   : evaluation.status.includes("rejected")
                     ? "red"
-                    : "orange"
+                    : "accent"
               }
             >
               {evaluation.current_stage.replace(/_/g, " ")}
@@ -450,20 +688,26 @@ const EvaluationDetail: React.FC = () => {
         {/* ── Scoring Rubric — editable for Leader or Section Head at their stage ── */}
         {showRubricTable && (
           <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
-            <Flex justify="space-between" align="center" mb={4}>
+            <Flex
+              justify="space-between"
+              align={{ base: "flex-start", md: "center" }}
+              direction={{ base: "column", md: "row" }}
+              gap={2}
+              mb={4}
+            >
               <Text fontSize="16px" fontWeight="700" color="gray.800">
                 Scoring Rubric
               </Text>
               {canFillScoresSH && (
-                <HStack gap={2}>
+                <HStack gap={2} wrap="wrap">
                   <Box display="flex" alignItems="center" gap={1}>
-                    <Box w="10px" h="10px" rounded="full" bg="#2563eb" />
+                    <Box w="10px" h="10px" rounded="full" bg="brand.500" />
                     <Text fontSize="11px" color="gray.600">
                       LD (Leader — read only)
                     </Text>
                   </Box>
                   <Box display="flex" alignItems="center" gap={1}>
-                    <Box w="10px" h="10px" rounded="full" bg="#16a34a" />
+                    <Box w="10px" h="10px" rounded="full" bg="accent.400" />
                     <Text fontSize="11px" color="gray.600">
                       SH (Section Head — editable)
                     </Text>
@@ -475,9 +719,13 @@ const EvaluationDetail: React.FC = () => {
               criteriaGroups={criteriaGroups}
               scores={rubricMode === "section_head" ? shScores : leaderScores}
               leaderScores={rubricMode === "section_head" ? leaderScores : {}}
+              unfilledIds={unfilledIds}
               onChange={(criteriaId, value) => {
                 if (rubricMode === "section_head") {
                   setShScores((prev) => ({ ...prev, [criteriaId]: value }));
+                  setUnfilledIds((prev) =>
+                    prev.filter((cid) => cid !== criteriaId),
+                  );
                 }
               }}
               mode={rubricMode}
@@ -488,19 +736,25 @@ const EvaluationDetail: React.FC = () => {
         {/* ── Scores summary (read-only, breakdown LD vs SH) untuk Manager/viewer ── */}
         {!showRubricTable && (
           <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
-            <Flex justify="space-between" align="center" mb={4}>
+            <Flex
+              justify="space-between"
+              align={{ base: "flex-start", md: "center" }}
+              direction={{ base: "column", md: "row" }}
+              gap={2}
+              mb={4}
+            >
               <Text fontSize="16px" fontWeight="700" color="gray.800">
                 Scores
               </Text>
-              <HStack gap={3}>
+              <HStack gap={3} wrap="wrap">
                 <Box display="flex" alignItems="center" gap={1}>
-                  <Box w="10px" h="10px" rounded="full" bg="#2563eb" />
+                  <Box w="10px" h="10px" rounded="full" bg="brand.500" />
                   <Text fontSize="11px" color="gray.600">
                     Leader
                   </Text>
                 </Box>
                 <Box display="flex" alignItems="center" gap={1}>
-                  <Box w="10px" h="10px" rounded="full" bg="#16a34a" />
+                  <Box w="10px" h="10px" rounded="full" bg="accent.400" />
                   <Text fontSize="11px" color="gray.600">
                     Section Head
                   </Text>
@@ -546,7 +800,7 @@ const EvaluationDetail: React.FC = () => {
                             <Box textAlign="center">
                               <Text
                                 fontSize="10px"
-                                color="#2563eb"
+                                color="brand.500"
                                 fontWeight="700"
                               >
                                 LD
@@ -558,7 +812,7 @@ const EvaluationDetail: React.FC = () => {
                             <Box textAlign="center">
                               <Text
                                 fontSize="10px"
-                                color="#16a34a"
+                                color="accent.500"
                                 fontWeight="700"
                               >
                                 SH
@@ -645,6 +899,58 @@ const EvaluationDetail: React.FC = () => {
           )}
         </Box>
 
+        {/* ── Riwayat Review — submit/approve/reject beserta notes ── */}
+        {sortedApprovals.length > 0 && (
+          <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
+            <Text fontSize="16px" fontWeight="700" color="gray.800" mb={4}>
+              Riwayat Review
+            </Text>
+            {sortedApprovals.map((entry) => (
+              <Box
+                key={entry.id}
+                py={3}
+                borderBottom="1px solid"
+                borderColor="gray.100"
+              >
+                <Flex
+                  justify="space-between"
+                  align="center"
+                  wrap="wrap"
+                  gap={2}
+                >
+                  <Text fontSize="13px" fontWeight="700" color="gray.800">
+                    {entry.role}
+                  </Text>
+                  <Badge
+                    colorPalette={
+                      entry.action === "approve"
+                        ? "green"
+                        : entry.action === "reject"
+                          ? "red"
+                          : "brand"
+                    }
+                  >
+                    {entry.action}
+                  </Badge>
+                </Flex>
+                <Text fontSize="12px" color="gray.500" mt={0.5}>
+                  {formatDateTime(entry.acted_at)}
+                </Text>
+                {entry.notes && (
+                  <Text
+                    fontSize="13px"
+                    color="gray.700"
+                    mt={2}
+                    whiteSpace="pre-wrap"
+                  >
+                    {entry.notes}
+                  </Text>
+                )}
+              </Box>
+            ))}
+          </Box>
+        )}
+
         {/* Notes for approve/reject/submit */}
         {(canApprove || canApproveManager || canSubmit) && (
           <Box bg="white" rounded="lg" shadow="sm" p={6}>
@@ -659,6 +965,48 @@ const EvaluationDetail: React.FC = () => {
           </Box>
         )}
       </Box>
+
+      {/* ── Dialog konfirmasi: Approver Manager belum di-set ── */}
+      <ConfirmDialog
+        open={showManagerConfirm}
+        onClose={() => setShowManagerConfirm(false)}
+        onConfirm={async () => {
+          setApproveConfirmLoading(true);
+          await runApprove();
+        }}
+        loading={approveConfirmLoading}
+        title="Approver Manager Belum Ditentukan"
+        message={
+          <>
+            Sistem akan menentukan Manager tujuan forward dari Approver Manager
+            Anda. Jika Anda belum memiliki Approver Manager yang di-set,{" "}
+            <Text as="span" fontWeight="600" color="gray.700">
+              approval akan gagal
+            </Text>
+            . Lanjutkan approve evaluasi ini?
+          </>
+        }
+        confirmText="Ya, Lanjutkan"
+        cancelText="Batal"
+        confirmColor="#16a34a"
+        icon={<FiAlertTriangle size={22} color="#f59e0b" />}
+      />
+
+      {/* ── Dialog alert (menggantikan window.alert) ── */}
+      <AlertDialog
+        open={alertInfo !== null}
+        onClose={() => setAlertInfo(null)}
+        title={alertInfo?.title ?? ""}
+        message={alertInfo?.message ?? ""}
+        confirmColor={alertInfo?.variant === "error" ? "#ef4444" : "#3b82f6"}
+        icon={
+          alertInfo?.variant === "error" ? (
+            <FiAlertCircle size={24} color="#ef4444" />
+          ) : (
+            <FiInfo size={24} color="#f59e0b" />
+          )
+        }
+      />
     </MainLayout>
   );
 };
