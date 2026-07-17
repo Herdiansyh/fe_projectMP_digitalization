@@ -407,7 +407,7 @@ const EvaluationFormManage: React.FC = () => {
                     bg="white"
                     placeholder="Kode"
                   />
-                  <HStack spacing={1}>
+                  <HStack gap={1}>
                     <IconButton
                       aria-label="Up"
                       size="xs"
@@ -494,7 +494,7 @@ const EvaluationFormManage: React.FC = () => {
                           w="60px"
                           placeholder="Romawi"
                         />
-                        <HStack spacing={1}>
+                        <HStack gap={1}>
                           <IconButton
                             aria-label="Up"
                             size="xs"
@@ -647,7 +647,7 @@ const EvaluationFormManage: React.FC = () => {
                                   </Text>
                                   <Accordion.ItemIndicator />
                                 </Accordion.ItemTrigger>
-                                <HStack spacing={1}>
+                                <HStack gap={1}>
                                   <IconButton
                                     aria-label="Up"
                                     size="xs"
@@ -699,7 +699,7 @@ const EvaluationFormManage: React.FC = () => {
                                 </HStack>
                               </Flex>
                               <Accordion.ItemContent pb={4} pt={0}>
-                                <VStack spacing={2} align="stretch" pl={4}>
+                                <VStack gap={2} align="stretch" pl={4}>
                                   {[1, 2, 3, 4, 5].map((score) => {
                                     const opt = criteria.scale_options.find(
                                       (o) => o.score === score,

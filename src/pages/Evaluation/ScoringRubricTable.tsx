@@ -384,7 +384,7 @@ const ScoringRubricTable: React.FC<Props> = ({
                                       alignItems="center"
                                       gap={0.5}
                                       as={isEditableSH ? "button" : "div"}
-                                      type={isEditableSH ? "button" : undefined}
+                                      {...(isEditableSH ? { type: "button" } as any : {})}
                                       onClick={
                                         isEditableSH
                                           ? () =>
@@ -541,7 +541,7 @@ const ScoringRubricTable: React.FC<Props> = ({
                               <Box
                                 key={option.id}
                                 as={isReadonly ? "div" : "button"}
-                                type={isReadonly ? undefined : "button"}
+                                {...(!isReadonly ? { type: "button" } as any : {})}
                                 onClick={
                                   isReadonly
                                     ? undefined

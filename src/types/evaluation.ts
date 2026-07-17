@@ -25,6 +25,7 @@ export interface EvaluationCriteria {
   weight: number;
   scale_type: string;
   scale_options: EvaluationCriteriaScaleOption[];
+  is_active: boolean;
 }
 
 export interface EvaluationSubgroup {
@@ -32,6 +33,7 @@ export interface EvaluationSubgroup {
   name: string;
   description?: string | null;
   order: number;
+  roman_code?: string | null;
   criteria: EvaluationCriteria[];
 }
 
@@ -40,6 +42,7 @@ export interface EvaluationGroup {
   name: string;
   description?: string | null;
   order: number;
+  code?: string | null;
   subgroups: EvaluationSubgroup[];
 }
 
