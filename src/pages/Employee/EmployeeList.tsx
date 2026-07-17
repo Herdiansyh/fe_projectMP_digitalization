@@ -4,12 +4,10 @@ import { FiPlus, FiEdit2, FiTrash2, FiSearch } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
 import employeeService from "../../services/employeeService";
 import areaService from "../../services/areaService";
-import stationService from "../../services/stationService";
 import { toaster } from "../../components/ui/toaster";
 import fptkService from "../../services/fptkService";
 import type { Employee } from "../../types/employee";
 import type { Area } from "../../types/area";
-import type { Station } from "../../types/station";
 import DeleteModal from "./DeleteModal";
 import EmployeeFormModal from "./EmployeeFormModal";
 import type { MasterData } from "../../types/fptk";
@@ -106,7 +104,6 @@ const EmployeeList: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [masterData, setMasterData] = useState<MasterData | null>(null);
   const [areas, setAreas] = useState<Area[]>([]);
-  const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterDept, setFilterDept] = useState("");
@@ -159,10 +156,6 @@ const EmployeeList: React.FC = () => {
       .getAreas()
       .then((res) => setAreas(res.data))
       .catch(() => setAreas([]));
-    void stationService
-      .getStations()
-      .then((res) => setStations(res.data))
-      .catch(() => setStations([]));
   }, []);
 
   useEffect(() => {
@@ -211,7 +204,6 @@ const EmployeeList: React.FC = () => {
         editTarget={editTarget}
         masterData={masterData}
         areas={areas}
-        stations={stations}
         onClose={() => {
           setFormOpen(false);
           setEditTarget(null);

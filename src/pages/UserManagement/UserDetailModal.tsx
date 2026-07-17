@@ -168,9 +168,40 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
             <Box gridColumn="1 / -1">
               <SectionTitle>Approver Chain</SectionTitle>
               <Grid
-                templateColumns={{ base: "1fr", md: "1fr 1fr 1fr" }}
+                templateColumns={{ base: "1fr", md: "repeat(4, 1fr)" }}
                 gap={4}
               >
+                {/* Section Head */}
+                <Box
+                  p={4}
+                  bg="gray.50"
+                  borderRadius="8px"
+                  border="1px solid"
+                  borderColor="gray.200"
+                >
+                  <Text
+                    fontSize="12px"
+                    fontWeight="600"
+                    color="gray.500"
+                    mb={1}
+                    textTransform="uppercase"
+                  >
+                    Section Head
+                  </Text>
+                  <Text
+                    fontSize="14px"
+                    fontWeight="600"
+                    color={user.approver_section_head ? "gray.800" : "gray.400"}
+                  >
+                    {user.approver_section_head?.name ?? "None"}
+                  </Text>
+                  {user.approver_section_head && (
+                    <Text fontSize="12px" color="gray.500" mt={1}>
+                      NPK: {user.approver_section_head.npk}
+                    </Text>
+                  )}
+                </Box>
+
                 {/* Manager */}
                 <Box
                   p={4}

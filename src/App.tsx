@@ -11,10 +11,19 @@ import EmployeeList from "./pages/Employee/EmployeeList";
 import InternList from "./pages/Intern/InternList";
 import CompetencyAssessmentList from "./pages/Competency/CompetencyAssessmentList";
 import CompetencyMatrixManage from "./pages/Competency/CompetencyMatrixManage";
+import QaReviewList from "./pages/Competency/QaReviewList";
+import MySubmissionsList from "./pages/Competency/MySubmissionList";
+import MyReviewsList from "./pages/Competency/MyReviewList";
+import EvaluationList from "./pages/Evaluation/EvaluationList";
+import EvaluationForm from "./pages/Evaluation/EvaluationForm";
+import EvaluationDetail from "./pages/Evaluation/EvaluationDetail";
 
 const Login = lazy(() => import("./pages/Login/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
+const EvaluationFormManage = lazy(
+  () => import("./pages/EvaluationFormManagement/EvaluationFormManage"),
+);
 const FptkList = lazy(() => import("./pages/Fptk/FptkList"));
 const FptkApprovedList = lazy(() => import("./pages/Fptk/FptkApprovedList"));
 const FptkRejectedList = lazy(() => import("./pages/Fptk/FptkRejectedList"));
@@ -199,6 +208,73 @@ function App() {
               element={
                 <ProtectedRoute adminOnly>
                   <CompetencyMatrixManage />
+                </ProtectedRoute>
+              }
+            />
+            {/* Manage Evaluation Form — admin only */}
+            <Route
+              path="/manage-evaluation-form"
+              element={
+                <ProtectedRoute adminOnly>
+                  <EvaluationFormManage />
+                </ProtectedRoute>
+              }
+            />
+            {/* QA Review — role Quality Assurance (semua area) atau Admin */}
+            <Route
+              path="/qa-review"
+              element={
+                <ProtectedRoute qaOnly>
+                  <QaReviewList />
+                </ProtectedRoute>
+              }
+            />
+            {/* My Submissions — Leader melihat assessment yang dia submit sendiri */}
+            <Route
+              path="/my-submissions"
+              element={
+                <ProtectedRoute assessorOnly>
+                  <MySubmissionsList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-reviews"
+              element={
+                <ProtectedRoute qaOnly>
+                  <MyReviewsList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/evaluations"
+              element={
+                <ProtectedRoute assessorOnly>
+                  <EvaluationList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/evaluations/create"
+              element={
+                <ProtectedRoute assessorOnly>
+                  <EvaluationForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/evaluations/:id/edit"
+              element={
+                <ProtectedRoute assessorOnly>
+                  <EvaluationForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/evaluations/:id"
+              element={
+                <ProtectedRoute assessorOnly>
+                  <EvaluationDetail />
                 </ProtectedRoute>
               }
             />

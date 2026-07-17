@@ -279,7 +279,44 @@ const IconChevron = ({ open }: { open: boolean }) => (
     <polyline points="9 18 15 12 9 6" />
   </svg>
 );
+// ── Icon baru: QA Review ──
+const IconQaReview = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M9 11l3 3L22 4" />
+    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+  </svg>
+);
 
+const IconListCheck = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M9 2h6" />
+    <rect x="5" y="3" width="14" height="19" rx="2" />
+    <path d="M8 8l1.5 1.5L12 7" />
+    <path d="M14 8h2" />
+    <path d="M8 13l1.5 1.5L12 12" />
+    <path d="M14 13h2" />
+    <path d="M8 18l1.5 1.5L12 17" />
+    <path d="M14 18h2" />
+  </svg>
+);
 const approvalNavItems: NavItem[] = [
   { label: "Pending Approvals", path: "/fptk/pending", icon: <IconPending /> },
 ];
@@ -299,6 +336,11 @@ const masterDataNavItem: NavItem = {
     {
       label: "Competency Matrix",
       path: "/manage-competency-matrix",
+      icon: <IconLayers />,
+    },
+    {
+      label: "Evaluation Form",
+      path: "/manage-evaluation-form",
       icon: <IconLayers />,
     },
   ],
@@ -329,21 +371,22 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
     roleName === "Director";
 
   const isHrAdmin = roleName === "HR Admin";
-
-  // ── Role "Leader" murni HANYA boleh lihat menu Competency Assessment —
-  //    tidak ada menu lain sama sekali (Dashboard, FPTK, section Admin, dsb),
-  //    walaupun kebetulan user itu juga is_admin/can_view_manpower true. ──
   const isLeaderRole = roleName === "Leader";
-
-  // ── Dua flag akses terpisah ──
-  // isAdmin selaras dengan backend (EmployeeAssessmentController::isAdmin):
-  // is_admin === true ATAU roleLevel->name === 'Admin'.
+  const isQARole = roleName === "Quality Assurance";
+  const isSectionHeadRole = roleName === "Section Head";
   const isAdmin = user?.is_admin === true || roleName === "Admin";
   const canViewManpower = user?.can_view_manpower === true;
-  const showAdminSection = !isLeaderRole && (isAdmin || canViewManpower);
+  const showAdminOnlySection = !isLeaderRole && !isQARole && isAdmin;
+  const isManagerRole = roleName === "Manager";
+  // "Manpower" muncul untuk SIAPAPUN yang admin atau can_view_manpower = true,
+  // tanpa terikat role Leader/QA
+  const showManpowerSection = isAdmin || canViewManpower;
+
+  const showAdminSection = showAdminOnlySection || showManpowerSection;
+
   const visibleAdminSectionItems: NavItem[] = [
-    ...(isAdmin ? [masterDataNavItem] : []), // Data Master (User/Area/Line/Station/Competency Matrix) → wajib is_admin
-    ...(isAdmin || canViewManpower ? manpowerNavItems : []), // Manpower → admin ATAU permission khusus
+    ...(showAdminOnlySection ? [masterDataNavItem] : []),
+    ...(showManpowerSection ? manpowerNavItems : []),
   ];
   const navItems: NavItem[] = isLeaderRole
     ? [
@@ -354,65 +397,126 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
           path: "/competency-assessment",
           icon: <IconClipboard />,
         },
+        {
+          label: "My Submissions",
+          path: "/my-submissions",
+          icon: <IconListCheck />,
+        },
+        {
+          label: "Evaluations",
+          path: "/evaluations",
+          icon: <IconClipboard />,
+        },
       ]
-    : [
-        { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
-        // "On Progress FPTK" hanya untuk non-approver dan non-HR Admin
-        ...(!isApproverRole && !isHrAdmin
-          ? [
-              {
-                label: "On Progress FPTK",
-                path: "/fptklist",
-                icon: <IconFPTK />,
-              },
-            ]
-          : []),
-        // "Approved FPTK" tampil untuk semua kecuali approver murni
-        ...(!isApproverRole
-          ? [
-              {
-                label: "Approved FPTK",
-                path: "/fptk/approved",
-                icon: <IconApproved />,
-              },
-            ]
-          : []),
-        // "Rejected FPTK" hanya untuk non-approver dan non-HR Admin
-        ...(!isApproverRole && !isHrAdmin
-          ? [
-              {
-                label: "Rejected FPTK",
-                path: "/fptk/rejected",
-                icon: <IconRejected />,
-              },
-            ]
-          : []),
-        // Pending Approvals & History hanya untuk approver roles
-        ...(isApproverRole ? approvalNavItems : []),
-        ...(isApproverRole
-          ? [
-              {
-                label: "FPTK History",
-                path: "/fptk/history",
-                icon: <IconHistory />,
-              },
-            ]
-          : []),
-        // Competency Assessment — di branch ini (role Leader murni sudah
-        // ditangani short-circuit terpisah di atas), hanya Admin yang
-        // berhak. Role lain (mis. Supervisor ber-area_id) TIDAK
-        // ditampilkan menunya, karena backend sekarang menolak mereka
-        // dengan 403 (lihat EmployeeAssessmentController::isWithinLeaderScope).
-        ...(isAdmin
-          ? [
-              {
-                label: "Competency Assessment",
-                path: "/competency-assessment",
-                icon: <IconClipboard />,
-              },
-            ]
-          : []),
-      ];
+    : isQARole
+      ? [
+          { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
+          {
+            label: "QA Review",
+            path: "/qa-review",
+            icon: <IconQaReview />,
+          },
+          {
+            label: "My Reviews",
+            path: "/my-reviews",
+            icon: <IconListCheck />, // reuse icon yang sudah dibuat untuk My Submissions
+          },
+        ]
+      : [
+          { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
+          // "On Progress FPTK" hanya untuk non-approver dan non-HR Admin
+          ...(!isApproverRole && !isHrAdmin
+            ? [
+                {
+                  label: "On Progress FPTK",
+                  path: "/fptklist",
+                  icon: <IconFPTK />,
+                },
+              ]
+            : []),
+          // "Approved FPTK" tampil untuk semua kecuali approver murni
+          ...(!isApproverRole
+            ? [
+                {
+                  label: "Approved FPTK",
+                  path: "/fptk/approved",
+                  icon: <IconApproved />,
+                },
+              ]
+            : []),
+          // "Rejected FPTK" hanya untuk non-approver dan non-HR Admin
+          ...(!isApproverRole && !isHrAdmin
+            ? [
+                {
+                  label: "Rejected FPTK",
+                  path: "/fptk/rejected",
+                  icon: <IconRejected />,
+                },
+              ]
+            : []),
+          // Pending Approvals & History hanya untuk approver roles
+          ...(isApproverRole ? approvalNavItems : []),
+          ...(isApproverRole
+            ? [
+                {
+                  label: "FPTK History",
+                  path: "/fptk/history",
+                  icon: <IconHistory />,
+                },
+              ]
+            : []),
+          // Competency Assessment — di branch ini (role Leader murni sudah
+          // ditangani short-circuit terpisah di atas), hanya Admin yang
+          // berhak. Role lain (mis. Supervisor ber-area_id) TIDAK
+          // ditampilkan menunya, karena backend sekarang menolak mereka
+          // dengan 403 (lihat EmployeeAssessmentController::isWithinLeaderScope).
+          ...(isAdmin
+            ? [
+                {
+                  label: "Competency Assessment",
+                  path: "/competency-assessment",
+                  icon: <IconClipboard />,
+                },
+              ]
+            : []),
+          ...(isAdmin
+            ? [
+                {
+                  label: "My Submissions",
+                  path: "/my-submissions",
+                  icon: <IconListCheck />,
+                },
+              ]
+            : []),
+          ...(isAdmin
+            ? [
+                {
+                  label: "My Reviews",
+                  path: "/my-reviews",
+                  icon: <IconListCheck />,
+                },
+              ]
+            : []),
+          ...(isAdmin || isSectionHeadRole || isManagerRole
+            ? [
+                {
+                  label: "Evaluations",
+                  path: "/evaluations",
+                  icon: <IconClipboard />,
+                },
+              ]
+            : []),
+
+          ...(isAdmin
+            ? [
+                {
+                  label: "QA Review",
+                  path: "/qa-review",
+                  icon: <IconQaReview />,
+                },
+              ]
+            : []),
+        ];
 
   // Submenu otomatis terbuka kalau salah satu child-nya sedang aktif
   const isChildActive = (item: NavItem) =>

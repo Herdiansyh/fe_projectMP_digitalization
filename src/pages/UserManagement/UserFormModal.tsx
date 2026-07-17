@@ -10,6 +10,7 @@ import type {
   Section,
   RoleLevel,
   Area,
+  SectionHeadApprover,
 } from "../../types/user";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -20,6 +21,8 @@ export interface MasterData {
   roleLevels: RoleLevel[];
   areas: Area[];
   approvers: ApproverList;
+  /** Daftar user dengan role Section Head, untuk dropdown Approver Section Head */
+  sectionHeads: SectionHeadApprover[];
 }
 
 export interface UserFormModalProps {
@@ -97,6 +100,7 @@ const buildInitialForm = (user?: UserItem | null): UserFormData => ({
   section_id: user?.section?.id ?? "",
   role_level_id: user?.role_level?.id ?? "",
   approver_manager_id: user?.approver_manager?.id ?? "",
+  approver_section_head_id: user?.approver_section_head?.id ?? "",
   approver_division_id: user?.approver_division?.id ?? "",
   approver_director_id: user?.approver_director?.id ?? "",
   is_admin: user?.is_admin ?? false,
@@ -131,6 +135,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
   const roleLevels = masterData?.roleLevels ?? [];
   const approvers = masterData?.approvers ?? EMPTY_APPROVERS;
   const areas = masterData?.areas ?? [];
+  const sectionHeads = masterData?.sectionHeads ?? [];
 
   // Role level yang sedang dipilih di form saat ini
   const selectedRoleLevel = roleLevels.find(
@@ -164,6 +169,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
         role_level_id: form.role_level_id || null,
         area_id: form.area_id || null,
         approver_manager_id: form.approver_manager_id || null,
+        approver_section_head_id: form.approver_section_head_id || null,
         approver_division_id: form.approver_division_id || null,
         approver_director_id: form.approver_director_id || null,
       };
@@ -435,6 +441,29 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
                 ))}
               </select>
               <FieldError errors={errors.approver_manager_id} />
+            </Box>
+
+            {/* Approver Section Head — dipakai untuk approval chain Evaluation form */}
+            <Box>
+              <FieldLabel label="Approver Section Head" />
+              <select
+                value={form.approver_section_head_id ?? ""}
+                onChange={(e) =>
+                  set("approver_section_head_id", e.target.value)
+                }
+                style={selectStyle(!!errors.approver_section_head_id)}
+              >
+                <option value="">-- Select Approver Section Head --</option>
+                {sectionHeads.map((sh) => (
+                  <option key={sh.id} value={sh.id}>
+                    {sh.name}
+                  </option>
+                ))}
+              </select>
+              <FieldError errors={errors.approver_section_head_id} />
+              <Text fontSize="12px" color="gray.400" mt={1}>
+                Used to route this Leader's Evaluation form for review
+              </Text>
             </Box>
 
             {/* Approver Division */}

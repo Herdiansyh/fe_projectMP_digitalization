@@ -17,7 +17,11 @@ const matrixManagementService = {
 
   updateMatrix: async (
     id: number,
-    payload: { name?: string; is_active?: boolean },
+    payload: {
+      name?: string;
+      station_id?: number;
+      is_active?: boolean;
+    },
   ) => {
     const response = await axiosInstance.put(
       `/competency-matrices/${id}`,
@@ -60,7 +64,13 @@ const matrixManagementService = {
 
   createCheckpoint: async (
     categoryId: number,
-    payload: { description: string; weight: number; order?: number; sequence?: number; main_process?: string },
+    payload: {
+      description: string;
+      weight: number;
+      order?: number;
+      sequence?: number;
+      main_process?: string;
+    },
   ) => {
     const response = await axiosInstance.post(
       `/competency-categories/${categoryId}/checkpoints`,
@@ -71,7 +81,13 @@ const matrixManagementService = {
 
   updateCheckpoint: async (
     id: number,
-    payload: { description?: string; weight?: number; order?: number },
+    payload: {
+      description?: string;
+      weight?: number;
+      order?: number;
+      sequence?: number | null;
+      main_process?: string;
+    },
   ) => {
     const response = await axiosInstance.put(
       `/competency-checkpoints/${id}`,

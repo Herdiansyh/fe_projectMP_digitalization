@@ -2286,6 +2286,7 @@ interface ManpowerCandidate {
   key: string;
   npk: string;
   name: string;
+  join_date: string;
   start_contract: string;
   end_contract: string;
 }
@@ -2294,6 +2295,7 @@ const makeEmptyManpowerCandidate = (): ManpowerCandidate => ({
   key: uuidv4(),
   npk: "",
   name: "",
+  join_date: "",
   start_contract: "",
   end_contract: "",
 });
@@ -2313,6 +2315,7 @@ const AssignManpowerModal = ({
     candidates: {
       npk: string;
       name: string;
+      join_date: string;
       start_contract: string;
       end_contract: string | null;
     }[],
@@ -2351,7 +2354,10 @@ const AssignManpowerModal = ({
     candidates.length > 0 &&
     candidates.every(
       (c) =>
-        c.npk.trim() !== "" && c.name.trim() !== "" && c.start_contract !== "",
+        c.npk.trim() !== "" &&
+        c.name.trim() !== "" &&
+        c.join_date !== "" &&
+        c.start_contract !== "",
     );
 
   return (
@@ -2406,6 +2412,17 @@ const AssignManpowerModal = ({
                 value={c.name}
                 onChange={(e) => updateCandidate(c.key, "name", e.target.value)}
                 placeholder="Full name"
+              />
+            </Box>
+            <Box mb={3}>
+              <label style={labelStyle}>Join Date</label>
+              <input
+                type="date"
+                style={inputStyle}
+                value={c.join_date}
+                onChange={(e) =>
+                  updateCandidate(c.key, "join_date", e.target.value)
+                }
               />
             </Box>
             <HStack gap={3}>
@@ -2466,6 +2483,7 @@ const AssignManpowerModal = ({
               candidates.map((c) => ({
                 npk: c.npk.trim(),
                 name: c.name.trim(),
+                join_date: c.join_date,
                 start_contract: c.start_contract,
                 end_contract: c.end_contract || null,
               })),
@@ -2933,6 +2951,7 @@ const FptkApprovedList: React.FC = () => {
     candidates: {
       npk: string;
       name: string;
+      join_date: string;
       start_contract: string;
       end_contract: string | null;
     }[],

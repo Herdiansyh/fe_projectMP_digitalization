@@ -3,6 +3,10 @@ import type {
   AssessableSubject,
   CompetencyMatrix,
   AssessmentHistoryItem,
+  QaQueueItem,
+  MySubmissionItem,
+  AssessmentDetail,
+  MyReviewItem,
 } from "../types/competency";
 
 const competencyService = {
@@ -43,6 +47,43 @@ const competencyService = {
     const response = await axiosInstance.get("/assessments/history", {
       params: { subject_type: subjectType, subject_id: subjectId },
     });
+    return response.data;
+  },
+
+  getQaQueue: async (): Promise<{ success: boolean; data: QaQueueItem[] }> => {
+    const response = await axiosInstance.get("/assessments/qa-queue");
+    return response.data;
+  },
+
+  submitQaReview: async (
+    assessmentId: number,
+    payload: { scores: { checkpoint_id: number; point: number }[] },
+  ) => {
+    const response = await axiosInstance.post(
+      `/assessments/${assessmentId}/qa`,
+      payload,
+    );
+    return response.data;
+  },
+
+  getMySubmissions: async (): Promise<{
+    success: boolean;
+    data: MySubmissionItem[];
+  }> => {
+    const response = await axiosInstance.get("/assessments/my-submissions");
+    return response.data;
+  },
+  getAssessmentDetail: async (
+    id: number,
+  ): Promise<{ success: boolean; data: AssessmentDetail }> => {
+    const response = await axiosInstance.get(`/assessments/${id}`);
+    return response.data;
+  },
+  getMyReviews: async (): Promise<{
+    success: boolean;
+    data: MyReviewItem[];
+  }> => {
+    const response = await axiosInstance.get("/assessments/my-reviews");
     return response.data;
   },
 };

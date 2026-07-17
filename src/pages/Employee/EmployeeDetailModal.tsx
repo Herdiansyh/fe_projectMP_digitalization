@@ -249,6 +249,10 @@ const EmployeeDetailModal = ({
 
             <Grid templateColumns="1fr 1fr" gap={4}>
               <DetailRow
+                label="Join Date"
+                value={formatDate(employee.join_date)}
+              />
+              <DetailRow
                 label="Start Contract"
                 value={formatDate(employee.start_contract)}
               />

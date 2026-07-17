@@ -57,6 +57,7 @@ interface AssignedCandidate {
   id?: number;
   npk: string;
   name: string;
+  join_date?: string | null;
   start_contract?: string | null;
   end_contract?: string | null;
   area?: { name?: string | null } | null;
@@ -836,6 +837,17 @@ const FptkDetail: React.FC = () => {
                           <Flex gap={4} wrap="wrap">
                             <Field label="NPK" value={c.npk} />
                             <Field label="Name" value={c.name} />
+                            <Field
+                              label="Join Date"
+                              value={
+                                (c as AssignedCandidate).join_date
+                                  ? formatDate(
+                                      (c as AssignedCandidate)
+                                        .join_date as string,
+                                    )
+                                  : "-"
+                              }
+                            />
                             <Field
                               label="Start Contract"
                               value={
