@@ -684,21 +684,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
         {/* Nav items */}
         <Box flex={1} py={3} overflowY="auto" overflowX="hidden">
-          <Text
-            fontSize="10px"
-            fontWeight="500"
-            color="gray.400"
-            textTransform="uppercase"
-            letterSpacing="wider"
-            px={4}
-            mb={2}
-            whiteSpace="nowrap"
-          >
-            Menu
-          </Text>
-
-          {navItems.map((item) => renderNavItem(item))}
-
           {/* Admin section — tampil untuk is_admin ATAU can_view_manpower,
               KECUALI role Leader murni (selalu disembunyikan).
               Isi barisnya berbeda tergantung hak masing-masing:
@@ -717,11 +702,24 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                 mt={4}
                 whiteSpace="nowrap"
               >
-                Admin
+                Data master
               </Text>
               {visibleAdminSectionItems.map((item) => renderNavItem(item))}
             </>
-          )}
+          )}{" "}
+          <Text
+            fontSize="10px"
+            fontWeight="500"
+            color="gray.400"
+            textTransform="uppercase"
+            letterSpacing="wider"
+            px={4}
+            mb={2}
+            whiteSpace="nowrap"
+          >
+            Menu
+          </Text>
+          {navItems.map((item) => renderNavItem(item))}
         </Box>
       </Box>
     </>
