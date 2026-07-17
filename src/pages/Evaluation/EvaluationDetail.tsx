@@ -9,7 +9,7 @@ import {
   Textarea,
 } from "@chakra-ui/react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiAlertTriangle, FiAlertCircle, FiInfo } from "react-icons/fi";
+import { FiAlertCircle, FiInfo } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
 import { useAuth } from "../../contexts/AuthContext";
 import evaluationService from "../../services/evaluationService";
@@ -19,7 +19,6 @@ import type {
   EvaluationGroup,
   EvaluationScorePayload,
 } from "../../types/evaluation";
-import ConfirmDialog from "../../components/common/ConfirmDialog";
 import AlertDialog from "../../components/common/AlertDialog";
 import ScoringRubricTable from "./ScoringRubricTable";
 
@@ -90,10 +89,6 @@ const EvaluationDetail: React.FC = () => {
 
   const [shScores, setShScores] = useState<Record<number, number>>({});
   const [unfilledIds, setUnfilledIds] = useState<number[]>([]);
-
-  // ─── Dialog konfirmasi (menggantikan window.confirm) ──────────────────────
-  const [showManagerConfirm, setShowManagerConfirm] = useState(false);
-  const [approveConfirmLoading, setApproveConfirmLoading] = useState(false);
 
   // ─── Dialog alert (menggantikan window.alert) ──────────────────────────────
   const [alertInfo, setAlertInfo] = useState<AlertState | null>(null);
@@ -301,8 +296,6 @@ const EvaluationDetail: React.FC = () => {
       );
     } finally {
       setApproving(false);
-      setApproveConfirmLoading(false);
-      setShowManagerConfirm(false);
     }
   };
 
@@ -322,12 +315,10 @@ const EvaluationDetail: React.FC = () => {
       }
     }
 
-    // Section Head tanpa Approver Manager akan ditolak backend saat approve.
-    if (canApprove && !evaluation.manager) {
-      setShowManagerConfirm(true);
-      return;
-    }
-
+    // Approver Manager SH tidak diketahui di frontend (tidak ada di data user
+    // login), jadi biarkan backend yang memvalidasi. Kalau approve gagal
+    // karena approver manager belum di-set, pesan errornya sudah ditangani
+    // di catch block runApprove().
     await runApprove();
   };
 
@@ -546,43 +537,6 @@ const EvaluationDetail: React.FC = () => {
           </Box>
         )}
 
-        {/* ── Approval Chain — Leader / Section Head / Manager ── */}
-        <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
-          <Text fontSize="16px" fontWeight="700" color="gray.800" mb={4}>
-            Approval Chain
-          </Text>
-          <Box
-            display="grid"
-            gridTemplateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }}
-            gap={4}
-          >
-            <ApprovalChainCard
-              label="Leader"
-              approver={evaluation.leader}
-              pendingLabel="-"
-            />
-            <ApprovalChainCard
-              label="Section Head"
-              approver={evaluation.section_head}
-              pendingLabel="Belum ditentukan"
-            />
-            <ApprovalChainCard
-              label="Manager"
-              approver={evaluation.manager}
-              pendingLabel={
-                evaluation.current_stage === "leader" ||
-                evaluation.current_stage === "section_head"
-                  ? "Menunggu review Section Head"
-                  : "Belum ditentukan"
-              }
-            />
-          </Box>
-          <Text fontSize="11px" color="gray.400" mt={3}>
-            Manager ditentukan otomatis dari Approver Manager milik Section Head
-            saat evaluasi ini disetujui, bukan dari Leader.
-          </Text>
-        </Box>
-
         {/* Summary */}
         <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
           <Flex
@@ -733,7 +687,9 @@ const EvaluationDetail: React.FC = () => {
           </Box>
         )}
 
-        {/* ── Scores summary (read-only, breakdown LD vs SH) untuk Manager/viewer ── */}
+        {/* ── Scores (read-only, breakdown LD vs SH) — untuk Manager/viewer.
+             Menggunakan tampilan rubrik yang sama seperti saat diisi di form,
+             hanya saja seluruh radio LD & SH bersifat disabled. ── */}
         {!showRubricTable && (
           <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
             <Flex
@@ -744,91 +700,36 @@ const EvaluationDetail: React.FC = () => {
               mb={4}
             >
               <Text fontSize="16px" fontWeight="700" color="gray.800">
-                Scores
+                Scoring Rubric
               </Text>
               <HStack gap={3} wrap="wrap">
                 <Box display="flex" alignItems="center" gap={1}>
                   <Box w="10px" h="10px" rounded="full" bg="brand.500" />
                   <Text fontSize="11px" color="gray.600">
-                    Leader
+                    LD (Leader)
                   </Text>
                 </Box>
                 <Box display="flex" alignItems="center" gap={1}>
                   <Box w="10px" h="10px" rounded="full" bg="accent.400" />
                   <Text fontSize="11px" color="gray.600">
-                    Section Head
+                    SH (Section Head)
                   </Text>
                 </Box>
+                <Text fontSize="11px" color="gray.400">
+                  Tampilan saja — tidak bisa diedit
+                </Text>
               </HStack>
             </Flex>
-            {criteriaGroups.map((group) => (
-              <Box key={group.id} mb={5}>
-                <Text fontSize="14px" fontWeight="700" color="gray.800" mb={2}>
-                  {group.name}
-                </Text>
-                {group.subgroups.map((subgroup) => (
-                  <Box key={subgroup.id} mb={3}>
-                    <Text
-                      fontSize="13px"
-                      fontWeight="600"
-                      color="gray.700"
-                      mb={2}
-                    >
-                      {subgroup.name}
-                    </Text>
-                    {subgroup.criteria.map((criteria) => {
-                      const ld = leaderScores[criteria.id];
-                      const sh = sectionHeadScoresMap[criteria.id];
-                      return (
-                        <Flex
-                          key={criteria.id}
-                          justify="space-between"
-                          align="center"
-                          py={2}
-                          borderBottom="1px solid"
-                          borderColor="gray.100"
-                        >
-                          <Box>
-                            <Text fontSize="13px" color="gray.700">
-                              {criteria.name}
-                            </Text>
-                            <Text fontSize="12px" color="gray.500">
-                              Weight: {criteria.weight}
-                            </Text>
-                          </Box>
-                          <HStack gap={4}>
-                            <Box textAlign="center">
-                              <Text
-                                fontSize="10px"
-                                color="brand.500"
-                                fontWeight="700"
-                              >
-                                LD
-                              </Text>
-                              <Text fontSize="13px" color="gray.700">
-                                {ld ?? "-"}
-                              </Text>
-                            </Box>
-                            <Box textAlign="center">
-                              <Text
-                                fontSize="10px"
-                                color="accent.500"
-                                fontWeight="700"
-                              >
-                                SH
-                              </Text>
-                              <Text fontSize="13px" color="gray.700">
-                                {sh ?? "-"}
-                              </Text>
-                            </Box>
-                          </HStack>
-                        </Flex>
-                      );
-                    })}
-                  </Box>
-                ))}
-              </Box>
-            ))}
+            <ScoringRubricTable
+              criteriaGroups={criteriaGroups}
+              scores={sectionHeadScoresMap}
+              leaderScores={leaderScores}
+              unfilledIds={[]}
+              onChange={() => {
+                /* read-only: manager_view tidak bisa diubah */
+              }}
+              mode="manager_view"
+            />
           </Box>
         )}
 
@@ -950,7 +851,42 @@ const EvaluationDetail: React.FC = () => {
             ))}
           </Box>
         )}
-
+        {/* ── Approval Chain — Leader / Section Head / Manager ── */}
+        <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
+          <Text fontSize="16px" fontWeight="700" color="gray.800" mb={4}>
+            Approval Chain
+          </Text>
+          <Box
+            display="grid"
+            gridTemplateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }}
+            gap={4}
+          >
+            <ApprovalChainCard
+              label="Leader"
+              approver={evaluation.leader}
+              pendingLabel="-"
+            />
+            <ApprovalChainCard
+              label="Section Head"
+              approver={evaluation.section_head}
+              pendingLabel="Belum ditentukan"
+            />
+            <ApprovalChainCard
+              label="Manager"
+              approver={evaluation.manager}
+              pendingLabel={
+                evaluation.current_stage === "leader" ||
+                evaluation.current_stage === "section_head"
+                  ? "Menunggu review Section Head"
+                  : "Belum ditentukan"
+              }
+            />
+          </Box>
+          <Text fontSize="11px" color="gray.400" mt={3}>
+            Manager ditentukan otomatis dari Approver Manager milik Section Head
+            saat evaluasi ini disetujui, bukan dari Leader.
+          </Text>
+        </Box>
         {/* Notes for approve/reject/submit */}
         {(canApprove || canApproveManager || canSubmit) && (
           <Box bg="white" rounded="lg" shadow="sm" p={6}>
@@ -965,32 +901,6 @@ const EvaluationDetail: React.FC = () => {
           </Box>
         )}
       </Box>
-
-      {/* ── Dialog konfirmasi: Approver Manager belum di-set ── */}
-      <ConfirmDialog
-        open={showManagerConfirm}
-        onClose={() => setShowManagerConfirm(false)}
-        onConfirm={async () => {
-          setApproveConfirmLoading(true);
-          await runApprove();
-        }}
-        loading={approveConfirmLoading}
-        title="Approver Manager Belum Ditentukan"
-        message={
-          <>
-            Sistem akan menentukan Manager tujuan forward dari Approver Manager
-            Anda. Jika Anda belum memiliki Approver Manager yang di-set,{" "}
-            <Text as="span" fontWeight="600" color="gray.700">
-              approval akan gagal
-            </Text>
-            . Lanjutkan approve evaluasi ini?
-          </>
-        }
-        confirmText="Ya, Lanjutkan"
-        cancelText="Batal"
-        confirmColor="#16a34a"
-        icon={<FiAlertTriangle size={22} color="#f59e0b" />}
-      />
 
       {/* ── Dialog alert (menggantikan window.alert) ── */}
       <AlertDialog

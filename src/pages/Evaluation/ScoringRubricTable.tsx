@@ -3,13 +3,13 @@ import React, { useMemo } from "react";
 import { Box, Text } from "@chakra-ui/react";
 import type { EvaluationGroup } from "../../types/evaluation";
 
-type Mode = "leader" | "section_head" | "readonly";
+type Mode = "leader" | "section_head" | "readonly" | "manager_view";
 
 interface Props {
   criteriaGroups: EvaluationGroup[];
-  /** Scores for current editor (LD when mode=leader, SH when mode=section_head) */
+  /** Scores for current editor (LD when mode=leader, SH when mode=section_head/manager_view) */
   scores: Record<number, number>;
-  /** Leader scores — only used in mode=section_head to display disabled LD row */
+  /** Leader scores — used in mode=section_head/manager_view to display LD row */
   leaderScores?: Record<number, number>;
   onChange: (criteriaId: number, value: number) => void;
   mode?: Mode;
@@ -27,7 +27,11 @@ const ScoringRubricTable: React.FC<Props> = ({
   mode = "leader",
   unfilledIds = [],
 }) => {
-  const isSectionHead = mode === "section_head";
+  // Dual view: menampilkan radio LD & SH berdampingan di setiap sel nilai.
+  // - "section_head": LD read-only, SH editable (dipakai saat SH mengisi form)
+  // - "manager_view": LD & SH sama-sama read-only (dipakai untuk tampilan detail/viewer)
+  const isDualView = mode === "section_head" || mode === "manager_view";
+  const isEditableSH = mode === "section_head";
   const isReadonly = mode === "readonly";
 
   const totalWeight = useMemo(
@@ -46,18 +50,28 @@ const ScoringRubricTable: React.FC<Props> = ({
     [criteriaGroups],
   );
 
-  const finalScore = useMemo(() => {
+  const computeFinalScore = (scoreMap: Record<number, number>) => {
     let total = 0;
     criteriaGroups.forEach((g) =>
       g.subgroups.forEach((sg) =>
         sg.criteria.forEach((cr) => {
-          const val = scores[cr.id];
+          const val = scoreMap[cr.id];
           if (val) total += Number(val) * (Number(cr.weight) || 0);
         }),
       ),
     );
     return totalWeight ? Math.round((total / totalWeight) * 100) / 100 : 0;
-  }, [criteriaGroups, scores, totalWeight]);
+  };
+
+  const finalScore = useMemo(
+    () => computeFinalScore(scores),
+    [criteriaGroups, scores, totalWeight],
+  );
+
+  const leaderFinalScore = useMemo(
+    () => computeFinalScore(leaderScores),
+    [criteriaGroups, leaderScores, totalWeight],
+  );
 
   return (
     <Box
@@ -223,7 +237,7 @@ const ScoringRubricTable: React.FC<Props> = ({
                           ) / 100
                         : null;
 
-                    if (isSectionHead) {
+                    if (isDualView) {
                       // ── Single row: LD & SH radio side-by-side in each score cell ──
                       return (
                         <Box
@@ -316,7 +330,7 @@ const ScoringRubricTable: React.FC<Props> = ({
                                     gap={2}
                                     alignItems="center"
                                   >
-                                    {/* LD — disabled */}
+                                    {/* LD — always read-only */}
                                     <Box
                                       display="flex"
                                       flexDirection="column"
@@ -363,18 +377,26 @@ const ScoringRubricTable: React.FC<Props> = ({
                                         )}
                                       </Box>
                                     </Box>
-                                    {/* SH — editable */}
+                                    {/* SH — editable only when isEditableSH */}
                                     <Box
                                       display="flex"
                                       flexDirection="column"
                                       alignItems="center"
                                       gap={0.5}
-                                      as="button"
-                                      type="button"
-                                      onClick={() =>
-                                        onChange(criterion.id, option.score)
+                                      as={isEditableSH ? "button" : "div"}
+                                      type={isEditableSH ? "button" : undefined}
+                                      onClick={
+                                        isEditableSH
+                                          ? () =>
+                                              onChange(
+                                                criterion.id,
+                                                option.score,
+                                              )
+                                          : undefined
                                       }
-                                      cursor="pointer"
+                                      cursor={
+                                        isEditableSH ? "pointer" : "default"
+                                      }
                                       title="Section Head score"
                                     >
                                       <Text
@@ -401,12 +423,21 @@ const ScoringRubricTable: React.FC<Props> = ({
                                         alignItems="center"
                                         justifyContent="center"
                                         flexShrink={0}
-                                        _hover={{
-                                          borderColor: "#16a34a",
-                                          bg: isShActive
-                                            ? "#16a34a"
-                                            : "#f0fdf4",
-                                        }}
+                                        cursor={
+                                          isEditableSH
+                                            ? "pointer"
+                                            : "not-allowed"
+                                        }
+                                        _hover={
+                                          isEditableSH
+                                            ? {
+                                                borderColor: "#16a34a",
+                                                bg: isShActive
+                                                  ? "#16a34a"
+                                                  : "#f0fdf4",
+                                              }
+                                            : undefined
+                                        }
                                         transition="all 0.12s"
                                         boxShadow={
                                           isShActive
@@ -599,43 +630,95 @@ const ScoringRubricTable: React.FC<Props> = ({
           ))}
 
           {/* Total */}
-          <Box
-            display="grid"
-            style={{ gridTemplateColumns: GRID_TEMPLATE }}
-            bg="#1e293b"
-            borderTop="1px solid #0f172a"
-          >
+          {isDualView ? (
             <Box
-              gridColumn="span 7"
-              px={4}
-              py={3}
-              display="flex"
-              alignItems="center"
-              gap={3}
+              display="grid"
+              style={{ gridTemplateColumns: GRID_TEMPLATE }}
+              bg="#1e293b"
+              borderTop="1px solid #0f172a"
             >
-              <Text fontSize="14px" fontWeight="700" color="white">
-                Hasil Nilai {isSectionHead ? "(SH)" : ""}
-              </Text>
-              <Text
-                fontSize="12px"
-                fontWeight="600"
-                color={totalWeight === 100 ? "#4ade80" : "#fca5a5"}
+              <Box
+                gridColumn="span 7"
+                px={4}
+                py={3}
+                display="flex"
+                alignItems="center"
+                gap={4}
               >
-                (Total Bobot: {totalWeight})
-              </Text>
+                <Text fontSize="14px" fontWeight="700" color="white">
+                  Hasil Nilai
+                </Text>
+                <Text
+                  fontSize="12px"
+                  fontWeight="600"
+                  color={totalWeight === 100 ? "#4ade80" : "#fca5a5"}
+                >
+                  (Total Bobot: {totalWeight})
+                </Text>
+                <Box display="flex" alignItems="center" gap={1.5}>
+                  <Text fontSize="12px" fontWeight="700" color="#93c5fd">
+                    LD
+                  </Text>
+                  <Text fontSize="15px" fontWeight="800" color="#60a5fa">
+                    {!isNaN(leaderFinalScore) ? leaderFinalScore : 0}
+                  </Text>
+                </Box>
+              </Box>
+              <Box
+                px={2}
+                py={3}
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                gap={1.5}
+              >
+                <Text fontSize="12px" fontWeight="700" color="#86efac">
+                  SH
+                </Text>
+                <Text fontSize="16px" fontWeight="800" color="#4ade80">
+                  {!isNaN(finalScore) ? finalScore : 0}
+                </Text>
+              </Box>
             </Box>
+          ) : (
             <Box
-              px={2}
-              py={3}
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
+              display="grid"
+              style={{ gridTemplateColumns: GRID_TEMPLATE }}
+              bg="#1e293b"
+              borderTop="1px solid #0f172a"
             >
-              <Text fontSize="16px" fontWeight="800" color="#60a5fa">
-                {!isNaN(finalScore) ? finalScore : 0}
-              </Text>
+              <Box
+                gridColumn="span 7"
+                px={4}
+                py={3}
+                display="flex"
+                alignItems="center"
+                gap={3}
+              >
+                <Text fontSize="14px" fontWeight="700" color="white">
+                  Hasil Nilai
+                </Text>
+                <Text
+                  fontSize="12px"
+                  fontWeight="600"
+                  color={totalWeight === 100 ? "#4ade80" : "#fca5a5"}
+                >
+                  (Total Bobot: {totalWeight})
+                </Text>
+              </Box>
+              <Box
+                px={2}
+                py={3}
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Text fontSize="16px" fontWeight="800" color="#60a5fa">
+                  {!isNaN(finalScore) ? finalScore : 0}
+                </Text>
+              </Box>
             </Box>
-          </Box>
+          )}
         </Box>
       </Box>
     </Box>
