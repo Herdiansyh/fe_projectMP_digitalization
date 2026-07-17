@@ -673,13 +673,13 @@ const EvaluationForm: React.FC = () => {
                   }));
                 }}
               />
-              Perpanjang PKWT
+              Extend PKWT
             </label>
 
             <HStack gap={4} wrap="wrap">
               <Box flex={1} minW="220px">
                 <Text fontSize="13px" fontWeight="600" mb={2}>
-                  Perpanjang PKWT
+                  PKWT
                 </Text>
                 <Input
                   placeholder="PKWT 1/2/3/4"
@@ -695,7 +695,7 @@ const EvaluationForm: React.FC = () => {
               </Box>
               <Box flex={1} minW="220px">
                 <Text fontSize="13px" fontWeight="600" mb={2}>
-                  Berapa Bulan
+                  Duration (Months)
                 </Text>
                 <Input
                   type="number"
