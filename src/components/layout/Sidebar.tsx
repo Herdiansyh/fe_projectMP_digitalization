@@ -689,6 +689,19 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
               Isi barisnya berbeda tergantung hak masing-masing:
               - Data Master (User/Area/Line/Station/Competency Matrix) HANYA untuk is_admin === true
               - Manpower Management/Pemagangan untuk is_admin ATAU can_view_manpower === true */}
+          <Text
+            fontSize="10px"
+            fontWeight="500"
+            color="gray.400"
+            textTransform="uppercase"
+            letterSpacing="wider"
+            px={4}
+            mb={2}
+            whiteSpace="nowrap"
+          >
+            Menu
+          </Text>
+          {navItems.map((item) => renderNavItem(item))}
           {showAdminSection && (
             <>
               <Text
@@ -707,19 +720,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
               {visibleAdminSectionItems.map((item) => renderNavItem(item))}
             </>
           )}{" "}
-          <Text
-            fontSize="10px"
-            fontWeight="500"
-            color="gray.400"
-            textTransform="uppercase"
-            letterSpacing="wider"
-            px={4}
-            mb={2}
-            whiteSpace="nowrap"
-          >
-            Menu
-          </Text>
-          {navItems.map((item) => renderNavItem(item))}
         </Box>
       </Box>
     </>
