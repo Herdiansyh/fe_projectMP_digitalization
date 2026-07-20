@@ -179,8 +179,7 @@ const Login: React.FC = () => {
               letterSpacing="-0.01em"
               mb={4}
             >
-              Manage FPTK, employee assessments, and approval workflows in one
-              system.{" "}
+              Simplify FPTK, assessments, and approvals in one platform.
             </Heading>
             <Text
               fontSize="14px"
