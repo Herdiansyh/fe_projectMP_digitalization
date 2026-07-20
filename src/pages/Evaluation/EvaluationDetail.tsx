@@ -92,6 +92,7 @@ const EvaluationDetail: React.FC = () => {
 
   // ─── Dialog alert (menggantikan window.alert) ──────────────────────────────
   const [alertInfo, setAlertInfo] = useState<AlertState | null>(null);
+  const [forwarding, setForwarding] = useState(false);
 
   const showAlert = (
     title: string,
@@ -152,6 +153,11 @@ const EvaluationDetail: React.FC = () => {
     return map;
   }, [evaluation]);
 
+  const canForwardToHrAdmin =
+    roleName === "Section Head" &&
+    evaluation?.status === "approved" &&
+    evaluation?.current_stage === "done";
+
   const sectionHeadScoresMap = useMemo(() => {
     const map: Record<number, number> = {};
     evaluation?.scores.forEach((score) => {
@@ -175,6 +181,23 @@ const EvaluationDetail: React.FC = () => {
       (criteriaId) =>
         shScores[criteriaId] === undefined || shScores[criteriaId] === null,
     );
+  };
+  const handleForwardToHrAdmin = async () => {
+    if (!evaluation) return;
+    setForwarding(true);
+    try {
+      await evaluationService.forwardToHrAdmin(evaluation.id, { notes });
+      setNotes("");
+      await loadData();
+    } catch {
+      showAlert(
+        "Gagal Forward",
+        "Failed to forward evaluation to HR Admin",
+        "error",
+      );
+    } finally {
+      setForwarding(false);
+    }
   };
 
   const formatDate = (value?: string | null) => {
@@ -469,6 +492,19 @@ const EvaluationDetail: React.FC = () => {
                 w={{ base: "full", sm: "auto" }}
               >
                 Reject
+              </Button>
+            )}
+            {canForwardToHrAdmin && (
+              <Button
+                type="button"
+                onClick={handleForwardToHrAdmin}
+                loading={forwarding}
+                loadingText="Forwarding..."
+                colorPalette="purple"
+                size="sm"
+                w={{ base: "full", sm: "auto" }}
+              >
+                Forward to HR Admin
               </Button>
             )}
           </Flex>
@@ -888,7 +924,10 @@ const EvaluationDetail: React.FC = () => {
           </Text>
         </Box>
         {/* Notes for approve/reject/submit */}
-        {(canApprove || canApproveManager || canSubmit) && (
+        {(canApprove ||
+          canApproveManager ||
+          canSubmit ||
+          canForwardToHrAdmin) && (
           <Box bg="white" rounded="lg" shadow="sm" p={6}>
             <Text fontSize="16px" fontWeight="700" color="gray.800" mb={4}>
               Review Notes

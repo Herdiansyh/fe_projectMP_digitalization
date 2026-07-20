@@ -506,6 +506,15 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                 },
               ]
             : []),
+          ...(isAdmin || isHrAdmin
+            ? [
+                {
+                  label: "HR Decisions",
+                  path: "/evaluations/hr-decisions",
+                  icon: <IconListCheck />,
+                },
+              ]
+            : []),
 
           ...(isAdmin
             ? [

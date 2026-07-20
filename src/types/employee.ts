@@ -34,6 +34,10 @@ export interface Employee {
   end_contract: string | null;
   created_at: string;
   updated_at: string;
+  // Status aktif/nonaktif
+  is_active: boolean;
+  deactivated_at: string | null;
+  deactivated_reason: string | null;
 
   // Relasi (dari resource)
   department?: { id: number; name: string };
@@ -89,4 +93,5 @@ export interface EmployeeListParams {
   section_id?: number;
   employment_type?: string;
   near_expiry?: boolean;
+  is_active?: boolean;
 }

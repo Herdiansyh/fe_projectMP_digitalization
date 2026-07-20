@@ -108,7 +108,7 @@ const EmployeeList: React.FC = () => {
   const [search, setSearch] = useState("");
   const [filterDept, setFilterDept] = useState("");
   const [filterType, setFilterType] = useState("");
-
+  const [filterActive, setFilterActive] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalData, setTotalData] = useState(0);
@@ -131,6 +131,8 @@ const EmployeeList: React.FC = () => {
           search: debouncedSearch || undefined,
           department_id: filterDept ? Number(filterDept) : undefined,
           employment_type: filterType || undefined,
+          is_active:
+            filterActive === "" ? undefined : filterActive === "active",
         });
         setEmployees(res.data.data);
         setTotalPages(res.data.last_page);
@@ -145,7 +147,7 @@ const EmployeeList: React.FC = () => {
         setLoading(false);
       }
     },
-    [debouncedSearch, filterDept, filterType],
+    [debouncedSearch, filterDept, filterType, filterActive],
   );
 
   // Master data (department/section) + Area & Station di-fetch sekali saat
@@ -317,8 +319,8 @@ const EmployeeList: React.FC = () => {
               ))}
             </select>
             <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
+              value={filterActive}
+              onChange={(e) => setFilterActive(e.target.value)}
               style={{
                 padding: "8px 12px",
                 borderRadius: "8px",
@@ -328,12 +330,10 @@ const EmployeeList: React.FC = () => {
                 color: "#1a202c",
               }}
             >
-              <option value="">All Types</option>
-              <option value="permanent">Permanent</option>
-              <option value="contract">Contract</option>
-              <option value="apprentice">Apprentice</option>
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
             </select>
-            {/* Status filter removed */}
           </Grid>
         </Box>
 
@@ -357,6 +357,7 @@ const EmployeeList: React.FC = () => {
                   <th style={thStyle}>Area / Line</th>
                   <th style={thStyle}>Station</th>
                   <th style={thStyle}>Type</th>
+                  <th style={thStyle}>Status</th>
                   <th style={thStyle}>End Contract</th>
                   <th style={{ ...thStyle, textAlign: "center" }}>Action</th>
                 </tr>
@@ -365,7 +366,7 @@ const EmployeeList: React.FC = () => {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={10}
                       style={{
                         padding: "40px",
                         textAlign: "center",
@@ -379,7 +380,7 @@ const EmployeeList: React.FC = () => {
                 ) : employees.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={10}
                       style={{
                         padding: "40px",
                         textAlign: "center",
@@ -485,6 +486,25 @@ const EmployeeList: React.FC = () => {
                         </td>
                         <td style={{ padding: "12px 16px" }}>
                           {employmentTypeBadge(emp.employment_type)}
+                        </td>
+                        <td style={{ padding: "12px 16px" }}>
+                          {emp.is_active ? (
+                            <Badge
+                              color="#15803d"
+                              bg="#f0fdf4"
+                              border="#bbf7d0"
+                            >
+                              Active
+                            </Badge>
+                          ) : (
+                            <Badge
+                              color="#991b1b"
+                              bg="#fef2f2"
+                              border="#fecaca"
+                            >
+                              Inactive
+                            </Badge>
+                          )}
                         </td>
                         <td style={{ padding: "12px 16px", fontSize: "13px" }}>
                           {emp.end_contract ? (

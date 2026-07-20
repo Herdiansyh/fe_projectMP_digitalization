@@ -9,6 +9,9 @@ export interface EvaluationEmployee {
   start_contract: string | null;
   end_contract: string | null;
   employment_type: string | null;
+  is_active: boolean; // ← baru
+  deactivated_at: string | null; // ← baru
+  deactivated_reason: string | null; // ← baru
 }
 
 export interface EvaluationCriteriaScaleOption {
@@ -88,6 +91,18 @@ export interface EvaluationApprover {
   npk: string;
 }
 
+export interface EvaluationContractExtension {
+  id: number;
+  evaluation_id: number;
+  previous_end_contract: string | null;
+  new_end_contract: string;
+  pkwt_number: string | null;
+  extend_months: number | null;
+  notes: string | null;
+  extended_by: number;
+  created_at: string | null;
+}
+
 export type PendingTrigger = EvaluationEmployee;
 export interface Evaluation {
   id: number;
@@ -124,6 +139,7 @@ export interface Evaluation {
   approvals: EvaluationApproval[];
   created_at: string | null;
   updated_at: string | null;
+  contract_extensions?: EvaluationContractExtension[]; // ← baru, optional (hanya ada kalau resource sudah include)
 }
 
 export interface EvaluationListParams {
@@ -132,7 +148,17 @@ export interface EvaluationListParams {
   employee_id?: number;
   status?: string;
 }
+export interface ExtendContractPayload {
+  new_end_contract: string;
+  pkwt_number?: string | null;
+  extend_months?: number | null;
+  notes?: string | null;
+}
 
+export interface CloseContractPayload {
+  action: "deactivate" | "delete";
+  reason?: string | null;
+}
 export interface EvaluationCreatePayload {
   employee_id: number;
   department_id?: number | null;

@@ -17,6 +17,7 @@ import MyReviewsList from "./pages/Competency/MyReviewList";
 import EvaluationList from "./pages/Evaluation/EvaluationList";
 import EvaluationForm from "./pages/Evaluation/EvaluationForm";
 import EvaluationDetail from "./pages/Evaluation/EvaluationDetail";
+import HrDecisionsList from "./pages/Evaluation/HrDecisionsList";
 
 const Login = lazy(() => import("./pages/Login/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
@@ -259,6 +260,14 @@ function App() {
               element={
                 <ProtectedRoute assessorOnly>
                   <EvaluationForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/evaluations/hr-decisions"
+              element={
+                <ProtectedRoute allowedRoles={["HR Admin", "Admin"]}>
+                  <HrDecisionsList />
                 </ProtectedRoute>
               }
             />

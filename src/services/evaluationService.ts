@@ -11,6 +11,8 @@ import type {
   EvaluationGroup,
   PaginatedResponse,
   PendingTrigger,
+  CloseContractPayload,
+  ExtendContractPayload,
 } from "../types/evaluation";
 
 const evaluationService = {
@@ -128,6 +130,56 @@ const evaluationService = {
   getPendingTriggers: async (): Promise<ApiResponse<PendingTrigger[]>> => {
     const response = await axiosInstance.get<ApiResponse<PendingTrigger[]>>(
       "/evaluations/pending-triggers",
+    );
+    return response.data;
+  },
+  forwardToHrAdmin: async (
+    id: number,
+    payload?: EvaluationActionPayload,
+  ): Promise<ApiResponse<Evaluation>> => {
+    const response = await axiosInstance.post<ApiResponse<Evaluation>>(
+      `/evaluations/${id}/forward-to-hr-admin`,
+      payload ?? {},
+    );
+    return response.data;
+  },
+
+  getPendingHrDecisions: async (
+    params?: EvaluationListParams,
+  ): Promise<PaginatedResponse<Evaluation>> => {
+    const cleanParams = params
+      ? Object.fromEntries(
+          Object.entries(params).filter(
+            ([, v]) => v !== "" && v !== undefined && v !== null,
+          ),
+        )
+      : {};
+    type Res = ApiResponse<PaginatedResponse<Evaluation>>;
+    const response = await axiosInstance.get<Res>(
+      "/evaluations/pending-hr-decisions",
+      { params: cleanParams },
+    );
+    return response.data.data;
+  },
+
+  extendContract: async (
+    id: number,
+    payload: ExtendContractPayload,
+  ): Promise<ApiResponse<Evaluation>> => {
+    const response = await axiosInstance.post<ApiResponse<Evaluation>>(
+      `/evaluations/${id}/extend-contract`,
+      payload,
+    );
+    return response.data;
+  },
+
+  closeContract: async (
+    id: number,
+    payload: CloseContractPayload,
+  ): Promise<ApiResponse<Evaluation>> => {
+    const response = await axiosInstance.post<ApiResponse<Evaluation>>(
+      `/evaluations/${id}/close-contract`,
+      payload,
     );
     return response.data;
   },
