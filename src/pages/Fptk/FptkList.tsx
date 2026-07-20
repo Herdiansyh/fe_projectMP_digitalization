@@ -187,20 +187,20 @@ const FptkList: React.FC = () => {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "8px",
-                padding: "8px 16px",
+                padding: "10px 20px",
                 fontSize: "14px",
-                fontWeight: "500",
+                fontWeight: 600,
                 borderRadius: "8px",
                 color: "#ffffff",
-                backgroundColor: "#3b82f6",
+                backgroundColor: "#1A5EA8",
                 border: "none",
                 cursor: "pointer",
               }}
               onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "#2563eb")
+                (e.currentTarget.style.backgroundColor = "#154d8c")
               }
               onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "#3b82f6")
+                (e.currentTarget.style.backgroundColor = "#1A5EA8")
               }
             >
               <FiPlus size={15} /> Create New

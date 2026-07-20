@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Box, Text, Badge, Flex, Textarea, HStack } from "@chakra-ui/react";
+import {
+  Box,
+  Text,
+  Badge,
+  Flex,
+  Textarea,
+  HStack,
+  Grid,
+} from "@chakra-ui/react";
 import {
   FiArrowLeft,
   FiCheck,
@@ -15,7 +23,7 @@ import { toaster } from "../../components/ui/toaster";
 import type { Requisition } from "../../types/fptk";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 
-// ── Components defined outside FptkApproval so they aren't recreated on every render ──
+// ── Shared helpers — sama persis dengan FptkDetail.tsx, supaya layout konsisten ──
 
 const Field = ({
   label,
@@ -69,6 +77,7 @@ const FptkApproval: React.FC = () => {
   const [action, setAction] = useState<"approved" | "rejected" | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+
   const fetchRequisition = useCallback(
     async (id: string) => {
       try {
@@ -413,277 +422,265 @@ const FptkApproval: React.FC = () => {
               </Flex>
             </Box>
 
-            {/* ── Position Information ── */}
-            <Box>
-              <SectionTitle>Position Information</SectionTitle>
-              <Flex gap={4} wrap="wrap">
-                <Field label="Position" value={requisition.position} />
-                <Field label="Fullfillment Type" value={requisition.type} />
-                <Field label="Status" value={requisition.status} />
-                <Field label="Level" value={requisition.level} />
-                <Field
-                  label="Duration"
-                  value={
-                    requisition.duration ? `${requisition.duration} Month` : "-"
-                  }
-                />
-                <Field
-                  label="Number of Employees"
-                  value={requisition.cost_employee}
-                />
-                <Field
-                  label="Start Date Required"
-                  value={
-                    requisition.fulfilment_time
-                      ? formatDate(requisition.fulfilment_time)
-                      : "-"
-                  }
-                />
-              </Flex>
-            </Box>
-
-            {/* ── Requirements ── */}
-            <Box>
-              <SectionTitle>Requirements</SectionTitle>
-              <Flex gap={4} wrap="wrap" mb={4}>
-                <Field label="Education" value={requisition.education} />
-                <Field
-                  label="Minimum Experience"
-                  value={
-                    requisition.min_experience
-                      ? `${requisition.min_experience} years`
-                      : "-"
-                  }
-                />
-              </Flex>
-
-              {/* Technical Skills & Soft Skills — berdampingan */}
-              <Flex gap={4} wrap="wrap" mb={3}>
-                <Box flex="1" minW="220px">
-                  <Text
-                    fontSize="11px"
-                    fontWeight="600"
-                    color="gray.400"
-                    textTransform="uppercase"
-                    letterSpacing="0.05em"
-                    mb="4px"
-                  >
-                    Technical Skills
-                  </Text>
-                  {Array.isArray(requisition.technical_skill) &&
-                  requisition.technical_skill.length > 0 ? (
-                    <Flex direction="column" gap={1}>
-                      {requisition.technical_skill.map((s, i) => (
-                        <Text
-                          key={i}
-                          fontSize="14px"
-                          color="gray.800"
-                          fontWeight="500"
-                        >
-                          {String.fromCharCode(97 + i)}.) {s}
-                        </Text>
-                      ))}
-                    </Flex>
-                  ) : (
-                    <Text fontSize="14px" color="gray.800" fontWeight="500">
-                      {requisition.technical_skill || "-"}
-                    </Text>
-                  )}
+            {/* ── 2-Column Layout — sama seperti FptkDetail.tsx ── */}
+            <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={10}>
+              {/* Left Column */}
+              <Flex direction="column" gap={8}>
+                <Box>
+                  <SectionTitle>Position Information</SectionTitle>
+                  <Flex gap={4} wrap="wrap">
+                    <Field label="Position" value={requisition.position} />
+                    <Field label="Fullfillment Type" value={requisition.type} />
+                    <Field label="Status" value={requisition.status} />
+                    <Field label="Level" value={requisition.level} />
+                    <Field
+                      label="Duration"
+                      value={
+                        requisition.duration
+                          ? `${requisition.duration} Month`
+                          : "-"
+                      }
+                    />
+                    <Field
+                      label="Number of Employees"
+                      value={requisition.cost_employee}
+                    />
+                    <Field
+                      label="Start Date Required"
+                      value={
+                        requisition.fulfilment_time
+                          ? formatDate(requisition.fulfilment_time)
+                          : "-"
+                      }
+                    />
+                  </Flex>
                 </Box>
 
-                <Box flex="1" minW="220px">
-                  <Text
-                    fontSize="11px"
-                    fontWeight="600"
-                    color="gray.400"
-                    textTransform="uppercase"
-                    letterSpacing="0.05em"
-                    mb="4px"
-                  >
-                    Soft Skills
-                  </Text>
-                  {Array.isArray(requisition.soft_skill) &&
-                  requisition.soft_skill.length > 0 ? (
-                    <Flex direction="column" gap={1}>
-                      {requisition.soft_skill.map((s, i) => (
-                        <Text
-                          key={i}
-                          fontSize="14px"
-                          color="gray.800"
-                          fontWeight="500"
-                        >
-                          {String.fromCharCode(97 + i)}.) {s}
-                        </Text>
-                      ))}
-                    </Flex>
-                  ) : (
-                    <Text fontSize="14px" color="gray.800" fontWeight="500">
-                      -
-                    </Text>
-                  )}
+                <Box>
+                  <SectionTitle>Requirements</SectionTitle>
+                  <Flex gap={4} wrap="wrap" mb={4}>
+                    <Field label="Education" value={requisition.education} />
+                    <Field
+                      label="Minimum Experience"
+                      value={
+                        requisition.min_experience
+                          ? `${requisition.min_experience} years`
+                          : "-"
+                      }
+                    />
+                  </Flex>
                 </Box>
               </Flex>
 
-              {/* Job Description
-              <Box>
-                <Text
-                  fontSize="11px"
-                  fontWeight="600"
-                  color="gray.400"
-                  textTransform="uppercase"
-                  letterSpacing="0.05em"
-                  mb="4px"
-                >
-                  Job Description
-                </Text>
-                <Text
-                  fontSize="14px"
-                  fontWeight="500"
-                  color="gray.800"
-                  whiteSpace="pre-wrap"
-                >
-                  {requisition.description || "-"}
-                </Text>
-              </Box> */}
-            </Box>
-
-            {/* ── Detail Requirement ── */}
-            <Box>
-              <SectionTitle>Detail Requirement</SectionTitle>
-              <Flex gap={4} wrap="wrap" mb={4}>
-                <Field
-                  label="Employee Cost Center"
-                  value={requisition.cost_center}
-                />
-                <Field
-                  label="Requisition Objectives"
-                  value={requisition.objective}
-                />
-
-                {/* ── Apprenticeship Period ── */}
-                <Box flex={1} minW="180px">
-                  <Text
-                    fontSize="11px"
-                    fontWeight="600"
-                    color="gray.400"
-                    textTransform="uppercase"
-                    letterSpacing="0.05em"
-                    mb="2px"
-                  >
-                    Apprenticeship Period
-                  </Text>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      padding: "2px 10px",
-                      borderRadius: "999px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: requisition.apprenticeship_period
-                        ? "#15803d"
-                        : "#64748b",
-                      backgroundColor: requisition.apprenticeship_period
-                        ? "#f0fdf4"
-                        : "#f8fafc",
-                      border: `1px solid ${requisition.apprenticeship_period ? "#bbf7d0" : "#e2e8f0"}`,
-                    }}
-                  >
-                    {requisition.apprenticeship_period ? "Yes" : "No"}
-                  </span>
-                </Box>
-              </Flex>
-
-              {/* ── Employee Out (Replacement) ── */}
-              {requisition.objective === "Replacement" && (
-                <Box mb={4}>
-                  <Text
-                    fontSize="11px"
-                    fontWeight="600"
-                    color="gray.400"
-                    textTransform="uppercase"
-                    letterSpacing="0.05em"
-                    mb="4px"
-                  >
-                    Replaced Employee
-                  </Text>
-                  <Box
-                    p={3}
-                    borderRadius="8px"
-                    bg="#f0fdf4"
-                    border="1px solid #bbf7d0"
-                    display="inline-block"
-                  >
-                    <Text fontSize="14px" fontWeight="600" color="green.700">
-                      {requisition.employee_out || "-"}
+              {/* Right Column */}
+              <Flex direction="column" gap={8}>
+                <Box>
+                  <SectionTitle>Job Specification</SectionTitle>
+                  <Box mb={6}>
+                    <Text
+                      fontSize="11px"
+                      fontWeight="600"
+                      color="gray.400"
+                      textTransform="uppercase"
+                      letterSpacing="0.05em"
+                      mb="4px"
+                    >
+                      Technical Skills
                     </Text>
-                    {requisition.replacement_employee?.npk && (
-                      <Text fontSize="12px" color="green.600">
-                        NPK: {requisition.replacement_employee.npk}
+                    {Array.isArray(requisition.technical_skill) &&
+                    requisition.technical_skill.length > 0 ? (
+                      <Flex direction="column" gap={2}>
+                        {requisition.technical_skill.map((s, i) => (
+                          <Text
+                            key={i}
+                            fontSize="14px"
+                            color="gray.800"
+                            fontWeight="500"
+                          >
+                            {String.fromCharCode(97 + i)}.) {s}
+                          </Text>
+                        ))}
+                      </Flex>
+                    ) : (
+                      <Text fontSize="14px" color="gray.800" fontWeight="500">
+                        -
+                      </Text>
+                    )}
+                  </Box>
+                  <Box>
+                    <Text
+                      fontSize="11px"
+                      fontWeight="600"
+                      color="gray.400"
+                      textTransform="uppercase"
+                      letterSpacing="0.05em"
+                      mb="4px"
+                    >
+                      Soft Skills
+                    </Text>
+                    {Array.isArray(requisition.soft_skill) &&
+                    requisition.soft_skill.length > 0 ? (
+                      <Flex direction="column" gap={2}>
+                        {requisition.soft_skill.map((s, i) => (
+                          <Text
+                            key={i}
+                            fontSize="14px"
+                            color="gray.800"
+                            fontWeight="500"
+                          >
+                            {String.fromCharCode(97 + i)}.) {s}
+                          </Text>
+                        ))}
+                      </Flex>
+                    ) : (
+                      <Text fontSize="14px" color="gray.800" fontWeight="500">
+                        -
                       </Text>
                     )}
                   </Box>
                 </Box>
-              )}
 
-              <Flex gap={4} wrap="wrap">
-                <Box flex={1} minW="180px">
-                  <Text
-                    fontSize="11px"
-                    fontWeight="600"
-                    color="gray.400"
-                    textTransform="uppercase"
-                    letterSpacing="0.05em"
-                    mb="4px"
-                  >
-                    Replacement Reason
-                  </Text>
-                  <Text
-                    fontSize="14px"
-                    color="gray.800"
-                    fontWeight="500"
-                    whiteSpace="pre-wrap"
-                  >
-                    {requisition.reason || "-"}
-                  </Text>
-                </Box>
-                <Box flex={1} minW="180px">
-                  <Text
-                    fontSize="11px"
-                    fontWeight="600"
-                    color="gray.400"
-                    textTransform="uppercase"
-                    letterSpacing="0.05em"
-                    mb="4px"
-                  >
-                    Manpower Plan
-                  </Text>
-                  <Text fontSize="14px" color="gray.800" fontWeight="500">
-                    {requisition.manpower_plan || "-"}
-                  </Text>
-                </Box>
-                <Box flex={1} minW="180px">
-                  <Text
-                    fontSize="11px"
-                    fontWeight="600"
-                    color="gray.400"
-                    textTransform="uppercase"
-                    letterSpacing="0.05em"
-                    mb="4px"
-                  >
-                    Unplanned Reason
-                  </Text>
-                  <Text
-                    fontSize="14px"
-                    color="gray.800"
-                    fontWeight="500"
-                    whiteSpace="pre-wrap"
-                  >
-                    {requisition.unplanned_reason || "-"}
-                  </Text>
+                <Box>
+                  <SectionTitle>Detail Requirement</SectionTitle>
+                  <Flex gap={4} wrap="wrap" mb={4}>
+                    <Field
+                      label="Employee Cost Center"
+                      value={requisition.cost_center}
+                    />
+                    <Field
+                      label="Requisition Objective"
+                      value={requisition.objective}
+                    />
+
+                    <Box flex={1} minW="180px">
+                      <Text
+                        fontSize="11px"
+                        fontWeight="600"
+                        color="gray.400"
+                        textTransform="uppercase"
+                        letterSpacing="0.05em"
+                        mb="2px"
+                      >
+                        Apprenticeship Period
+                      </Text>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          padding: "2px 10px",
+                          borderRadius: "999px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: requisition.apprenticeship_period
+                            ? "#15803d"
+                            : "#64748b",
+                          backgroundColor: requisition.apprenticeship_period
+                            ? "#f0fdf4"
+                            : "#f8fafc",
+                          border: `1px solid ${requisition.apprenticeship_period ? "#bbf7d0" : "#e2e8f0"}`,
+                        }}
+                      >
+                        {requisition.apprenticeship_period ? "Yes" : "No"}
+                      </span>
+                    </Box>
+                  </Flex>
+
+                  {/* ── Replaced Employee — info lengkap, sama seperti FptkDetail ── */}
+                  {requisition.objective === "Replacement" && (
+                    <Box mb={4}>
+                      <Text
+                        fontSize="11px"
+                        fontWeight="600"
+                        color="gray.400"
+                        textTransform="uppercase"
+                        letterSpacing="0.05em"
+                        mb="4px"
+                      >
+                        Replaced Employee
+                      </Text>
+                      <Box
+                        p={3}
+                        borderRadius="8px"
+                        bg="#f0fdf4"
+                        border="1px solid #bbf7d0"
+                        display="inline-block"
+                      >
+                        <Text
+                          fontSize="14px"
+                          fontWeight="600"
+                          color="green.700"
+                        >
+                          {requisition.employee_out || "-"}
+                        </Text>
+                        {requisition.replacement_employee?.npk && (
+                          <Text fontSize="12px" color="green.600">
+                            NPK: {requisition.replacement_employee.npk}
+                          </Text>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+
+                  <Flex gap={4} wrap="wrap">
+                    <Box flex={1} minW="180px">
+                      <Text
+                        fontSize="11px"
+                        fontWeight="600"
+                        color="gray.400"
+                        textTransform="uppercase"
+                        letterSpacing="0.05em"
+                        mb="4px"
+                      >
+                        Replacement Reason
+                      </Text>
+                      <Text
+                        fontSize="14px"
+                        color="gray.800"
+                        fontWeight="500"
+                        whiteSpace="pre-wrap"
+                      >
+                        {requisition.reason || "-"}
+                      </Text>
+                    </Box>
+                    <Box flex={1} minW="180px">
+                      <Text
+                        fontSize="11px"
+                        fontWeight="600"
+                        color="gray.400"
+                        textTransform="uppercase"
+                        letterSpacing="0.05em"
+                        mb="4px"
+                      >
+                        Manpower Plan
+                      </Text>
+                      <Text fontSize="14px" color="gray.800" fontWeight="500">
+                        {requisition.manpower_plan || "-"}
+                      </Text>
+                    </Box>
+                    <Box flex={1} minW="180px">
+                      <Text
+                        fontSize="11px"
+                        fontWeight="600"
+                        color="gray.400"
+                        textTransform="uppercase"
+                        letterSpacing="0.05em"
+                        mb="4px"
+                      >
+                        Unplanned Reason
+                      </Text>
+                      <Text
+                        fontSize="14px"
+                        color="gray.800"
+                        fontWeight="500"
+                        whiteSpace="pre-wrap"
+                      >
+                        {requisition.unplanned_reason || "-"}
+                      </Text>
+                    </Box>
+                  </Flex>
                 </Box>
               </Flex>
-            </Box>
+            </Grid>
 
             {/* ── Approval Action ── */}
             <Box borderTop="1px solid #e2e8f0" pt={6}>

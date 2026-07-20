@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Box, Text, Flex, Input, HStack, Stack, Grid } from "@chakra-ui/react";
 import { FiSave, FiArrowLeft, FiPlus, FiTrash2 } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
 import fptkService from "../../services/fptkService";
 import employeeService from "../../services/employeeService";
@@ -19,6 +19,7 @@ const FptkForm: React.FC = () => {
   const [approverLoading, setApproverLoading] = useState(true);
   const [masterData, setMasterData] = useState<MasterData | null>(null);
   const [activeEmployees, setActiveEmployees] = useState<Employee[]>([]);
+  const [searchParams] = useSearchParams();
 
   const [formData, setFormData] = useState<CreateRequisitionInput>({
     requester_name: user?.name ?? "",
@@ -27,7 +28,7 @@ const FptkForm: React.FC = () => {
     department: user?.department?.name ?? "",
     section: user?.section?.name ?? "",
     type: "",
-    position: "",
+    position: searchParams.get("position") ?? "",
     status: "",
     duration: "",
     level: "",
@@ -40,11 +41,13 @@ const FptkForm: React.FC = () => {
     soft_skill: [],
     description: "",
     cost_center: "",
-    objective: "",
-    reason: "",
-    employee_out: "",
-    replacement_employee_id: null, // ← tambah
-    apprenticeship_period: false, // ← tambah
+    objective: searchParams.get("objective") ?? "",
+    reason: searchParams.get("reason") ?? "",
+    employee_out: searchParams.get("employee_out") ?? "",
+    replacement_employee_id: searchParams.get("replacement_employee_id")
+      ? Number(searchParams.get("replacement_employee_id"))
+      : null,
+    apprenticeship_period: false,
     manpower_plan: "",
     unplanned_reason: "",
   });
@@ -246,6 +249,23 @@ const FptkForm: React.FC = () => {
             Create New FPTK
           </Text>
         </HStack>
+
+        {searchParams.get("replacement_employee_id") && (
+          <Box
+            bg="orange.50"
+            border="1px solid"
+            borderColor="orange.200"
+            rounded="md"
+            p={3}
+            mb={4}
+          >
+            <Text fontSize="13px" color="orange.800" fontWeight="600">
+              FPTK ini otomatis terisi sebagai pengganti karyawan yang
+              kontraknya tidak diperpanjang. Lengkapi sisa data di bawah sebelum
+              submit.
+            </Text>
+          </Box>
+        )}
 
         <form onSubmit={handleSubmit}>
           <Stack

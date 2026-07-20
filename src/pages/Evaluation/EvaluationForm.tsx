@@ -618,7 +618,7 @@ const EvaluationForm: React.FC = () => {
           </Text>
           <Box mb={4} maxW="320px">
             <Text fontSize="13px" fontWeight="600" mb={2}>
-              Employee Status
+              Decision
             </Text>
             <select
               value={recommendation.employee_status ?? ""}
@@ -641,6 +641,7 @@ const EvaluationForm: React.FC = () => {
               <option value="">Pilih status</option>
               <option value="permanen">Permanen</option>
               <option value="kontrak_berakhir">Kontrak Berakhir</option>
+              <option value="perpanjang_kontrak">Perpanjang Kontrak</option>
             </select>
           </Box>
 

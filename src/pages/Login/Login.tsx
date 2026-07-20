@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,10 +17,13 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { FiEye, FiEyeOff, FiHash, FiLock } from "react-icons/fi";
+import type { RoleLevel } from "../../types/auth";
+import authService from "../../services/authService";
 
 const loginSchema = z.object({
   npk: z.string().min(1, "NPK cannot be empty"),
   password: z.string().min(8, "Password minimum 8 characters"),
+  role_level_id: z.coerce.number().min(1, "Please select a role"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -45,7 +48,16 @@ const Login: React.FC = () => {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
+  const [roles, setRoles] = useState<RoleLevel[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
 
+  useEffect(() => {
+    authService
+      .getRoleLevels()
+      .then((res) => setRoles(res.data))
+      .catch(() => setRoles([]))
+      .finally(() => setRolesLoading(false));
+  }, []);
   const onSubmit = async (data: LoginFormData) => {
     setApiError("");
     try {
@@ -410,6 +422,45 @@ const Login: React.FC = () => {
                 {errors.password && (
                   <Field.ErrorText fontSize="xs">
                     {errors.password.message}
+                  </Field.ErrorText>
+                )}
+              </Field.Root>
+              <Field.Root invalid={!!errors.role_level_id}>
+                <Field.Label
+                  fontSize="11px"
+                  fontWeight="600"
+                  color="gray.500"
+                  textTransform="uppercase"
+                  letterSpacing="wider"
+                >
+                  Login As
+                </Field.Label>
+                <select
+                  {...register("role_level_id")}
+                  disabled={rolesLoading}
+                  style={{
+                    width: "100%",
+                    height: "44px",
+                    padding: "0 12px",
+                    borderRadius: "10px",
+                    border: "1.5px solid #e2e8f0",
+                    fontSize: "14px",
+                    color: "#1a202c",
+                    backgroundColor: "white",
+                  }}
+                >
+                  <option value="">
+                    {rolesLoading ? "Loading roles..." : "Select role"}
+                  </option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.role_level_id && (
+                  <Field.ErrorText fontSize="xs">
+                    {errors.role_level_id.message}
                   </Field.ErrorText>
                 )}
               </Field.Root>

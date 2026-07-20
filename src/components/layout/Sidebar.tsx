@@ -224,7 +224,6 @@ const IconMasterData = () => (
   </svg>
 );
 
-// ── Icon baru: Competency Assessment (Leader) ──
 const IconClipboard = () => (
   <svg
     width="16"
@@ -242,7 +241,6 @@ const IconClipboard = () => (
   </svg>
 );
 
-// ── Icon baru: Manage Competency Matrix (Admin) ──
 const IconLayers = () => (
   <svg
     width="16"
@@ -279,7 +277,7 @@ const IconChevron = ({ open }: { open: boolean }) => (
     <polyline points="9 18 15 12 9 6" />
   </svg>
 );
-// ── Icon baru: QA Review ──
+
 const IconQaReview = () => (
   <svg
     width="16"
@@ -317,11 +315,11 @@ const IconListCheck = () => (
     <path d="M14 18h2" />
   </svg>
 );
+
 const approvalNavItems: NavItem[] = [
   { label: "Pending Approvals", path: "/fptk/pending", icon: <IconPending /> },
 ];
 
-// ── Menu "Data Master" — submenu, hanya untuk is_admin === true ──
 const masterDataNavItem: NavItem = {
   label: "Data Master",
   path: "/master-data",
@@ -331,8 +329,6 @@ const masterDataNavItem: NavItem = {
     { label: "Area Management", path: "/areas", icon: <IconArea /> },
     { label: "Line Management", path: "/lines", icon: <IconLine /> },
     { label: "Station Management", path: "/stations", icon: <IconStation /> },
-    // Rubrik kompetensi juga tergolong "data master" — setup sekali,
-    // dipakai berulang oleh modul Competency Assessment.
     {
       label: "Competency Matrix",
       path: "/manage-competency-matrix",
@@ -346,7 +342,6 @@ const masterDataNavItem: NavItem = {
   ],
 };
 
-// ── Boleh diakses is_admin ATAU can_view_manpower ──
 const manpowerNavItems: NavItem[] = [
   { label: "Manpower Management", path: "/employees", icon: <IconEmployee /> },
   { label: "Manpower Pemagangan", path: "/interns", icon: <IconIntern /> },
@@ -378,8 +373,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const canViewManpower = user?.can_view_manpower === true;
   const showAdminOnlySection = !isLeaderRole && !isQARole && isAdmin;
   const isManagerRole = roleName === "Manager";
-  // "Manpower" muncul untuk SIAPAPUN yang admin atau can_view_manpower = true,
-  // tanpa terikat role Leader/QA
   const showManpowerSection = isAdmin || canViewManpower;
 
   const showAdminSection = showAdminOnlySection || showManpowerSection;
@@ -388,10 +381,10 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
     ...(showAdminOnlySection ? [masterDataNavItem] : []),
     ...(showManpowerSection ? manpowerNavItems : []),
   ];
+
   const navItems: NavItem[] = isLeaderRole
     ? [
         { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
-
         {
           label: "Competency Assessment",
           path: "/competency-assessment",
@@ -402,29 +395,16 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
           path: "/my-submissions",
           icon: <IconListCheck />,
         },
-        {
-          label: "Evaluations",
-          path: "/evaluations",
-          icon: <IconClipboard />,
-        },
+        { label: "Evaluations", path: "/evaluations", icon: <IconClipboard /> },
       ]
     : isQARole
       ? [
           { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
-          {
-            label: "QA Review",
-            path: "/qa-review",
-            icon: <IconQaReview />,
-          },
-          {
-            label: "My Reviews",
-            path: "/my-reviews",
-            icon: <IconListCheck />, // reuse icon yang sudah dibuat untuk My Submissions
-          },
+          { label: "QA Review", path: "/qa-review", icon: <IconQaReview /> },
+          { label: "My Reviews", path: "/my-reviews", icon: <IconListCheck /> },
         ]
       : [
           { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
-          // "On Progress FPTK" hanya untuk non-approver dan non-HR Admin
           ...(!isApproverRole && !isHrAdmin
             ? [
                 {
@@ -434,7 +414,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                 },
               ]
             : []),
-          // "Approved FPTK" tampil untuk semua kecuali approver murni
           ...(!isApproverRole
             ? [
                 {
@@ -444,7 +423,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                 },
               ]
             : []),
-          // "Rejected FPTK" hanya untuk non-approver dan non-HR Admin
           ...(!isApproverRole && !isHrAdmin
             ? [
                 {
@@ -454,7 +432,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                 },
               ]
             : []),
-          // Pending Approvals & History hanya untuk approver roles
           ...(isApproverRole ? approvalNavItems : []),
           ...(isApproverRole
             ? [
@@ -465,11 +442,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                 },
               ]
             : []),
-          // Competency Assessment — di branch ini (role Leader murni sudah
-          // ditangani short-circuit terpisah di atas), hanya Admin yang
-          // berhak. Role lain (mis. Supervisor ber-area_id) TIDAK
-          // ditampilkan menunya, karena backend sekarang menolak mereka
-          // dengan 403 (lihat EmployeeAssessmentController::isWithinLeaderScope).
           ...(isAdmin
             ? [
                 {
@@ -515,7 +487,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                 },
               ]
             : []),
-
           ...(isAdmin
             ? [
                 {
@@ -527,14 +498,9 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             : []),
         ];
 
-  // Submenu otomatis terbuka kalau salah satu child-nya sedang aktif
   const isChildActive = (item: NavItem) =>
     !!item.children?.some((c) => c.path === location.pathname);
 
-  // Menyimpan preferensi buka/tutup yang di-klik manual oleh user (override
-  // eksplisit). Kalau belum pernah di-klik untuk path tertentu, statusnya
-  // jatuh balik ke auto-open berdasarkan halaman aktif. Semua dihitung
-  // langsung saat render (derived state) — tanpa useEffect + setState.
   const [manualOverride, setManualOverride] = useState<Record<string, boolean>>(
     {},
   );
@@ -552,11 +518,15 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
     }));
   };
 
+  // ── Redesign: sidebar gelap dominan brand.600→brand.800, item aktif
+  // solid brand.500 (#1A5EA8), teks/ikon putih dengan opacity bertingkat
+  // untuk hierarki visual. ──
   const renderNavItem = (item: NavItem, depth = 0) => {
     const hasChildren = !!item.children && item.children.length > 0;
     const isActive = location.pathname === item.path;
     const isOpenMenu = hasChildren ? isMenuOpen(item) : false;
     const parentHighlighted = hasChildren && isChildActive(item) && !isOpenMenu;
+    const highlighted = isActive || parentHighlighted;
 
     return (
       <Box key={item.path}>
@@ -564,46 +534,32 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
           align="center"
           gap={3}
           px={4}
-          pl={depth > 0 ? 8 : 4}
-          h="40px"
+          pl={depth > 0 ? 9 : 4}
+          h="42px"
           mx={2}
           borderRadius="md"
           cursor="pointer"
-          bg={isActive || parentHighlighted ? "brand.50" : "transparent"}
-          color={isActive || parentHighlighted ? "brand.500" : "gray.500"}
+          bg={highlighted ? "brand.400" : "transparent"}
+          color={highlighted ? "white" : "whiteAlpha.800"}
+          fontWeight={highlighted ? "400" : "400"}
           _hover={{
-            bg: isActive || parentHighlighted ? "brand.50" : "gray.50",
-            color: isActive || parentHighlighted ? "brand.500" : "gray.700",
+            bg: highlighted ? "brand.500" : "whiteAlpha.100",
+            color: "white",
           }}
           transition="all 0.15s"
           onClick={() => (hasChildren ? toggleMenu(item) : navigate(item.path))}
           position="relative"
+          boxShadow={highlighted ? "0 2px 8px rgba(0,0,0,0.25)" : "none"}
         >
-          {(isActive || (hasChildren && parentHighlighted)) && (
-            <Box
-              position="absolute"
-              left={0}
-              top="20%"
-              h="60%"
-              w="3px"
-              bg="brand.500"
-              borderRadius="0 2px 2px 0"
-            />
-          )}
           <Box flexShrink={0}>{item.icon}</Box>
-          <Text
-            fontSize="13px"
-            fontWeight={isActive ? "500" : "400"}
-            whiteSpace="nowrap"
-            flex={1}
-          >
+          <Text fontSize="13px" whiteSpace="nowrap" flex={1}>
             {item.label}
           </Text>
           {hasChildren && <IconChevron open={isOpenMenu} />}
         </Flex>
 
         {hasChildren && isOpenMenu && (
-          <Box>
+          <Box mt={1} mb={1}>
             {item.children!.map((child) => renderNavItem(child, depth + 1))}
           </Box>
         )}
@@ -630,21 +586,22 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
         left={open ? "0px" : `-${SIDEBAR_WIDTH}px`}
         h="100vh"
         w={`${SIDEBAR_WIDTH}px`}
-        bg="white"
-        borderRight="0.5px solid"
-        borderColor="gray.200"
+        bgGradient="to-b"
+        gradientFrom="brand.500"
+        gradientTo="brand.800"
         display="flex"
         flexDirection="column"
         zIndex={100}
         transition="left 0.25s ease"
+        boxShadow="5px 0 14px rgba(6, 26, 56, 0.25)"
       >
         {/* Accent bar */}
         <Box
           h="4px"
           flexShrink={0}
           bgGradient="to-r"
-          gradientFrom="brand.500"
-          gradientTo="accent.400"
+          gradientFrom="accent.400"
+          gradientTo="brand.300"
         />
 
         {/* Brand */}
@@ -654,15 +611,17 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
           px={4}
           h="56px"
           flexShrink={0}
-          borderBottom="0.5px solid"
-          borderColor="gray.100"
+          borderBottom="1px solid"
+          borderColor="whiteAlpha.200"
         >
           <Box
-            w="28px"
-            h="28px"
+            w="30px"
+            h="30px"
             borderRadius="md"
             overflow="hidden"
             flexShrink={0}
+            bg="white"
+            p="3px"
           >
             <img
               src="/favicon.png"
@@ -674,7 +633,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             <Text
               fontSize="12px"
               fontWeight="500"
-              color="gray.900"
+              color="white"
               lineHeight="1.2"
               whiteSpace="nowrap"
             >
@@ -682,26 +641,34 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             </Text>
             <Text
               fontSize="10px"
-              color="gray.400"
+              color="whiteAlpha.600"
               lineHeight="1.3"
               whiteSpace="nowrap"
+              letterSpacing="wider"
+              textTransform="uppercase"
             >
-              MP
+              MP System
             </Text>
           </Box>
         </Flex>
 
         {/* Nav items */}
-        <Box flex={1} py={3} overflowY="auto" overflowX="hidden">
-          {/* Admin section — tampil untuk is_admin ATAU can_view_manpower,
-              KECUALI role Leader murni (selalu disembunyikan).
-              Isi barisnya berbeda tergantung hak masing-masing:
-              - Data Master (User/Area/Line/Station/Competency Matrix) HANYA untuk is_admin === true
-              - Manpower Management/Pemagangan untuk is_admin ATAU can_view_manpower === true */}
+        <Box
+          flex={1}
+          py={3}
+          overflowY="auto"
+          overflowX="hidden"
+          css={{
+            "&::-webkit-scrollbar": { display: "none" },
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+        >
+          {" "}
           <Text
             fontSize="10px"
-            fontWeight="500"
-            color="gray.400"
+            fontWeight="600"
+            color="whiteAlpha.500"
             textTransform="uppercase"
             letterSpacing="wider"
             px={4}
@@ -713,22 +680,35 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
           {navItems.map((item) => renderNavItem(item))}
           {showAdminSection && (
             <>
+              <Box mx={4} my={4} h="1px" bg="whiteAlpha.200" />
               <Text
                 fontSize="10px"
-                fontWeight="500"
-                color="gray.400"
+                fontWeight="600"
+                color="whiteAlpha.500"
                 textTransform="uppercase"
                 letterSpacing="wider"
                 px={4}
                 mb={2}
-                mt={4}
                 whiteSpace="nowrap"
               >
-                Data master
+                Data Master
               </Text>
               {visibleAdminSectionItems.map((item) => renderNavItem(item))}
             </>
-          )}{" "}
+          )}
+        </Box>
+
+        {/* Footer kecil — opsional, penanda versi/role aktif */}
+        <Box
+          px={4}
+          py={3}
+          borderTop="1px solid"
+          borderColor="whiteAlpha.200"
+          flexShrink={0}
+        >
+          <Text fontSize="10px" color="whiteAlpha.500" whiteSpace="nowrap">
+            Logged in as {roleName ?? "-"}
+          </Text>
         </Box>
       </Box>
     </>

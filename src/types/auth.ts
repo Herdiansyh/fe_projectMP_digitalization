@@ -31,10 +31,15 @@ export interface User {
   };
   permissions?: string[];
 }
+export interface RoleLevel {
+  id: number;
+  name: string;
+}
 
 export interface LoginCredentials {
   npk: string;
   password: string;
+  role_level_id: number;
 }
 
 export interface AuthResponse {
@@ -46,6 +51,12 @@ export interface AuthResponse {
     expires_in: number;
     user: User;
   };
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
 }
 
 export interface ApiError {

@@ -153,6 +153,7 @@ const FptkHistoryList: React.FC = () => {
                       "Requester",
                       "Position",
                       "Current Status",
+                      "action",
                     ].map((h) => (
                       <th
                         key={h}

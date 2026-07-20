@@ -142,6 +142,8 @@ const EvaluationDetail: React.FC = () => {
     roleName === "Section Head" && evaluation?.current_stage === "section_head";
   const canApproveManager =
     roleName === "Manager" && evaluation?.current_stage === "manager";
+  const canCreateReplacementFptk =
+    evaluation?.status === "completed_not_extended";
 
   const leaderScores = useMemo(() => {
     const map: Record<number, number> = {};
@@ -181,6 +183,20 @@ const EvaluationDetail: React.FC = () => {
       (criteriaId) =>
         shScores[criteriaId] === undefined || shScores[criteriaId] === null,
     );
+  };
+
+  const handleCreateReplacementFptk = () => {
+    if (!evaluation) return;
+    const params = new URLSearchParams({
+      objective: "Replacement",
+      reason: "End Of Contract",
+      position: evaluation.jabatan ?? evaluation.employee?.jabatan ?? "",
+      employee_out: evaluation.employee?.name ?? "",
+      replacement_employee_id: evaluation.employee_id
+        ? String(evaluation.employee_id)
+        : "",
+    });
+    navigate(`/fptk/create?${params.toString()}`);
   };
   const handleForwardToHrAdmin = async () => {
     if (!evaluation) return;
@@ -507,6 +523,35 @@ const EvaluationDetail: React.FC = () => {
                 Forward to HR Admin
               </Button>
             )}
+            {canCreateReplacementFptk && (
+              <Button
+                type="button"
+                onClick={handleCreateReplacementFptk}
+                size="sm"
+                w={{ base: "full", sm: "auto" }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "10px 20px",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  borderRadius: "8px",
+                  color: "#ffffff",
+                  backgroundColor: "#1A5EA8",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#154d8c")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#1A5EA8")
+                }
+              >
+                Create new FPTK
+              </Button>
+            )}
           </Flex>
         </Flex>
 
@@ -523,23 +568,23 @@ const EvaluationDetail: React.FC = () => {
               mb={4}
             >
               <Text fontSize="13px" color="orange.800" fontWeight="600">
-                ⚠️ Lengkapi data berikut sebelum submit:
+                ⚠️ Please complete the following before submitting:
               </Text>
               <Box as="ul" pl={5} mt={1} mb={2}>
                 {!evaluation.pkwt && (
                   <Text as="li" fontSize="12px" color="orange.700">
-                    PKWT belum diisi
+                    PKWT has not been completed.
                   </Text>
                 )}
                 {!evaluation.recommendation?.employee_status && (
                   <Text as="li" fontSize="12px" color="orange.700">
-                    Recommendation (Employee Status) belum diisi
+                    Recommendation (Employee Status) is required.
                   </Text>
                 )}
                 {!evaluation.section_head && (
                   <Text as="li" fontSize="12px" color="orange.700">
-                    Anda belum memiliki Approver Section Head — hubungi Admin
-                    untuk mengatur ini di User Management
+                    No Section Head approver is assigned. Please contact the
+                    administrator to configure this in User Management.
                   </Text>
                 )}
               </Box>
@@ -551,7 +596,7 @@ const EvaluationDetail: React.FC = () => {
                   size="xs"
                   colorPalette="accent"
                 >
-                  Lengkapi Sekarang
+                  Complete Now{" "}
                 </Button>
               )}
             </Box>
@@ -567,8 +612,9 @@ const EvaluationDetail: React.FC = () => {
             mb={4}
           >
             <Text fontSize="13px" color="red.700" fontWeight="600">
-              ⚠️ Masih ada {unfilledIds.length} kriteria yang belum diisi
-              skornya. Lihat baris bertanda merah di tabel rubrik di bawah.
+              ⚠️ There are still {unfilledIds.length} criteria with missing
+              scores. Please review the rows highlighted in red in the rubric
+              table below.
             </Text>
           </Box>
         )}
