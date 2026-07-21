@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Box, Text, Flex, HStack, Grid } from "@chakra-ui/react";
-import { FiUser, FiX } from "react-icons/fi";
+import { FiClock, FiUser, FiX } from "react-icons/fi";
 import type { Intern } from "../../types/intern";
+import type { AssessableSubject } from "../../types/competency";
+import AssessmentHistoryModal from "../Competency/AssessmentHistoryModal";
 
 const formatDate = (dateString?: string | null) => {
   if (!dateString) return "-";
@@ -45,9 +47,22 @@ const InternDetailModal = ({
   intern: Intern | null;
   onClose: () => void;
 }) => {
+  const [historyOpen, setHistoryOpen] = useState(false);
+
   if (!isOpen || !intern) return null;
 
   const isWarning = !!intern.is_near_expiry;
+
+  // Bentuk subject minimal yang dibutuhkan AssessmentHistoryModal
+  const assessmentSubject: AssessableSubject = {
+    id: intern.id,
+    npk: intern.npk,
+    name: intern.name,
+    subject_type: "intern",
+    station_id: intern.station?.id ?? 0,
+    station: intern.station || undefined,
+    latest_assessment: null, // tidak dipakai oleh history modal
+  };
 
   return (
     <>
@@ -78,7 +93,7 @@ const InternDetailModal = ({
           borderColor="gray.100"
           overflow="hidden"
         >
-          {/* Header */}
+          {/* Header — tetap sama */}
           <Flex px={6} pt={6} pb={4} justify="space-between" align="flex-start">
             <HStack gap={3} align="flex-start">
               <Box
@@ -143,7 +158,7 @@ const InternDetailModal = ({
 
           <Box h="1px" bg="gray.100" />
 
-          {/* Body */}
+          {/* Body — tetap sama */}
           <Box px={6} py={5}>
             <Grid templateColumns="1fr 1fr" gap={4} mb={4}>
               <DetailRow
@@ -169,6 +184,10 @@ const InternDetailModal = ({
 
             <Grid templateColumns="1fr 1fr" gap={4}>
               <DetailRow
+                label="Join Date"
+                value={formatDate(intern.join_date)}
+              />
+              <DetailRow
                 label="Start Internship"
                 value={formatDate(intern.start_contract)}
               />
@@ -187,7 +206,28 @@ const InternDetailModal = ({
           </Box>
 
           <Box h="1px" bg="gray.100" />
-          <Flex px={6} py={4} justify="flex-end">
+
+          {/* Footer — tambah tombol Assessment History, sejajar dengan Close */}
+          <Flex px={6} py={4} justify="space-between" align="center">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 16px",
+                fontSize: "14px",
+                fontWeight: "600",
+                borderRadius: "8px",
+                color: "#1A5EA8",
+                backgroundColor: "#ffffff",
+                border: "1px solid #1A5EA8",
+                cursor: "pointer",
+              }}
+            >
+              <FiClock size={14} /> Assessment History
+            </button>
             <button
               type="button"
               onClick={onClose}
@@ -205,6 +245,12 @@ const InternDetailModal = ({
               Close
             </button>
           </Flex>
+
+          <AssessmentHistoryModal
+            isOpen={historyOpen}
+            subject={assessmentSubject}
+            onClose={() => setHistoryOpen(false)}
+          />
         </Box>
       </Box>
     </>

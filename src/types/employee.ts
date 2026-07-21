@@ -49,6 +49,16 @@ export interface Employee {
   // Accessor dari backend
   is_near_expiry?: boolean;
   days_until_expiry?: number | null;
+
+  replaced_by?: {
+    no_req: string;
+    employees: {
+      id: number;
+      npk: string;
+      name: string;
+      start_contract: string;
+    }[];
+  } | null;
 }
 
 export interface CreateEmployeeInput {

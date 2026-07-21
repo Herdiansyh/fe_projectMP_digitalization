@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Box, Text, Badge, Flex, HStack } from "@chakra-ui/react";
 import { FiPlus, FiTrash2, FiSearch, FiCheck } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import MainLayout from "../../components/layout/MainLayout";
 import fptkService from "../../services/fptkService";
 import { useAuth } from "../../contexts/AuthContext";
@@ -19,16 +20,8 @@ interface FilterState {
 const FptkList: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [requisitions, setRequisitions] = useState<Requisition[]>([]);
-  const [loading, setLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [pagination, setPagination] = useState({
-    current_page: 1,
-    last_page: 1,
-    per_page: 10,
-    total: 0,
-  });
 
   const [filterState, setFilterState] = useState<FilterState>({
     page: 1,
@@ -51,48 +44,28 @@ const FptkList: React.FC = () => {
     user?.role?.name === "Division Head" ||
     user?.role?.name === "Director";
 
-  // Fetch langsung di dalam useEffect — tidak ada useCallback,
-  // tidak ada setState di luar async block
-  useEffect(() => {
-    const cleanParams = Object.fromEntries(
-      Object.entries({
-        page: filterState.page,
-        per_page: 10,
-        manager: filterState.manager,
-        status: filterState.status,
-        exclude_status: filterState.exclude_status,
-      }).filter(([, v]) => v !== "" && v !== undefined && v !== null),
-    ) as RequisitionListParams;
+  const cleanParams = Object.fromEntries(
+    Object.entries({
+      page: filterState.page,
+      per_page: 10,
+      manager: filterState.manager,
+      status: filterState.status,
+      exclude_status: filterState.exclude_status,
+    }).filter(([, v]) => v !== "" && v !== undefined && v !== null),
+  ) as RequisitionListParams;
 
-    let cancelled = false;
+  const { data: responseData, isLoading: loading } = useQuery({
+    queryKey: ["requisitions", cleanParams, refreshKey],
+    queryFn: () => fptkService.getRequisitions(cleanParams).then((res) => res.data),
+  });
 
-    const run = async () => {
-      setLoading(true);
-      try {
-        const response = await fptkService.getRequisitions(cleanParams);
-        if (cancelled) return;
-        setRequisitions(response.data.data);
-        setPagination({
-          current_page: response.data.current_page,
-          last_page: response.data.last_page,
-          per_page: response.data.per_page,
-          total: response.data.total,
-        });
-      } catch {
-        if (cancelled) return;
-        alert("Failed to fetch requisitions");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void run();
-
-    // Cleanup: abaikan response jika effect re-run sebelum request selesai
-    return () => {
-      cancelled = true;
-    };
-  }, [filterState, refreshKey]);
+  const requisitions = responseData?.data || [];
+  const pagination = {
+    current_page: responseData?.current_page || 1,
+    last_page: responseData?.last_page || 1,
+    per_page: responseData?.per_page || 10,
+    total: responseData?.total || 0,
+  };
 
   // Cleanup debounce timer saat unmount
   useEffect(() => {

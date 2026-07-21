@@ -317,7 +317,7 @@ const IconListCheck = () => (
 );
 
 const approvalNavItems: NavItem[] = [
-  { label: "Pending Approvals", path: "/fptk/pending", icon: <IconPending /> },
+  { label: "Pending FPTK", path: "/fptk/pending", icon: <IconPending /> },
 ];
 
 const masterDataNavItem: NavItem = {

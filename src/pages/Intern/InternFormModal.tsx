@@ -28,6 +28,7 @@ const EMPTY_FORM: CreateInternInput = {
   area_id: null,
   line_id: null,
   station_id: null,
+  join_date: "",
   start_contract: "",
   end_contract: null,
 };
@@ -114,6 +115,7 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
         area_id: editTarget.area_id ?? editTarget.area?.id ?? null,
         line_id: editTarget.line_id ?? editTarget.line?.id ?? null,
         station_id: editTarget.station_id ?? editTarget.station?.id ?? null,
+        join_date: editTarget.join_date ?? "",
         start_contract: editTarget.start_contract,
         end_contract: editTarget.end_contract ?? null,
       });
@@ -531,6 +533,19 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
 
                 {/* Start & End Contract */}
                 <Grid templateColumns="1fr 1fr" gap={4}>
+                  <Box>
+                    <label style={labelStyle}>Join Date *</label>
+                    <input
+                      type="date"
+                      style={inputStyle}
+                      required
+                      value={form.join_date}
+                      onChange={(e) =>
+                        handleChange("join_date", e.target.value)
+                      }
+                    />
+                    {errorText("join_date")}
+                  </Box>
                   <Box>
                     <label style={labelStyle}>Internship Start Date *</label>
                     <input

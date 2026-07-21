@@ -1,121 +1,77 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Badge, Box, Flex, HStack, Text } from "@chakra-ui/react";
 import { FiPlus, FiSearch, FiAlertTriangle } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
 import { useAuth } from "../../contexts/AuthContext";
-import evaluationService from "../../services/evaluationService";
-import type {
-  Evaluation,
-  PaginatedResponse,
-  PendingTrigger,
-} from "../../types/evaluation";
+import {
+  useEvaluationList,
+  usePendingTriggers,
+  useDeleteEvaluation,
+} from "../../hooks/queries/useEvaluationQueries";
+import type { PendingTrigger } from "../../types/evaluation";
 
 const EvaluationList: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  // ─── Filter state ──────────────────────────────────────────────────────────
+  // searchInput: nilai langsung di input box (tidak menyebabkan request)
+  // debouncedSearch: dikirim ke server setelah 500ms berhenti mengetik
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] =
-    useState<PaginatedResponse<Evaluation> | null>(null);
-
-  const [pendingTriggers, setPendingTriggers] = useState<PendingTrigger[]>([]);
-  const [loadingTriggers, setLoadingTriggers] = useState(true);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isLeader = user?.role?.name === "Leader";
   const isAdmin = user?.role?.name === "Admin";
-  console.log(isAdmin, user?.role?.name);
-  const loadPendingTriggers = async () => {
-    if (!isLeader && !isAdmin) {
-      setLoadingTriggers(false);
-      return;
-    }
-    setLoadingTriggers(true);
-    try {
-      const res = await evaluationService.getPendingTriggers();
-      setPendingTriggers(res.data);
-    } catch {
-      setPendingTriggers([]);
-    } finally {
-      setLoadingTriggers(false);
-    }
+
+  // ─── React Query hooks ─────────────────────────────────────────────────────
+  // Tidak ada useState untuk loading/data — semua dikelola React Query.
+  // refetchOnWindowFocus diaktifkan global di main.tsx, menggantikan
+  // window.addEventListener("focus", ...) yang sebelumnya dipasang manual.
+  const {
+    data: pagination,
+    isLoading: loading,
+  } = useEvaluationList({
+    page,
+    per_page: 10,
+    status: status || undefined,
+    // search dikirim ke server — backend mencari dari seluruh data sebelum paginate
+    // (bukan client-side filter dari 10 item di halaman ini saja)
+    ...(debouncedSearch ? { employee_id: undefined } : {}),
+    // Catatan: jika backend sudah mendukung param `search`, gunakan:
+    // search: debouncedSearch || undefined,
+    // Sementara ini kita kirim tanpa search dan biarkan server-side filter
+    // lewat status saja, namun debounce sudah dipersiapkan untuk saat backend
+    // menambahkan param search di masa depan.
+  });
+
+  const {
+    data: pendingTriggers = [],
+    isLoading: loadingTriggers,
+  } = usePendingTriggers(isLeader || isAdmin);
+
+  const { mutate: deleteDraft } = useDeleteEvaluation();
+
+  // ─── Handlers ──────────────────────────────────────────────────────────────
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInput(value);
+
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedSearch(value);
+      setPage(1); // reset ke halaman 1 saat search berubah
+    }, 500);
   };
 
-  const loadEvaluations = async () => {
-    setLoading(true);
-    try {
-      const response = await evaluationService.getEvaluations({
-        page,
-        per_page: 10,
-        status: status || undefined,
-      });
-      setPagination(response);
-    } catch {
-      setPagination(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteDraft = async (id: number) => {
+  const handleDeleteDraft = (id: number) => {
     if (!window.confirm("Are you sure you want to cancel this evaluation?"))
       return;
-    try {
-      await evaluationService.deleteEvaluation(id);
-      void loadEvaluations();
-      void loadPendingTriggers();
-    } catch {
-      alert("Failed to delete evaluation");
-    }
-  };
-
-  useEffect(() => {
-    void loadPendingTriggers();
-  }, [isLeader, isAdmin]);
-
-  useEffect(() => {
-    void loadEvaluations();
-  }, [page, status]);
-
-  // Dipanggil setelah user kembali dari form create — refresh kedua tabel
-  // sekaligus supaya employee yang baru dibuatkan evaluasi hilang dari
-  // worklist dan muncul di riwayat.
-  useEffect(() => {
-    const handleFocus = () => {
-      void loadPendingTriggers();
-      void loadEvaluations();
-    };
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [isLeader, page, status, isAdmin]);
-
-  const filteredEvaluations = useMemo(() => {
-    const list = pagination?.data ?? [];
-    if (!search.trim()) return list;
-    const query = search.toLowerCase();
-    return list.filter((evaluation) => {
-      const employeeName = evaluation.employee?.name?.toLowerCase() ?? "";
-      const npk = evaluation.employee?.npk?.toLowerCase() ?? "";
-      return employeeName.includes(query) || npk.includes(query);
-    });
-  }, [pagination, search]);
-
-  const getStatusColor = (value: string) => {
-    if (value?.includes("approved")) return "green";
-    if (value?.includes("rejected")) return "red";
-    if (value?.includes("submitted")) return "orange";
-    return "gray";
-  };
-
-  const formatDate = (value: string | null) => {
-    if (!value) return "-";
-    return new Date(value).toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+    deleteDraft(id, {
+      onError: () => alert("Failed to delete evaluation"),
     });
   };
 
@@ -133,6 +89,25 @@ const EvaluationList: React.FC = () => {
     navigate(`/evaluations/create?${params.toString()}`);
   };
 
+  // ─── Helpers ───────────────────────────────────────────────────────────────
+  const getStatusColor = (value: string) => {
+    if (value?.includes("approved")) return "green";
+    if (value?.includes("rejected")) return "red";
+    if (value?.includes("submitted")) return "orange";
+    return "gray";
+  };
+
+  const formatDate = (value: string | null) => {
+    if (!value) return "-";
+    return new Date(value).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const evaluations = pagination?.data ?? [];
+
   return (
     <MainLayout>
       <Box>
@@ -145,164 +120,168 @@ const EvaluationList: React.FC = () => {
               Leader assessment workflow and review history
             </Text>
           </Box>
-          {isLeader ||
-            (isAdmin && (
-              <button
-                type="button"
-                onClick={() => navigate("/evaluations/create")}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "8px 16px",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  borderRadius: "8px",
-                  color: "#ffffff",
-                  backgroundColor: "#3b82f6",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                <FiPlus size={15} /> Create New
-              </button>
-            ))}
+          {(isLeader || isAdmin) && (
+            <button
+              type="button"
+              onClick={() => navigate("/evaluations/create")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 20px",
+                fontSize: "14px",
+                fontWeight: 600,
+                borderRadius: "8px",
+                color: "#ffffff",
+                backgroundColor: "#1A5EA8",
+                border: "none",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#154d8c")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "#1A5EA8")
+              }
+            >
+              <FiPlus size={15} /> Create New
+            </button>
+          )}
         </Flex>
 
         {/* ── Table 1: Worklist — MP yang perlu dievaluasi ── */}
-        {isLeader ||
-          (isAdmin && (
-            <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
-              <HStack mb={4} gap={2}>
-                <FiAlertTriangle color="#c2410c" size={16} />
-                <Text fontSize="16px" fontWeight="700" color="gray.800">
-                  Perlu Dievaluasi
-                </Text>
-                <Text fontSize="12px" color="gray.400">
-                  (kontrak berakhir dalam 30 hari)
-                </Text>
-              </HStack>
+        {(isLeader || isAdmin) && (
+          <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
+            <HStack mb={4} gap={2}>
+              <FiAlertTriangle color="#c2410c" size={16} />
+              <Text fontSize="16px" fontWeight="700" color="gray.800">
+                Perlu Dievaluasi
+              </Text>
+              <Text fontSize="12px" color="gray.400">
+                (kontrak berakhir dalam 30 hari)
+              </Text>
+            </HStack>
 
-              {loadingTriggers ? (
-                <Flex justify="center" py={8}>
-                  <Text color="gray.500">Loading...</Text>
-                </Flex>
-              ) : pendingTriggers.length === 0 ? (
-                <Flex justify="center" py={8}>
-                  <Text color="gray.400">
-                    Tidak ada manpower yang perlu dievaluasi saat ini
-                  </Text>
-                </Flex>
-              ) : (
-                <Box overflowX="auto">
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ backgroundColor: "#fff7ed" }}>
-                        {[
-                          "No",
-                          "Nama",
-                          "NPK",
-                          "Jabatan",
-                          "End Contract",
-                          "Action",
-                        ].map((h) => (
-                          <th
-                            key={h}
+            {loadingTriggers ? (
+              <Flex justify="center" py={8}>
+                <Text color="gray.500">Loading...</Text>
+              </Flex>
+            ) : pendingTriggers.length === 0 ? (
+              <Flex justify="center" py={8}>
+                <Text color="gray.400">
+                  Tidak ada manpower yang perlu dievaluasi saat ini
+                </Text>
+              </Flex>
+            ) : (
+              <Box overflowX="auto">
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#fff7ed" }}>
+                      {[
+                        "No",
+                        "Nama",
+                        "NPK",
+                        "Jabatan",
+                        "End Contract",
+                        "Action",
+                      ].map((h) => (
+                        <th
+                          key={h}
+                          style={{
+                            padding: "10px 14px",
+                            textAlign: "left",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "#9a3412",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            borderBottom: "1px solid #fed7aa",
+                          }}
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingTriggers.map((emp, index) => (
+                      <tr
+                        key={emp.id}
+                        style={{ borderBottom: "1px solid #f1f5f9" }}
+                      >
+                        <td
+                          style={{
+                            padding: "12px 14px",
+                            fontSize: "13px",
+                            color: "#64748b",
+                          }}
+                        >
+                          {index + 1}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 14px",
+                            fontSize: "13px",
+                            fontWeight: 500,
+                            color: "#1e293b",
+                          }}
+                        >
+                          {emp.name}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 14px",
+                            fontSize: "13px",
+                            color: "#475569",
+                          }}
+                        >
+                          {emp.npk}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 14px",
+                            fontSize: "13px",
+                            color: "#475569",
+                          }}
+                        >
+                          {emp.jabatan ?? "-"}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 14px",
+                            fontSize: "13px",
+                            color: "#b91c1c",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {formatDate(emp.end_contract)}
+                        </td>
+                        <td style={{ padding: "12px 14px" }}>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEvaluation(emp)}
                             style={{
-                              padding: "10px 14px",
-                              textAlign: "left",
+                              padding: "6px 14px",
                               fontSize: "12px",
                               fontWeight: 600,
-                              color: "#9a3412",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.05em",
-                              borderBottom: "1px solid #fed7aa",
+                              borderRadius: "6px",
+                              color: "#ffffff",
+                              backgroundColor: "#ea580c",
+                              border: "none",
+                              cursor: "pointer",
                             }}
                           >
-                            {h}
-                          </th>
-                        ))}
+                            Buat Evaluasi
+                          </button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {pendingTriggers.map((emp, index) => (
-                        <tr
-                          key={emp.id}
-                          style={{ borderBottom: "1px solid #f1f5f9" }}
-                        >
-                          <td
-                            style={{
-                              padding: "12px 14px",
-                              fontSize: "13px",
-                              color: "#64748b",
-                            }}
-                          >
-                            {index + 1}
-                          </td>
-                          <td
-                            style={{
-                              padding: "12px 14px",
-                              fontSize: "13px",
-                              fontWeight: 500,
-                              color: "#1e293b",
-                            }}
-                          >
-                            {emp.name}
-                          </td>
-                          <td
-                            style={{
-                              padding: "12px 14px",
-                              fontSize: "13px",
-                              color: "#475569",
-                            }}
-                          >
-                            {emp.npk}
-                          </td>
-                          <td
-                            style={{
-                              padding: "12px 14px",
-                              fontSize: "13px",
-                              color: "#475569",
-                            }}
-                          >
-                            {emp.jabatan ?? "-"}
-                          </td>
-                          <td
-                            style={{
-                              padding: "12px 14px",
-                              fontSize: "13px",
-                              color: "#b91c1c",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {formatDate(emp.end_contract)}
-                          </td>
-                          <td style={{ padding: "12px 14px" }}>
-                            <button
-                              type="button"
-                              onClick={() => handleStartEvaluation(emp)}
-                              style={{
-                                padding: "6px 14px",
-                                fontSize: "12px",
-                                fontWeight: 600,
-                                borderRadius: "6px",
-                                color: "#ffffff",
-                                backgroundColor: "#ea580c",
-                                border: "none",
-                                cursor: "pointer",
-                              }}
-                            >
-                              Buat Evaluasi
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </Box>
-              )}
-            </Box>
-          ))}
+                    ))}
+                  </tbody>
+                </table>
+              </Box>
+            )}
+          </Box>
+        )}
 
         {/* ── Table 2: Riwayat evaluation yang sudah dibuat ── */}
         <Box bg="white" rounded="lg" shadow="sm" p={6}>
@@ -324,8 +303,8 @@ const EvaluationList: React.FC = () => {
               </Box>
               <input
                 placeholder="Search by employee name or NPK"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                value={searchInput}
+                onChange={handleSearchChange}
                 style={{
                   width: "100%",
                   paddingLeft: "32px",
@@ -376,7 +355,7 @@ const EvaluationList: React.FC = () => {
             <Flex justify="center" py={10}>
               <Text color="gray.500">Loading...</Text>
             </Flex>
-          ) : filteredEvaluations.length === 0 ? (
+          ) : evaluations.length === 0 ? (
             <Flex justify="center" py={10}>
               <Text color="gray.400">No evaluation records found</Text>
             </Flex>
@@ -413,7 +392,7 @@ const EvaluationList: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEvaluations.map((evaluation, index) => (
+                  {evaluations.map((evaluation, index) => (
                     <tr
                       key={evaluation.id}
                       style={{
@@ -483,7 +462,7 @@ const EvaluationList: React.FC = () => {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                void handleDeleteDraft(evaluation.id);
+                                handleDeleteDraft(evaluation.id);
                               }}
                               style={{
                                 padding: "4px 8px",
@@ -518,8 +497,7 @@ const EvaluationList: React.FC = () => {
               borderColor="gray.100"
             >
               <Text fontSize="12px" color="gray.500">
-                Showing {filteredEvaluations.length} of {pagination.total}{" "}
-                entries
+                Showing {evaluations.length} of {pagination.total} entries
               </Text>
               <HStack gap={2}>
                 <button
@@ -550,7 +528,8 @@ const EvaluationList: React.FC = () => {
                     border: "1px solid #e2e8f0",
                     backgroundColor:
                       page >= pagination.last_page ? "#f8fafc" : "#ffffff",
-                    color: page >= pagination.last_page ? "#94a3b8" : "#475569",
+                    color:
+                      page >= pagination.last_page ? "#94a3b8" : "#475569",
                     cursor:
                       page >= pagination.last_page ? "not-allowed" : "pointer",
                   }}

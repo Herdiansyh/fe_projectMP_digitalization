@@ -51,6 +51,7 @@ export interface Intern {
   area?: Area | null;
   line?: Line | null;
   station?: Station | null;
+  join_date: string;
 
   start_contract: string;
   end_contract: string | null;
@@ -73,6 +74,7 @@ export interface CreateInternInput {
   area_id: number | null;
   line_id?: number | null;
   station_id: number | null;
+  join_date: string;
   start_contract: string;
   end_contract: string | null;
 }

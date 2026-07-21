@@ -10,12 +10,13 @@ import type { Employee } from "../../types/employee";
 import { toaster } from "../../components/ui/toaster";
 import { useAuth } from "../../contexts/AuthContext";
 import userService from "../../services/userService";
+import { useCreateFptk } from "../../hooks/queries/useFptkQueries";
 
 const FptkForm: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [loading, setLoading] = useState(false);
+  const { mutateAsync: createFptk, isPending: loading } = useCreateFptk();
   const [approverLoading, setApproverLoading] = useState(true);
   const [masterData, setMasterData] = useState<MasterData | null>(null);
   const [activeEmployees, setActiveEmployees] = useState<Employee[]>([]);
@@ -126,8 +127,7 @@ const FptkForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      setLoading(true);
-      await fptkService.createRequisition(formData);
+      await createFptk(formData);
       toaster.create({
         title: "Requisition created successfully",
         type: "success",
@@ -174,8 +174,6 @@ const FptkForm: React.FC = () => {
         description: "An error occurred, please try again.",
         type: "error",
       });
-    } finally {
-      setLoading(false);
     }
   };
 

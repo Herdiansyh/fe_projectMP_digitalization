@@ -62,12 +62,19 @@ const IconLogout = () => (
 const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, sidebarOpen }) => {
   const { user, logout } = useAuth();
 
-  // Chakra UI v3: useDisclosure mengembalikan `open`, bukan `isOpen`
   const [open, setOpen] = React.useState(false);
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
 
   const handleLogoutConfirm = async () => {
-    setOpen(false);
-    await logout();
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      // Kalau logout redirect halaman, ini tidak sempat jalan — aman.
+      // Kalau gagal (network error dsb), reset supaya user bisa coba lagi.
+      setIsLoggingOut(false);
+      setOpen(false);
+    }
   };
 
   return (
@@ -200,20 +207,26 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, sidebarOpen }) => {
               color="gray.600"
               fontSize="12px"
               borderRadius="md"
-              _hover={{ bg: "gray.50", borderColor: "gray.300" }}
+              disabled={isLoggingOut}
+              opacity={isLoggingOut ? 0.6 : 1}
+              cursor={isLoggingOut ? "not-allowed" : "pointer"}
+              _hover={
+                isLoggingOut ? {} : { bg: "gray.50", borderColor: "gray.300" }
+              }
             >
-              Logout
+              {isLoggingOut ? "Logging out..." : "Logout"}
             </Button>
           </Flex>
         </Flex>
       </Box>
 
-      {/* Modal Konfirmasi Logout — Chakra UI v3 Dialog API */}
-
       <ConfirmDialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={() => {
+          if (!isLoggingOut) setOpen(false);
+        }}
         onConfirm={handleLogoutConfirm}
+        loading={isLoggingOut}
         title="Logout Confirmation"
         message={
           <>
@@ -225,6 +238,7 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, sidebarOpen }) => {
           </>
         }
         confirmText="Ya, Logout"
+        loadingText="Logging out..."
         cancelText="Cancel"
         confirmColor="orange.400"
         icon={<IconLogout />}

@@ -220,7 +220,31 @@ const EmployeeDetailModal = ({
               </Box>
             </Box>
           )}
-
+          {employee.replaced_by &&
+            employee.replaced_by.employees.length > 0 && (
+              <Box px={6} pb={2}>
+                <Box
+                  bg="blue.50"
+                  border="1px solid #bfdbfe"
+                  borderRadius="8px"
+                  px={3}
+                  py={2}
+                >
+                  <Text fontSize="12px" fontWeight="700" color="#1d4ed8" mb={1}>
+                    Sudah Digantikan (FPTK {employee.replaced_by.no_req})
+                  </Text>
+                  {employee.replaced_by.employees.map((newEmp) => (
+                    <Text key={newEmp.id} fontSize="13px" color="gray.700">
+                      {newEmp.name}{" "}
+                      <Text as="span" color="gray.500">
+                        (NPK {newEmp.npk}) — mulai{" "}
+                        {formatDate(newEmp.start_contract)}
+                      </Text>
+                    </Text>
+                  ))}
+                </Box>
+              </Box>
+            )}
           <Box h="1px" bg="gray.100" />
 
           {/* Body */}

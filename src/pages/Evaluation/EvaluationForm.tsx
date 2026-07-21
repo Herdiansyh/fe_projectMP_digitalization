@@ -218,7 +218,16 @@ const EvaluationForm: React.FC = () => {
       }
     }
   }, [selectedEmployeeId, employees, isEditMode, isPrefilled]);
-
+  useEffect(() => {
+    if (recommendation.employee_status === "kontrak_berakhir") {
+      setRecommendation((prev) => ({
+        ...prev,
+        extend_pkwt: false,
+        pkwt_number: "",
+        extend_months: null,
+      }));
+    }
+  }, [recommendation.employee_status]);
   // Kumpulkan semua criteria_id dari seluruh grup & subgrup rubrik
   const allCriteriaIds = useMemo(() => {
     return criteriaGroups.flatMap((group) =>
@@ -646,72 +655,95 @@ const EvaluationForm: React.FC = () => {
           </Box>
 
           <Box mb={4}>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                fontSize: "13px",
-                fontWeight: 600,
-                color: "#374151",
-                marginBottom: "12px",
-                cursor: "pointer",
-                width: "fit-content",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={recommendation.extend_pkwt ?? false}
-                onChange={(event) => {
-                  const checked = event.target.checked;
-                  setRecommendation((prev) => ({
-                    ...prev,
-                    extend_pkwt: checked,
-                    // reset field terkait saat dicentang ulang / dilepas
-                    ...(checked
-                      ? {}
-                      : { pkwt_number: "", extend_months: null }),
-                  }));
-                }}
-              />
-              Extend PKWT
-            </label>
+            {(() => {
+              const isContractEnded =
+                recommendation.employee_status === "kontrak_berakhir";
 
-            <HStack gap={4} wrap="wrap">
-              <Box flex={1} minW="220px">
-                <Text fontSize="13px" fontWeight="600" mb={2}>
-                  PKWT
-                </Text>
-                <Input
-                  placeholder="PKWT 1/2/3/4"
-                  value={recommendation.pkwt_number ?? ""}
-                  disabled={!recommendation.extend_pkwt}
-                  onChange={(event) =>
-                    setRecommendation((prev) => ({
-                      ...prev,
-                      pkwt_number: event.target.value,
-                    }))
-                  }
-                />
-              </Box>
-              <Box flex={1} minW="220px">
-                <Text fontSize="13px" fontWeight="600" mb={2}>
-                  Duration (Months)
-                </Text>
-                <Input
-                  type="number"
-                  placeholder="Berapa Bulan"
-                  value={recommendation.extend_months ?? ""}
-                  disabled={!recommendation.extend_pkwt}
-                  onChange={(event) =>
-                    setRecommendation((prev) => ({
-                      ...prev,
-                      extend_months: Number(event.target.value) || null,
-                    }))
-                  }
-                />
-              </Box>
-            </HStack>
+              return (
+                <>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: isContractEnded ? "#9ca3af" : "#374151",
+                      marginBottom: isContractEnded ? "4px" : "12px",
+                      cursor: isContractEnded ? "not-allowed" : "pointer",
+                      width: "fit-content",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={recommendation.extend_pkwt ?? false}
+                      disabled={isContractEnded}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        setRecommendation((prev) => ({
+                          ...prev,
+                          extend_pkwt: checked,
+                          ...(checked
+                            ? {}
+                            : { pkwt_number: "", extend_months: null }),
+                        }));
+                      }}
+                    />
+                    Extend PKWT
+                  </label>
+
+                  {isContractEnded && (
+                    <Text fontSize="12px" color="gray.500" mb="12px">
+                      Tidak tersedia karena status keputusan adalah{" "}
+                      <Text as="span" fontWeight="600" color="gray.600">
+                        "Kontrak Berakhir"
+                      </Text>
+                      .
+                    </Text>
+                  )}
+
+                  <HStack gap={4} wrap="wrap">
+                    <Box flex={1} minW="220px">
+                      <Text fontSize="13px" fontWeight="600" mb={2}>
+                        PKWT
+                      </Text>
+                      <Input
+                        placeholder="PKWT 1/2/3/4"
+                        value={recommendation.pkwt_number ?? ""}
+                        disabled={
+                          !recommendation.extend_pkwt || isContractEnded
+                        }
+                        onChange={(event) =>
+                          setRecommendation((prev) => ({
+                            ...prev,
+                            pkwt_number: event.target.value,
+                          }))
+                        }
+                      />
+                    </Box>
+                    <Box flex={1} minW="220px">
+                      <Text fontSize="13px" fontWeight="600" mb={2}>
+                        Duration (Months)
+                      </Text>
+                      <Input
+                        type="number"
+                        placeholder="Berapa Bulan"
+                        value={recommendation.extend_months ?? ""}
+                        disabled={
+                          !recommendation.extend_pkwt || isContractEnded
+                        }
+                        onChange={(event) =>
+                          setRecommendation((prev) => ({
+                            ...prev,
+                            extend_months: Number(event.target.value) || null,
+                          }))
+                        }
+                      />
+                    </Box>
+                  </HStack>
+                </>
+              );
+            })()}
           </Box>
 
           <Box mb={4}>
@@ -751,3 +783,4 @@ const EvaluationForm: React.FC = () => {
 };
 
 export default EvaluationForm;
+
