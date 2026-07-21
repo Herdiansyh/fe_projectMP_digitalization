@@ -26,9 +26,10 @@ const EvaluationList: React.FC = () => {
   const [loadingTriggers, setLoadingTriggers] = useState(true);
 
   const isLeader = user?.role?.name === "Leader";
-
+  const isAdmin = user?.role?.name === "Admin";
+  console.log(isAdmin, user?.role?.name);
   const loadPendingTriggers = async () => {
-    if (!isLeader) {
+    if (!isLeader && !isAdmin) {
       setLoadingTriggers(false);
       return;
     }
@@ -60,7 +61,8 @@ const EvaluationList: React.FC = () => {
   };
 
   const handleDeleteDraft = async (id: number) => {
-    if (!window.confirm("Are you sure you want to cancel this evaluation?")) return;
+    if (!window.confirm("Are you sure you want to cancel this evaluation?"))
+      return;
     try {
       await evaluationService.deleteEvaluation(id);
       void loadEvaluations();
@@ -72,7 +74,7 @@ const EvaluationList: React.FC = () => {
 
   useEffect(() => {
     void loadPendingTriggers();
-  }, [isLeader]);
+  }, [isLeader, isAdmin]);
 
   useEffect(() => {
     void loadEvaluations();
@@ -88,7 +90,7 @@ const EvaluationList: React.FC = () => {
     };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [isLeader, page, status]);
+  }, [isLeader, page, status, isAdmin]);
 
   const filteredEvaluations = useMemo(() => {
     const list = pagination?.data ?? [];
@@ -143,162 +145,164 @@ const EvaluationList: React.FC = () => {
               Leader assessment workflow and review history
             </Text>
           </Box>
-          {isLeader && (
-            <button
-              type="button"
-              onClick={() => navigate("/evaluations/create")}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "8px 16px",
-                fontSize: "14px",
-                fontWeight: "500",
-                borderRadius: "8px",
-                color: "#ffffff",
-                backgroundColor: "#3b82f6",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              <FiPlus size={15} /> Create New
-            </button>
-          )}
+          {isLeader ||
+            (isAdmin && (
+              <button
+                type="button"
+                onClick={() => navigate("/evaluations/create")}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 16px",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  borderRadius: "8px",
+                  color: "#ffffff",
+                  backgroundColor: "#3b82f6",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                <FiPlus size={15} /> Create New
+              </button>
+            ))}
         </Flex>
 
         {/* ── Table 1: Worklist — MP yang perlu dievaluasi ── */}
-        {isLeader && (
-          <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
-            <HStack mb={4} gap={2}>
-              <FiAlertTriangle color="#c2410c" size={16} />
-              <Text fontSize="16px" fontWeight="700" color="gray.800">
-                Perlu Dievaluasi
-              </Text>
-              <Text fontSize="12px" color="gray.400">
-                (kontrak berakhir dalam 30 hari)
-              </Text>
-            </HStack>
-
-            {loadingTriggers ? (
-              <Flex justify="center" py={8}>
-                <Text color="gray.500">Loading...</Text>
-              </Flex>
-            ) : pendingTriggers.length === 0 ? (
-              <Flex justify="center" py={8}>
-                <Text color="gray.400">
-                  Tidak ada manpower yang perlu dievaluasi saat ini
+        {isLeader ||
+          (isAdmin && (
+            <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
+              <HStack mb={4} gap={2}>
+                <FiAlertTriangle color="#c2410c" size={16} />
+                <Text fontSize="16px" fontWeight="700" color="gray.800">
+                  Perlu Dievaluasi
                 </Text>
-              </Flex>
-            ) : (
-              <Box overflowX="auto">
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ backgroundColor: "#fff7ed" }}>
-                      {[
-                        "No",
-                        "Nama",
-                        "NPK",
-                        "Jabatan",
-                        "End Contract",
-                        "Action",
-                      ].map((h) => (
-                        <th
-                          key={h}
-                          style={{
-                            padding: "10px 14px",
-                            textAlign: "left",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            color: "#9a3412",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.05em",
-                            borderBottom: "1px solid #fed7aa",
-                          }}
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingTriggers.map((emp, index) => (
-                      <tr
-                        key={emp.id}
-                        style={{ borderBottom: "1px solid #f1f5f9" }}
-                      >
-                        <td
-                          style={{
-                            padding: "12px 14px",
-                            fontSize: "13px",
-                            color: "#64748b",
-                          }}
-                        >
-                          {index + 1}
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px 14px",
-                            fontSize: "13px",
-                            fontWeight: 500,
-                            color: "#1e293b",
-                          }}
-                        >
-                          {emp.name}
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px 14px",
-                            fontSize: "13px",
-                            color: "#475569",
-                          }}
-                        >
-                          {emp.npk}
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px 14px",
-                            fontSize: "13px",
-                            color: "#475569",
-                          }}
-                        >
-                          {emp.jabatan ?? "-"}
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px 14px",
-                            fontSize: "13px",
-                            color: "#b91c1c",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {formatDate(emp.end_contract)}
-                        </td>
-                        <td style={{ padding: "12px 14px" }}>
-                          <button
-                            type="button"
-                            onClick={() => handleStartEvaluation(emp)}
+                <Text fontSize="12px" color="gray.400">
+                  (kontrak berakhir dalam 30 hari)
+                </Text>
+              </HStack>
+
+              {loadingTriggers ? (
+                <Flex justify="center" py={8}>
+                  <Text color="gray.500">Loading...</Text>
+                </Flex>
+              ) : pendingTriggers.length === 0 ? (
+                <Flex justify="center" py={8}>
+                  <Text color="gray.400">
+                    Tidak ada manpower yang perlu dievaluasi saat ini
+                  </Text>
+                </Flex>
+              ) : (
+                <Box overflowX="auto">
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ backgroundColor: "#fff7ed" }}>
+                        {[
+                          "No",
+                          "Nama",
+                          "NPK",
+                          "Jabatan",
+                          "End Contract",
+                          "Action",
+                        ].map((h) => (
+                          <th
+                            key={h}
                             style={{
-                              padding: "6px 14px",
+                              padding: "10px 14px",
+                              textAlign: "left",
                               fontSize: "12px",
                               fontWeight: 600,
-                              borderRadius: "6px",
-                              color: "#ffffff",
-                              backgroundColor: "#ea580c",
-                              border: "none",
-                              cursor: "pointer",
+                              color: "#9a3412",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.05em",
+                              borderBottom: "1px solid #fed7aa",
                             }}
                           >
-                            Buat Evaluasi
-                          </button>
-                        </td>
+                            {h}
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Box>
-            )}
-          </Box>
-        )}
+                    </thead>
+                    <tbody>
+                      {pendingTriggers.map((emp, index) => (
+                        <tr
+                          key={emp.id}
+                          style={{ borderBottom: "1px solid #f1f5f9" }}
+                        >
+                          <td
+                            style={{
+                              padding: "12px 14px",
+                              fontSize: "13px",
+                              color: "#64748b",
+                            }}
+                          >
+                            {index + 1}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 14px",
+                              fontSize: "13px",
+                              fontWeight: 500,
+                              color: "#1e293b",
+                            }}
+                          >
+                            {emp.name}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 14px",
+                              fontSize: "13px",
+                              color: "#475569",
+                            }}
+                          >
+                            {emp.npk}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 14px",
+                              fontSize: "13px",
+                              color: "#475569",
+                            }}
+                          >
+                            {emp.jabatan ?? "-"}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 14px",
+                              fontSize: "13px",
+                              color: "#b91c1c",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {formatDate(emp.end_contract)}
+                          </td>
+                          <td style={{ padding: "12px 14px" }}>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEvaluation(emp)}
+                              style={{
+                                padding: "6px 14px",
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                borderRadius: "6px",
+                                color: "#ffffff",
+                                backgroundColor: "#ea580c",
+                                border: "none",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Buat Evaluasi
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Box>
+              )}
+            </Box>
+          ))}
 
         {/* ── Table 2: Riwayat evaluation yang sudah dibuat ── */}
         <Box bg="white" rounded="lg" shadow="sm" p={6}>

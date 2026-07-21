@@ -143,7 +143,8 @@ const EvaluationDetail: React.FC = () => {
   const canApproveManager =
     roleName === "Manager" && evaluation?.current_stage === "manager";
   const canCreateReplacementFptk =
-    evaluation?.status === "completed_not_extended";
+    evaluation?.status === "completed_not_extended" &&
+    roleName === "Section Head";
 
   const leaderScores = useMemo(() => {
     const map: Record<number, number> = {};
