@@ -319,6 +319,23 @@ const EmployeeList: React.FC = () => {
               ))}
             </select>
             <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "8px",
+                border: "1px solid #e2e8f0",
+                backgroundColor: "#f9fafb",
+                fontSize: "14px",
+                color: "#1a202c",
+              }}
+            >
+              <option value="">All Types</option>
+              <option value="permanent">Permanent</option>
+              <option value="contract">Contract</option>
+              <option value="apprentice">Apprentice</option>
+            </select>
+            <select
               value={filterActive}
               onChange={(e) => setFilterActive(e.target.value)}
               style={{
