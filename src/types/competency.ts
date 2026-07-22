@@ -90,7 +90,6 @@ export interface MySubmissionItem {
     station?: { id: number; name: string };
   };
   subject_type: "employee" | "intern";
-  qa: { id: number; name: string } | null;
   qa_at: string | null;
   qa_reviewer?: { id: number; name: string } | null;
 }

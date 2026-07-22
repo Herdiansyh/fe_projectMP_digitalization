@@ -263,7 +263,7 @@ const MySubmissionsList: React.FC = () => {
                             color: "#475569",
                           }}
                         >
-                          {s.qa?.name ?? "-"}
+                          {s.qa_reviewer?.name ?? "-"}
                         </td>
                         <td style={{ padding: "12px 14px" }}>
                           <button
