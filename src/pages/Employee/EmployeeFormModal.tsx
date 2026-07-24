@@ -541,23 +541,6 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                     </select>
                     {errorText("group")}
                   </Box>
-                  <Box />
-                  <Box>
-                    <label style={labelStyle}>Gender *</label>
-                    <select
-                      style={selectStyle}
-                      value={form.gender}
-                      onChange={(e) => handleChange("gender", e.target.value)}
-                    >
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                    </select>
-                    {errorText("gender")}
-                  </Box>
-                </Grid>
-
-                {/* Employment Type */}
-                <Grid templateColumns="1fr 1fr" gap={4}>
                   <Box>
                     <label style={labelStyle}>Employee Type *</label>
                     <select
@@ -575,6 +558,22 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                     </select>
                     {errorText("employment_type")}
                   </Box>
+                  <Box>
+                    <label style={labelStyle}>Gender *</label>
+                    <select
+                      style={selectStyle}
+                      value={form.gender}
+                      onChange={(e) => handleChange("gender", e.target.value)}
+                    >
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </select>
+                    {errorText("gender")}
+                  </Box>
+                </Grid>
+
+                {/* Employment Type */}
+                <Grid templateColumns="1fr 1fr" gap={4}>
                   <Box>
                     <label style={labelStyle}>Join Date *</label>
                     <input
