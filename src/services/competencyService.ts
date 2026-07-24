@@ -8,6 +8,7 @@ import type {
   AssessmentDetail,
   MyReviewItem,
   MonitoringItem,
+  StationCompetencySummary,
 } from "../types/competency";
 
 const competencyService = {

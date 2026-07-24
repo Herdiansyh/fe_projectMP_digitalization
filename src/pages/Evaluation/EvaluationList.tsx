@@ -31,27 +31,23 @@ const EvaluationList: React.FC = () => {
   // Tidak ada useState untuk loading/data — semua dikelola React Query.
   // refetchOnWindowFocus diaktifkan global di main.tsx, menggantikan
   // window.addEventListener("focus", ...) yang sebelumnya dipasang manual.
-  const {
-    data: pagination,
-    isLoading: loading,
-  } = useEvaluationList({
+  const { data: pagination, isLoading: loading } = useEvaluationList({
     page,
     per_page: 10,
     status: status || undefined,
     // search dikirim ke server — backend mencari dari seluruh data sebelum paginate
-    // (bukan client-side filter dari 10 item di halaman ini saja)
-    ...(debouncedSearch ? { employee_id: undefined } : {}),
-    // Catatan: jika backend sudah mendukung param `search`, gunakan:
-    // search: debouncedSearch || undefined,
-    // Sementara ini kita kirim tanpa search dan biarkan server-side filter
-    // lewat status saja, namun debounce sudah dipersiapkan untuk saat backend
-    // menambahkan param search di masa depan.
+    // (bukan client-side filter dari 10 item di halaman ini saja).
+    // NOTE: per 24 Jul 2026 belum dikonfirmasi apakah /evaluations sudah
+    // support param ini. Kalau backend belum kenal, param ini cuma
+    // diabaikan (tidak error) — search akan otomatis aktif begitu backend
+    // menambahkan dukungannya. Kalau ternyata backend memvalidasi query
+    // params secara strict dan menolak field asing, param ini perlu
+    // dihapus sampai backend siap.
+    search: debouncedSearch || undefined,
   });
 
-  const {
-    data: pendingTriggers = [],
-    isLoading: loadingTriggers,
-  } = usePendingTriggers(isLeader || isAdmin);
+  const { data: pendingTriggers = [], isLoading: loadingTriggers } =
+    usePendingTriggers(isLeader || isAdmin);
 
   const { mutate: deleteDraft } = useDeleteEvaluation();
 
@@ -528,8 +524,7 @@ const EvaluationList: React.FC = () => {
                     border: "1px solid #e2e8f0",
                     backgroundColor:
                       page >= pagination.last_page ? "#f8fafc" : "#ffffff",
-                    color:
-                      page >= pagination.last_page ? "#94a3b8" : "#475569",
+                    color: page >= pagination.last_page ? "#94a3b8" : "#475569",
                     cursor:
                       page >= pagination.last_page ? "not-allowed" : "pointer",
                   }}

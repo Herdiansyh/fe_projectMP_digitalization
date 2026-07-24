@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Box, Text, Flex, HStack } from "@chakra-ui/react";
 import {
   FiTrendingUp,
@@ -6,10 +6,9 @@ import {
   FiClock as FiPending,
   FiEye,
 } from "react-icons/fi";
-import competencyService from "../../services/competencyService";
-import type { MySubmissionItem } from "../../types/competency";
 import MainLayout from "../../components/layout/MainLayout";
 import SubmissionDetailModal from "./SubmissionDetailModal";
+import { useMySubmissions } from "../../hooks/queries/useCompetencyQueries";
 
 const formatDate = (dateString: string) =>
   new Date(dateString).toLocaleDateString("id-ID", {
@@ -41,35 +40,21 @@ const StatusBadge: React.FC<{ status: "pending_qa" | "approved" }> = ({
 };
 
 const MySubmissionsList: React.FC = () => {
-  const [submissions, setSubmissions] = useState<MySubmissionItem[]>([]);
-  const [loading, setLoading] = useState(true); // ← initial true
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<number | null>(null);
 
-  // ── Effect murni untuk fetch awal saat mount ──
-  useEffect(() => {
-    let cancelled = false;
+  const {
+    data: submissionsRes,
+    isLoading: loading,
+    isError,
+    error,
+  } = useMySubmissions();
 
-    competencyService
-      .getMySubmissions()
-      .then((res) => {
-        if (!cancelled) setSubmissions(res.data);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const e = err as { response?: { data?: { message?: string } } };
-        setErrorMsg(
-          e.response?.data?.message ?? "Failed to load your submissions.",
-        );
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+  const submissions = submissionsRes?.data ?? [];
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const errorMsg = isError
+    ? ((error as unknown as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message ?? "Failed to load your submissions.")
+    : null;
 
   const pendingCount = submissions.filter(
     (s) => s.status === "pending_qa",

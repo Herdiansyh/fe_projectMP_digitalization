@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Box, Text, Flex, HStack } from "@chakra-ui/react";
 import {
   FiTrendingUp,
@@ -6,17 +6,14 @@ import {
   FiClock,
   FiClock as FiPending,
 } from "react-icons/fi";
-import competencyService from "../../services/competencyService";
 import type { AssessableSubject } from "../../types/competency";
 import MainLayout from "../../components/layout/MainLayout";
 import AssessmentPanel from "./AssessmentPanel";
 import AssessmentHistoryModal from "./AssessmentHistoryModal";
-import stationService from "../../services/stationService";
-import lineService from "../../services/lineService";
-import areaService from "../../services/areaService";
-import type { Station } from "../../types/station";
-import type { Line } from "../../types/line";
-import type { Area } from "../../types/area";
+import { useAssessableEmployees } from "../../hooks/queries/useCompetencyQueries";
+import { useStations } from "../../hooks/queries/useStationQueries";
+import { useLines } from "../../hooks/queries/useLineQueries";
+import { useAreas } from "../../hooks/queries/useAreaQueries";
 
 const selectStyle: React.CSSProperties = {
   width: "100%",
@@ -62,12 +59,6 @@ const StatusBadge: React.FC<{ status: "pending_qa" | "approved" }> = ({
 };
 
 const CompetencyAssessmentList: React.FC = () => {
-  const [subjects, setSubjects] = useState<AssessableSubject[]>([]);
-  const [stations, setStations] = useState<Station[]>([]);
-  const [lines, setLines] = useState<Line[]>([]);
-  const [areas, setAreas] = useState<Area[]>([]);
-  const [loading, setLoading] = useState(true); // ← initial true, bukan di-set di effect
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [selectedAreaId, setSelectedAreaId] = useState<string>("");
@@ -80,57 +71,46 @@ const CompetencyAssessmentList: React.FC = () => {
     subject: AssessableSubject | null;
   }>({ isOpen: false, subject: null });
 
-  // ── Dipakai untuk REFETCH manual (dipanggil dari event handler, mis. onSuccess) ──
-  // Aman punya setState sinkron di depan karena ini bukan dipanggil dari body effect.
-  const refetchSubjects = async () => {
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      const res = await competencyService.getAssessableEmployees();
-      setSubjects(res.data);
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      setErrorMsg(
-        e.response?.data?.message ?? "Failed to load assessable employees.",
+  // ── React Query: menggantikan Promise.all manual di useEffect ──
+  const {
+    data: subjectsRes,
+    isLoading: isLoadingSubjects,
+    isError: isErrorSubjects,
+    error: subjectsError,
+    refetch: refetchSubjects,
+  } = useAssessableEmployees();
+
+  const { data: stationsRes, isError: isErrorStations } = useStations();
+  const { data: linesRes, isError: isErrorLines } = useLines();
+  const { data: areasRes, isError: isErrorAreas } = useAreas();
+
+  const subjects = subjectsRes?.data ?? [];
+  const stations = stationsRes?.data ?? [];
+  const lines = linesRes?.data ?? [];
+  const areas = areasRes?.data ?? [];
+
+  const loading = isLoadingSubjects;
+
+  const errorMsg = useMemo(() => {
+    if (isErrorSubjects) {
+      const e = subjectsError as unknown as {
+        response?: { data?: { message?: string } };
+      };
+      return (
+        e?.response?.data?.message ?? "Failed to load assessable employees."
       );
-    } finally {
-      setLoading(false);
     }
-  };
-
-  // ── Effect ini MURNI untuk fetch awal saat mount — tidak ada setState ──
-  // sinkron sebelum await; setState hanya dipanggil setelah promise selesai.
-  useEffect(() => {
-    let cancelled = false;
-
-    Promise.all([
-      competencyService.getAssessableEmployees(),
-      stationService.getStations(),
-      lineService.getLines(),
-      areaService.getAreas(),
-    ])
-      .then(([subjectsRes, stationsRes, linesRes, areasRes]) => {
-        if (cancelled) return;
-        setSubjects(subjectsRes.data);
-        setStations(stationsRes.data);
-        setLines(linesRes.data);
-        setAreas(areasRes.data);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const e = err as { response?: { data?: { message?: string } } };
-        setErrorMsg(
-          e.response?.data?.message ?? "Failed to load initial data.",
-        );
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (isErrorStations || isErrorLines || isErrorAreas) {
+      return "Failed to load initial data.";
+    }
+    return null;
+  }, [
+    isErrorSubjects,
+    subjectsError,
+    isErrorStations,
+    isErrorLines,
+    isErrorAreas,
+  ]);
 
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);

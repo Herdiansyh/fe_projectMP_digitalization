@@ -249,6 +249,7 @@ const EvaluationForm: React.FC = () => {
   };
   const handleCreate = async () => {
     if (!selectedEmployeeId) return;
+    if (saving) return; // cegah double-submit kalau user klik berkali-kali
 
     const unfilled = getUnfilledCriteria();
     if (unfilled.length > 0) {
@@ -263,9 +264,9 @@ const EvaluationForm: React.FC = () => {
 
     setSaving(true);
     try {
-      let payload;
+      let basePayload;
       if (isPrefilled) {
-        payload = {
+        basePayload = {
           employee_id: Number(selectedEmployeeId),
           npk: form.npk || undefined,
           jabatan: form.jabatan || undefined,
@@ -278,7 +279,7 @@ const EvaluationForm: React.FC = () => {
         const employee = employees.find(
           (item) => item.id === selectedEmployeeId,
         );
-        payload = {
+        basePayload = {
           employee_id: Number(selectedEmployeeId),
           npk: employee?.npk,
           jabatan: employee?.jabatan,
@@ -288,17 +289,21 @@ const EvaluationForm: React.FC = () => {
           pkwt: form.pkwt || null,
         };
       }
-      const response = await evaluationService.createEvaluation(payload);
-      const newId = response.data.id;
 
-      const scorePayload: EvaluationScorePayload = {
+      // Semua data (evaluation + scores + recommendation) dikirim dalam SATU
+      // request. Backend akan bungkus ini dalam satu DB transaction, jadi
+      // kalau ada bagian yang gagal, tidak ada draft "nyangkut" di tengah jalan.
+      const payload = {
+        ...basePayload,
         scores: Object.entries(scores).map(([criteriaId, score]) => ({
           criteria_id: Number(criteriaId),
           score,
         })),
+        recommendation,
       };
-      await evaluationService.updateScores(newId, scorePayload);
-      await evaluationService.updateRecommendation(newId, recommendation);
+
+      const response = await evaluationService.createEvaluation(payload);
+      const newId = response.data.id;
 
       navigate(`/evaluations/${newId}`);
     } catch {
@@ -307,7 +312,6 @@ const EvaluationForm: React.FC = () => {
       setSaving(false);
     }
   };
-
   const handleSave = async () => {
     if (!evaluation) return;
 
@@ -424,12 +428,15 @@ const EvaluationForm: React.FC = () => {
               <button
                 type="button"
                 onClick={isEditMode ? handleSave : handleCreate}
+                disabled={saving}
                 style={{
                   padding: "8px 14px",
                   borderRadius: "8px",
                   border: "none",
                   backgroundColor: "#3b82f6",
                   color: "#fff",
+                  opacity: saving ? 0.6 : 1,
+                  cursor: saving ? "not-allowed" : "pointer",
                 }}
               >
                 {saving

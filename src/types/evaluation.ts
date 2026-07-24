@@ -9,7 +9,7 @@ export interface EvaluationEmployee {
   start_contract: string | null;
   end_contract: string | null;
   employment_type: string | null;
-  is_active: boolean; // ← baru
+  is_active: boolean; // ← barue
   deactivated_at: string | null; // ← baru
   deactivated_reason: string | null; // ← baru
 }
@@ -127,10 +127,6 @@ export interface Evaluation {
   is_locked_for_current_user: boolean;
   is_leader_fields_locked: boolean;
   employee: EvaluationEmployee | null;
-  // Object approver — leader selalu ada, section_head bisa null (Leader
-  // belum punya Approver Section Head di-set), manager bisa null sampai
-  // Section Head approve (manager ditentukan dinamis dari approver Section
-  // Head yang bertindak, bukan dari Leader).
   leader: EvaluationApprover | null;
   section_head: EvaluationApprover | null;
   manager: EvaluationApprover | null;

@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Box, Text, Flex, HStack } from "@chakra-ui/react";
 import { FiSearch } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
-import competencyService from "../../services/competencyService";
-import type { MonitoringItem, MonitoringStatus } from "../../types/competency";
+import type { MonitoringStatus } from "../../types/competency";
+import { useMonitoring } from "../../hooks/queries/useCompetencyQueries";
 
 const STATUS_LABEL: Record<MonitoringStatus, string> = {
   not_assessed: "Not Assessed",
@@ -60,28 +60,17 @@ const STATUS_FILTERS: { label: string; value: MonitoringStatus | "all" }[] = [
 ];
 
 const AssessmentMonitoringList: React.FC = () => {
-  const [items, setItems] = useState<MonitoringItem[]>([]);
-  const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState<MonitoringStatus | "all">(
     "all",
   );
 
-  useEffect(() => {
-    void fetchMonitoring();
-  }, []);
+  // NOTE: versi lama pakai alert() saat gagal fetch — diganti jadi banner
+  // error inline supaya konsisten dengan halaman lain, dan supaya tidak
+  // memblokir UI thread dengan alert() browser.
+  const { data: monitoringRes, isLoading: loading, isError } = useMonitoring();
 
-  const fetchMonitoring = async () => {
-    try {
-      setLoading(true);
-      const res = await competencyService.getMonitoring();
-      setItems(res.data);
-    } catch {
-      alert("Failed to fetch assessment monitoring data.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const items = monitoringRes?.data ?? [];
 
   const filteredItems = useMemo(() => {
     const search = searchInput.toLowerCase();
@@ -122,6 +111,20 @@ const AssessmentMonitoringList: React.FC = () => {
             </Text>
           </Box>
         </Flex>
+
+        {isError && (
+          <Box
+            mb={4}
+            p={3}
+            bg="#fff1f2"
+            border="1px solid #fecdd3"
+            borderRadius="8px"
+          >
+            <Text fontSize="13px" color="#be123c">
+              Failed to fetch assessment monitoring data.
+            </Text>
+          </Box>
+        )}
 
         <Box bg="white" rounded="lg" shadow="sm" p={6}>
           {/* Filter bar */}

@@ -1,11 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Box, Text, Flex, HStack } from "@chakra-ui/react";
 import { FiClock, FiX, FiTrendingUp, FiTrendingDown } from "react-icons/fi";
-import competencyService from "../../services/competencyService";
-import type {
-  AssessableSubject,
-  AssessmentHistoryItem,
-} from "../../types/competency";
+import type { AssessableSubject } from "../../types/competency";
+import { useAssessmentHistory } from "../../hooks/queries/useCompetencyQueries";
 
 interface Props {
   isOpen: boolean;
@@ -48,37 +45,28 @@ const AssessmentHistoryModal: React.FC<Props> = ({
   subject,
   onClose,
 }) => {
-  const [history, setHistory] = useState<AssessmentHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true); // ← initial true, bukan di-set di effect
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<number | null>(null); // ← initial null sudah cukup, tidak perlu di-reset lagi
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  // ── Effect ini sekarang murni untuk fetch (side effect ke luar) ──
-  useEffect(() => {
-    if (!isOpen || !subject) return;
+  // enabled hanya saat modal terbuka & subject ada — query otomatis
+  // tidak jalan saat modal tertutup, dan otomatis re-fetch tiap subject berganti
+  // (key berbeda per subject, jadi tidak perlu manual reset state history)
+  const {
+    data: historyRes,
+    isLoading: loading,
+    isError,
+    error,
+  } = useAssessmentHistory(
+    subject?.subject_type ?? "employee",
+    subject?.id ?? 0,
+    isOpen && !!subject,
+  );
 
-    let cancelled = false;
+  const history = historyRes ? [...historyRes.data].reverse() : [];
 
-    competencyService
-      .getHistory(subject.subject_type, subject.id)
-      .then((res) => {
-        if (!cancelled) setHistory([...res.data].reverse());
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        const e = err as { response?: { data?: { message?: string } } };
-        setErrorMsg(
-          e.response?.data?.message ?? "Failed to load assessment history.",
-        );
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, subject]);
+  const errorMsg = isError
+    ? ((error as unknown as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message ?? "Failed to load assessment history.")
+    : null;
 
   if (!isOpen || !subject) return null;
 

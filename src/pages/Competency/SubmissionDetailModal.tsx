@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Box, Text, Flex, HStack } from "@chakra-ui/react";
 import { FiX, FiEye } from "react-icons/fi";
-import competencyService from "../../services/competencyService";
 import CompetencyMatrixGrid from "../../components/competency/CompetencyMatrixGrid";
-import type { AssessmentDetail } from "../../types/competency";
+import { useAssessmentDetail } from "../../hooks/queries/useCompetencyQueries";
 
 interface Props {
   isOpen: boolean;
@@ -23,39 +22,21 @@ const SubmissionDetailModal: React.FC<Props> = ({
   assessmentId,
   onClose,
 }) => {
-  const [detail, setDetail] = useState<AssessmentDetail | null>(null);
-  const [loading, setLoading] = useState(true); // ← initial true, bukan di-set di effect
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // enabled hanya saat modal terbuka & assessmentId ada — sama seperti
+  // guard `if (!isOpen || !assessmentId) return;` di versi lama
+  const {
+    data: detailRes,
+    isLoading: loading,
+    isError,
+    error,
+  } = useAssessmentDetail(assessmentId ?? 0, isOpen && !!assessmentId);
 
-  // ── Effect murni untuk fetch. Reset state (detail/loading/errorMsg) tidak
-  // perlu dilakukan manual di sini karena parent memanggil komponen ini
-  // dengan key={assessmentId ?? "none"}, jadi tiap assessment berbeda akan
-  // remount komponen dan otomatis mengembalikan semua state ke initial. ──
-  useEffect(() => {
-    if (!isOpen || !assessmentId) return;
+  const detail = detailRes?.data ?? null;
 
-    let cancelled = false;
-
-    competencyService
-      .getAssessmentDetail(assessmentId)
-      .then((res) => {
-        if (!cancelled) setDetail(res.data);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        const e = err as { response?: { data?: { message?: string } } };
-        setErrorMsg(
-          e.response?.data?.message ?? "Failed to load assessment detail.",
-        );
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, assessmentId]);
+  const errorMsg = isError
+    ? ((error as unknown as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message ?? "Failed to load assessment detail.")
+    : null;
 
   if (!isOpen) return null;
 

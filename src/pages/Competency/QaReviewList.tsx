@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Box, Text, Flex } from "@chakra-ui/react";
 import { FiCheckCircle } from "react-icons/fi";
-import competencyService from "../../services/competencyService";
 import type { QaQueueItem } from "../../types/competency";
 import MainLayout from "../../components/layout/MainLayout";
 import QaReviewModal from "./QaReviewModal";
+import { useQaQueue } from "../../hooks/queries/useCompetencyQueries";
 
 const formatDate = (dateString: string) =>
   new Date(dateString).toLocaleDateString("id-ID", {
@@ -14,29 +14,17 @@ const formatDate = (dateString: string) =>
   });
 
 const QaReviewList: React.FC = () => {
-  const [queue, setQueue] = useState<QaQueueItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [selected, setSelected] = useState<QaQueueItem | null>(null);
 
-  const fetchQueue = async () => {
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      const res = await competencyService.getQaQueue();
-      setQueue(res.data);
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      setErrorMsg(e.response?.data?.message ?? "Failed to load QA queue.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: queueRes, isLoading: loading, isError, error } = useQaQueue();
 
-  useEffect(() => {
-    void fetchQueue();
-  }, []);
+  const queue = queueRes?.data ?? [];
+
+  const errorMsg = isError
+    ? ((error as unknown as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message ?? "Failed to load QA queue.")
+    : null;
 
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -73,7 +61,8 @@ const QaReviewList: React.FC = () => {
           onSuccess={(msg) => {
             setSelected(null);
             showSuccess(msg);
-            void fetchQueue();
+            // Tidak perlu manual refetch — useSubmitQaReview sudah
+            // invalidate competencyKeys.qaQueue() otomatis
           }}
         />
 
