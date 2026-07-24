@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Box, Text, Badge, Flex, HStack, Grid } from "@chakra-ui/react";
 import { FiArrowLeft, FiPlay, FiAlertTriangle } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
-import fptkService from "../../services/fptkService";
 import { useAuth } from "../../contexts/AuthContext";
-import type { Requisition } from "../../types/fptk";
+import {
+  useFptkDetail,
+  useProcessHrd,
+} from "../../hooks/queries/useFptkQueries";
 
 const Field = ({
   label,
@@ -189,60 +191,35 @@ const FptkDetail: React.FC = () => {
   const { noReq } = useParams<{ noReq: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [requisition, setRequisition] = useState<Requisition | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [processingHrd, setProcessingHrd] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const isHrAdmin = user?.role?.name === "HR Admin";
 
-  useEffect(() => {
-    if (!noReq) return;
+  // ── React Query: detail FPTK ──
+  const { data: detailResponse, isLoading: loading } = useFptkDetail(
+    noReq ?? "",
+    !!noReq,
+  );
+  const requisition = detailResponse?.data ?? null;
 
-    let cancelled = false;
+  // ── React Query: mutation Process HRD ──
+  const processHrdMutation = useProcessHrd();
+  const processingHrd = processHrdMutation.isPending;
 
-    const load = async () => {
-      setLoading(true);
-      try {
-        const response = await fptkService.getRequisition(noReq);
-        if (!cancelled) {
-          setRequisition(response.data);
-        }
-      } catch {
-        if (!cancelled) {
-          alert("Failed to fetch requisition");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [noReq]);
-
-  const handleProcessHrd = async () => {
+  const handleProcessHrd = () => {
     if (!noReq) return;
     setShowConfirmModal(false);
-    try {
-      setProcessingHrd(true);
-      await fptkService.processHrd(noReq);
-      setSuccessMsg(`FPTK ${noReq} successfully processed by HRD.`);
-      const response = await fptkService.getRequisition(noReq);
-      setRequisition(response.data);
-      setTimeout(() => setSuccessMsg(null), 3000);
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      alert(e.response?.data?.message ?? "Failed to process FPTK.");
-    } finally {
-      setProcessingHrd(false);
-    }
+    processHrdMutation.mutate(noReq, {
+      onSuccess: () => {
+        setSuccessMsg(`FPTK ${noReq} successfully processed by HRD.`);
+        setTimeout(() => setSuccessMsg(null), 3000);
+      },
+      onError: (err: unknown) => {
+        const e = err as { response?: { data?: { message?: string } } };
+        alert(e.response?.data?.message ?? "Failed to process FPTK.");
+      },
+    });
   };
 
   const formatDate = (dateString: string) => {

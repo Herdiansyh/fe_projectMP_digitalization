@@ -133,9 +133,9 @@ const EvaluationDetail: React.FC = () => {
   }, [id]);
 
   const roleName = user?.role?.name;
-
   const canSubmit =
-    roleName === "Leader" && evaluation?.current_stage === "leader";
+    (roleName === "Leader" && evaluation?.current_stage === "leader") ||
+    roleName === "Admin";
   const canFillScoresSH =
     roleName === "Section Head" && evaluation?.current_stage === "section_head";
   const canApprove =

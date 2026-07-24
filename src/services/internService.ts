@@ -33,6 +33,27 @@ const internService = {
     return response.data;
   },
 
+  // Untuk export / print semua data sesuai filter aktif (bypass pagination)
+  getAllInterns: async (
+    params?: Omit<InternListParams, "page" | "per_page">,
+  ): Promise<ApiResponse<{ data: Intern[] }>> => {
+    const cleanParams = {
+      ...Object.fromEntries(
+        Object.entries(params ?? {}).filter(
+          ([, value]) => value !== "" && value !== undefined && value !== null,
+        ),
+      ),
+      all: true,
+    };
+
+    const response = await axiosInstance.get<ApiResponse<{ data: Intern[] }>>(
+      "/interns",
+      { params: cleanParams },
+    );
+
+    return response.data;
+  },
+
   // Create new intern
   createIntern: async (
     data: CreateInternInput,

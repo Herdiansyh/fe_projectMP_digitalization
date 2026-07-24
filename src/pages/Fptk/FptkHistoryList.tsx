@@ -1,48 +1,26 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { Box, Text, Badge, Flex, HStack } from "@chakra-ui/react";
 import { FiSearch, FiPrinter } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
-import fptkService from "../../services/fptkService";
-import type { Requisition } from "../../types/fptk";
+import { useApproverActionHistory } from "../../hooks/queries/useFptkQueries";
 
 const FptkHistoryList: React.FC = () => {
   const navigate = useNavigate();
-  const [allRequisitions, setAllRequisitions] = useState<Requisition[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({
-    current_page: 1,
-    last_page: 1,
-    per_page: 50,
-    total: 0,
-  });
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchHistory = useCallback(async (pageNum: number) => {
-    try {
-      setLoading(true);
-      const response = await fptkService.getApproverActionHistory({
-        page: pageNum,
-        per_page: 50,
-      });
-      setAllRequisitions(response.data.data);
-      setPagination({
-        current_page: response.data.current_page,
-        last_page: response.data.last_page,
-        per_page: response.data.per_page,
-        total: response.data.total,
-      });
-    } catch {
-      alert("Failed to fetch FPTK history");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // ── React Query: riwayat aksi approver ──
+  const { data: historyResponse, isLoading: loading } =
+    useApproverActionHistory({ page, per_page: 50 });
 
-  useEffect(() => {
-    void fetchHistory(page);
-  }, [page, fetchHistory]);
+  const allRequisitions = historyResponse?.data?.data ?? [];
+  const pagination = {
+    current_page: historyResponse?.data?.meta?.current_page ?? 1,
+    last_page: historyResponse?.data?.meta?.last_page ?? 1,
+    per_page: historyResponse?.data?.meta?.per_page ?? 50,
+    total: historyResponse?.data?.meta?.total ?? 0,
+  };
 
   // Client-side filter by search query
   const filtered = searchQuery

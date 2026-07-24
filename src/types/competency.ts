@@ -124,3 +124,28 @@ export interface MyReviewItem {
   subject_type: "employee" | "intern";
   assessor: { id: number; name: string };
 }
+
+export type MonitoringStatus = "not_assessed" | "pending_qa" | "completed";
+export interface StationCompetencySummary {
+  station_id: number;
+  station_name: string;
+  final_score: number;
+  period_label: string;
+  assessed_at: string;
+}
+export interface MonitoringItem {
+  subject_type: "employee" | "intern";
+  subject_id: number;
+  npk: string;
+  name: string;
+  station: string | null;
+  line: string | null;
+  area: string | null;
+  status: MonitoringStatus;
+  period_label: string | null;
+  assessed_at: string | null;
+  assessor: { id: number; name: string } | null;
+  qa_at: string | null;
+  qa_reviewer: { id: number; name: string } | null;
+  final_score: number | null;
+}

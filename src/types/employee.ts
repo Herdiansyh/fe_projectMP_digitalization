@@ -22,6 +22,7 @@ export interface Employee {
   section_id: number | null;
   role_level?: string | null;
   jabatan: string | null;
+  group: "A" | "B" | null;
 
   // Foreign keys (baru)
   area_id?: number | null;
@@ -76,6 +77,7 @@ export interface CreateEmployeeInput {
   join_date: string;
   start_contract: string;
   end_contract?: string | null;
+  group: "A" | "B" | null;
 }
 
 export interface UpdateEmployeeInput {
@@ -93,6 +95,7 @@ export interface UpdateEmployeeInput {
   join_date?: string;
   start_contract?: string;
   end_contract?: string | null;
+  group: "A" | "B" | null;
 }
 
 export interface EmployeeListParams {
@@ -104,4 +107,9 @@ export interface EmployeeListParams {
   employment_type?: string;
   near_expiry?: boolean;
   is_active?: boolean;
+  all?: boolean;
+  area_id?: number;
+  line_id?: number;
+  station_id?: number;
+  group?: string;
 }

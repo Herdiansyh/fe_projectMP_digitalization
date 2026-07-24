@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Box, Text, Flex, Input, HStack, Grid } from "@chakra-ui/react";
-import { FiPlus, FiEdit2, FiTrash2, FiSearch } from "react-icons/fi";
+import { Box, Text, Flex, Input, HStack, Grid, Stack } from "@chakra-ui/react";
+import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiPrinter } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
 import internService from "../../services/internService";
 import areaService from "../../services/areaService";
@@ -12,6 +12,10 @@ import DeleteModal from "./DeleteModal";
 import InternFormModal from "./InternFormModal";
 import type { MasterData } from "../../types/fptk";
 import InternDetailModal from "./InternDetailModal";
+import type { Line } from "../../types/line";
+import type { Station } from "../../types/station";
+import stationService from "../../services/stationService";
+import lineService from "../../services/lineService";
 
 const formatDate = (dateString?: string | null) => {
   if (!dateString) return "-";
@@ -67,8 +71,64 @@ const InternList: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<Intern | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [detailTarget, setDetailTarget] = useState<Intern | null>(null);
-
   const debouncedSearch = useDebounce(search, 400);
+  const [printingAll, setPrintingAll] = useState(false);
+  const [filterArea, setFilterArea] = useState("");
+  const [filterLine, setFilterLine] = useState("");
+  const [filterStation, setFilterStation] = useState("");
+  const [lines, setLines] = useState<Line[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
+
+  const [filterGroup, setFilterGroup] = useState("");
+  const handlePrintAllFiltered = async () => {
+    try {
+      setPrintingAll(true);
+      const res = await internService.getAllInterns({
+        search: debouncedSearch || undefined,
+        department_id: filterDept ? Number(filterDept) : undefined,
+        area_id: filterArea ? Number(filterArea) : undefined,
+        line_id: filterLine ? Number(filterLine) : undefined,
+        station_id: filterStation ? Number(filterStation) : undefined,
+        group: filterGroup || undefined,
+      });
+
+      const allFiltered = res.data.data;
+
+      if (!allFiltered || allFiltered.length === 0) {
+        toaster.create({ title: "No data to print", type: "warning" });
+        return;
+      }
+
+      const payload = allFiltered.map((i) => ({
+        subject_type: "intern",
+        subject_id: i.id,
+      }));
+
+      const API_BASE_URL =
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+      const printUrl =
+        API_BASE_URL.replace(/\/api\/?$/, "") + "/print/manpower/bulk";
+
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = printUrl;
+      form.target = "_blank";
+
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "items";
+      input.value = JSON.stringify(payload);
+      form.appendChild(input);
+
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+    } catch {
+      toaster.create({ title: "Failed to prepare print data", type: "error" });
+    } finally {
+      setPrintingAll(false);
+    }
+  };
 
   const fetchInterns = useCallback(
     async (page = 1) => {
@@ -79,20 +139,30 @@ const InternList: React.FC = () => {
           per_page: 15,
           search: debouncedSearch || undefined,
           department_id: filterDept ? Number(filterDept) : undefined,
+          area_id: filterArea ? Number(filterArea) : undefined,
+          line_id: filterLine ? Number(filterLine) : undefined,
+          station_id: filterStation ? Number(filterStation) : undefined,
+          group: filterGroup || undefined,
         });
         setInterns(res.data.data);
-        setTotalPages(res.data.last_page);
-        setTotalData(res.data.total);
-        setCurrentPage(res.data.current_page);
+        setTotalPages(res.data.meta.last_page);
+        setTotalData(res.data.meta.total);
+        setCurrentPage(res.data.meta.current_page);
       } catch {
         toaster.create({ title: "Failed to load intern data", type: "error" });
       } finally {
         setLoading(false);
       }
     },
-    [debouncedSearch, filterDept],
+    [
+      debouncedSearch,
+      filterDept,
+      filterArea,
+      filterLine,
+      filterStation,
+      filterGroup,
+    ],
   );
-
   // Master data (department/section) + Area di-fetch sekali saat halaman
   // dimuat, supaya modal form tidak perlu loading ulang tiap dibuka.
   // Station TIDAK di-fetch di sini — InternFormModal fetch Station-nya
@@ -104,7 +174,35 @@ const InternList: React.FC = () => {
       .then((res) => setAreas(res.data))
       .catch(() => setAreas([]));
   }, []);
+  useEffect(() => {
+    if (!filterArea) {
+      setLines([]);
+      setFilterLine("");
+      setStations([]);
+      setFilterStation("");
+      return;
+    }
+    void lineService
+      .getLines({ area_id: Number(filterArea) })
+      .then((res) => setLines(res.data))
+      .catch(() => setLines([]));
+    setFilterLine("");
+    setStations([]);
+    setFilterStation("");
+  }, [filterArea]);
 
+  useEffect(() => {
+    if (!filterLine) {
+      setStations([]);
+      setFilterStation("");
+      return;
+    }
+    void stationService
+      .getStations({ line_id: Number(filterLine) })
+      .then((res) => setStations(res.data))
+      .catch(() => setStations([]));
+    setFilterStation("");
+  }, [filterLine]);
   useEffect(() => {
     void fetchInterns(1);
   }, [fetchInterns]);
@@ -176,34 +274,83 @@ const InternList: React.FC = () => {
               {totalData} total registered interns
             </Text>
           </Box>
-          <button
-            type="button"
-            onClick={() => {
-              setEditTarget(null);
-              setFormOpen(true);
-            }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "10px 20px",
-              fontSize: "14px",
-              fontWeight: 600,
-              borderRadius: "8px",
-              color: "#ffffff",
-              backgroundColor: "#1A5EA8",
-              border: "none",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor = "#154d8c")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = "#1A5EA8")
-            }
-          >
-            <FiPlus size={15} /> Add Intern
-          </button>
+          <Stack gap={3} direction={{ base: "column", md: "row" }}>
+            <Box w={{ base: "100%", md: "auto" }}>
+              <Box
+                as="button"
+                type="button"
+                onClick={handlePrintAllFiltered}
+                disabled={printingAll || totalData === 0}
+                display="inline-flex"
+                alignItems="center"
+                justifyContent="center"
+                w="100%"
+                gap="8px"
+                px="clamp(14px, 3vw, 20px)"
+                py="clamp(8px, 2vw, 10px)"
+                fontSize="clamp(12px, 2vw, 14px)"
+                fontWeight={600}
+                borderRadius="8px"
+                color={printingAll || totalData === 0 ? "#94a3b8" : "#1A5EA8"}
+                bg="#ffffff"
+                border="1px solid"
+                borderColor={
+                  printingAll || totalData === 0 ? "#e2e8f0" : "#1A5EA8"
+                }
+                cursor={
+                  printingAll || totalData === 0 ? "not-allowed" : "pointer"
+                }
+                whiteSpace="nowrap"
+                transition="all 0.2s ease"
+                _hover={
+                  printingAll || totalData === 0
+                    ? {}
+                    : {
+                        bg: "#f8fafc",
+                        transform: "translatey(-1px) scale(1.02)",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      }
+                }
+              >
+                <FiPrinter size={15} />
+                {printingAll ? "Preparing..." : `Print All (${totalData})`}
+              </Box>
+            </Box>
+            <Box w={{ base: "100%", md: "auto" }}>
+              <Box
+                as="button"
+                type="button"
+                onClick={() => {
+                  setEditTarget(null);
+                  setFormOpen(true);
+                }}
+                display="inline-flex"
+                alignItems="center"
+                justifyContent="center"
+                w="100%"
+                gap="8px"
+                px="clamp(14px, 3vw, 20px)"
+                py="clamp(8px, 2vw, 10px)"
+                fontSize="clamp(12px, 2vw, 14px)"
+                fontWeight={600}
+                borderRadius="8px"
+                color="#ffffff"
+                bg="#1A5EA8"
+                border="none"
+                cursor="pointer"
+                whiteSpace="nowrap"
+                transition="all 0.2s ease"
+                _hover={{
+                  bg: "#3A76B8",
+                  transform: "translatey(-1px) scale(1.02)",
+                  boxShadow: "0 4px 12px rgba(26,94,168,0.35)",
+                }}
+              >
+                <FiPlus size={15} />
+                Add Intern
+              </Box>
+            </Box>
+          </Stack>
         </Flex>
 
         {/* Filters */}
@@ -216,47 +363,146 @@ const InternList: React.FC = () => {
           p={4}
           mb={4}
         >
-          <Grid templateColumns={{ base: "1fr", md: "2fr 1fr" }} gap={3}>
-            <Box position="relative">
-              <Box
-                position="absolute"
-                left="10px"
-                top="50%"
-                style={{ transform: "translateY(-50%)" }}
-              >
-                <FiSearch size={14} color="#94a3b8" />
-              </Box>
-              <Input
-                pl="32px"
-                placeholder="Search NPK or name..."
-                value={search}
-                fontSize="14px"
-                onChange={(e) => setSearch(e.target.value)}
-                bg="#f9fafb"
-                border="1px solid #e2e8f0"
-                borderRadius="8px"
-              />
-            </Box>
-            <select
-              value={filterDept}
-              onChange={(e) => setFilterDept(e.target.value)}
-              style={{
-                padding: "8px 12px",
-                borderRadius: "8px",
-                border: "1px solid #e2e8f0",
-                backgroundColor: "#f9fafb",
-                fontSize: "14px",
-                color: "#1a202c",
+          <Box
+            bg="white"
+            borderRadius="12px"
+            borderWidth="1px"
+            borderColor="gray.100"
+            shadow="sm"
+            p={4}
+            mb={4}
+          >
+            <Grid
+              templateColumns={{
+                base: "1fr",
+                md: "2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr",
               }}
+              gap={3}
             >
-              <option value="">All Departments</option>
-              {masterData?.departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </Grid>
+              <Box position="relative">
+                <Box
+                  position="absolute"
+                  left="10px"
+                  top="50%"
+                  style={{ transform: "translateY(-50%)" }}
+                >
+                  <FiSearch size={14} color="#94a3b8" />
+                </Box>
+                <Input
+                  pl="32px"
+                  placeholder="Search NPK or name..."
+                  value={search}
+                  fontSize="14px"
+                  onChange={(e) => setSearch(e.target.value)}
+                  bg="#f9fafb"
+                  border="1px solid #e2e8f0"
+                  borderRadius="8px"
+                />
+              </Box>
+              <select
+                value={filterDept}
+                onChange={(e) => setFilterDept(e.target.value)}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  backgroundColor: "#f9fafb",
+                  fontSize: "14px",
+                  color: "#1a202c",
+                }}
+              >
+                <option value="">All Departments</option>
+                {masterData?.departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+
+              {/* ── Filter Area ── */}
+              <select
+                value={filterArea}
+                onChange={(e) => setFilterArea(e.target.value)}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  backgroundColor: "#f9fafb",
+                  fontSize: "14px",
+                  color: "#1a202c",
+                }}
+              >
+                <option value="">All Areas</option>
+                {areas.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+
+              {/* ── Filter Line (aktif hanya jika Area dipilih) ── */}
+              <select
+                value={filterLine}
+                onChange={(e) => setFilterLine(e.target.value)}
+                disabled={!filterArea}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  backgroundColor: filterArea ? "#f9fafb" : "#f1f5f9",
+                  fontSize: "14px",
+                  color: filterArea ? "#1a202c" : "#94a3b8",
+                  cursor: filterArea ? "pointer" : "not-allowed",
+                }}
+              >
+                <option value="">All Lines</option>
+                {lines.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+
+              {/* ── Filter Station (aktif hanya jika Line dipilih) ── */}
+              <select
+                value={filterStation}
+                onChange={(e) => setFilterStation(e.target.value)}
+                disabled={!filterLine}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  backgroundColor: filterLine ? "#f9fafb" : "#f1f5f9",
+                  fontSize: "14px",
+                  color: filterLine ? "#1a202c" : "#94a3b8",
+                  cursor: filterLine ? "pointer" : "not-allowed",
+                }}
+              >
+                <option value="">All Stations</option>
+                {stations.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={filterGroup}
+                onChange={(e) => setFilterGroup(e.target.value)}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  backgroundColor: "#f9fafb",
+                  fontSize: "14px",
+                  color: "#1a202c",
+                }}
+              >
+                <option value="">All Groups</option>
+                <option value="A">Group A</option>
+                <option value="B">Group B</option>
+              </select>
+            </Grid>
+          </Box>
         </Box>
 
         {/* Table */}
@@ -338,7 +584,6 @@ const InternList: React.FC = () => {
                           style={{
                             padding: "12px 16px",
                             fontSize: "13px",
-                            fontWeight: 600,
                             color: "#1a202c",
                           }}
                         >

@@ -2,11 +2,14 @@ import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePermission } from "../../hooks/usePermission";
 
 interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
+  /** Permission (atau array) yang dibutuhkan supaya item ini tampil. Kosong = selalu tampil. */
+  permission?: string | string[];
   children?: NavItem[];
 }
 
@@ -138,8 +141,11 @@ const IconHistory = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <circle cx="12" cy="12" r="10" />
-    <polyline points="12 6 12 12 16 14" />
+    <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
+    <polyline points="14 2 14 7 19 7" />
+    <line x1="9" y1="11" x2="15" y2="11" />
+    <line x1="9" y1="15" x2="15" y2="15" />
+    <line x1="9" y1="19" x2="13" y2="19" />
   </svg>
 );
 
@@ -240,8 +246,7 @@ const IconClipboard = () => (
     <path d="M9 12h6M9 16h6" />
   </svg>
 );
-
-const IconLayers = () => (
+const IconCompetencyMatrix = () => (
   <svg
     width="16"
     height="16"
@@ -252,9 +257,30 @@ const IconLayers = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <polygon points="12 2 2 7 12 12 22 7 12 2" />
-    <polyline points="2 17 12 22 22 17" />
-    <polyline points="2 12 12 17 22 12" />
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M9 3v18" />
+    <path d="M15 3v18" />
+    <path d="M3 9h18" />
+    <path d="M3 15h18" />
+  </svg>
+);
+const IconEvaluationForm = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
+    <polyline points="14 2 14 7 19 7" />
+    <path d="M9 11l1.5 1.5L12 10" />
+    <path d="M14 11h2" />
+    <path d="M9 16l1.5 1.5L12 15" />
+    <path d="M14 16h2" />
   </svg>
 );
 
@@ -289,11 +315,27 @@ const IconQaReview = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M9 11l3 3L22 4" />
-    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    <circle cx="12" cy="12" r="8" />
+    <path d="M9 12l2 2 4-4" />
   </svg>
 );
-
+const IconMySubmission = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
+    <polyline points="14 2 14 7 19 7" />
+    <path d="M12 17V10" />
+    <polyline points="9.5 12.5 12 10 14.5 12.5" />
+  </svg>
+);
 const IconListCheck = () => (
   <svg
     width="16"
@@ -305,22 +347,151 @@ const IconListCheck = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M9 2h6" />
-    <rect x="5" y="3" width="14" height="19" rx="2" />
-    <path d="M8 8l1.5 1.5L12 7" />
-    <path d="M14 8h2" />
-    <path d="M8 13l1.5 1.5L12 12" />
-    <path d="M14 13h2" />
-    <path d="M8 18l1.5 1.5L12 17" />
-    <path d="M14 18h2" />
+    <circle cx="9" cy="8" r="3" />
+    <path d="M4 20c0-3 2.5-5 5-5s5 2 5 5" />
+    <circle cx="17" cy="9" r="2" />
+    <path d="M15.5 20c.3-2 1.8-3.5 4-4" />
   </svg>
 );
 
-const approvalNavItems: NavItem[] = [
-  { label: "Pending FPTK", path: "/fptk/pending", icon: <IconPending /> },
+const IconShield = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+const IconMyReview = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
+    <polyline points="14 2 14 7 19 7" />
+    <circle cx="11" cy="13" r="2.5" />
+    <path d="M16 18l-2.2-2.2" />
+  </svg>
+);
+const IconHrDecision = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="8" />
+    <path d="M9 12l2 2 4-4" />
+    <path d="M12 4V2" />
+  </svg>
+);
+/**
+ * Konfigurasi menu workflow/proses bisnis. Item-item ini yang diatur lewat
+ * permission matrix (per role, granular) — mis. siapa boleh approve FPTK,
+ * siapa boleh isi assessment, dst. Item tanpa `permission` selalu tampil
+ * untuk semua user login (mis. Dashboard).
+ */
+const NAV_ITEMS: NavItem[] = [
+  { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
+
+  {
+    label: "On Progress FPTK",
+    path: "/fptklist",
+    icon: <IconFPTK />,
+    permission: "fptk.view_list",
+  },
+  {
+    label: "Approved FPTK",
+    path: "/fptk/approved",
+    icon: <IconApproved />,
+    permission: "fptk.view_approved",
+  },
+  {
+    label: "Rejected FPTK",
+    path: "/fptk/rejected",
+    icon: <IconRejected />,
+    permission: "fptk.view_rejected",
+  },
+  {
+    label: "Pending FPTK",
+    path: "/fptk/pending",
+    icon: <IconPending />,
+    permission: "fptk.approve",
+  },
+  {
+    label: "FPTK History",
+    path: "/fptk/history",
+    icon: <IconHistory />,
+    permission: "fptk.view_history",
+  },
+
+  {
+    label: "Competency Assessment",
+    path: "/competency-assessment",
+    icon: <IconClipboard />,
+    permission: "competency.assess",
+  },
+  {
+    label: "My Submissions",
+    path: "/my-submissions",
+    icon: <IconMySubmission />,
+    permission: "competency.assess",
+  },
+  {
+    label: "QA Review",
+    path: "/qa-review",
+    icon: <IconQaReview />,
+    permission: "competency.qa_review",
+  },
+  {
+    label: "My Reviews",
+    path: "/my-reviews",
+    icon: <IconMyReview />,
+    permission: "competency.qa_review",
+  },
+  {
+    label: "Assessment Monitoring",
+    path: "/assessment-monitoring",
+    icon: <IconListCheck />,
+    permission: "competency.monitor",
+  },
+  {
+    label: "Evaluations",
+    path: "/evaluations",
+    icon: <IconClipboard />,
+    permission: "evaluations.view",
+  },
+  {
+    label: "HR Decisions",
+    path: "/evaluations/hr-decisions",
+    icon: <IconHrDecision />,
+    permission: "evaluations.hr_decisions",
+  },
 ];
 
-const masterDataNavItem: NavItem = {
+/**
+ * Menu Data Master: TIDAK memakai permission matrix. Visibility diatur
+ * langsung berdasarkan flag `is_admin` milik user (lihat komponen Sidebar,
+ * bagian `visibleAdminSectionItems`). Field `permission` sengaja tidak
+ * dipasang di item-item ini.
+ */
+const MASTER_DATA_ITEM: NavItem = {
   label: "Data Master",
   path: "/master-data",
   icon: <IconMasterData />,
@@ -332,17 +503,27 @@ const masterDataNavItem: NavItem = {
     {
       label: "Competency Matrix",
       path: "/manage-competency-matrix",
-      icon: <IconLayers />,
+      icon: <IconCompetencyMatrix />,
     },
     {
       label: "Evaluation Form",
       path: "/manage-evaluation-form",
-      icon: <IconLayers />,
+      icon: <IconEvaluationForm />,
+    },
+    {
+      label: "Permission Matrix",
+      path: "/permission-matrix",
+      icon: <IconShield />,
     },
   ],
 };
 
-const manpowerNavItems: NavItem[] = [
+/**
+ * Menu Manpower: TIDAK memakai permission matrix. Visibility diatur
+ * langsung berdasarkan flag `can_view_manpower` (atau `is_admin`) milik
+ * user — sama seperti behavior lama, hanya dipertahankan apa adanya.
+ */
+const MANPOWER_ITEMS: NavItem[] = [
   { label: "Manpower Management", path: "/employees", icon: <IconEmployee /> },
   { label: "Manpower Pemagangan", path: "/interns", icon: <IconIntern /> },
 ];
@@ -353,150 +534,42 @@ interface SidebarProps {
 
 const SIDEBAR_WIDTH = 220;
 
+/** Filter rekursif: buang item yang tidak lolos permission, dan buang parent yang jadi kosong. */
+const filterByPermission = (
+  items: NavItem[],
+  can: (permission?: string | string[]) => boolean,
+): NavItem[] =>
+  items
+    .filter((item) => can(item.permission))
+    .map((item) =>
+      item.children
+        ? { ...item, children: filterByPermission(item.children, can) }
+        : item,
+    )
+    .filter((item) => !item.children || item.children.length > 0);
+
 const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { can } = usePermission();
 
   const roleName = user?.role?.name;
-
-  const isApproverRole =
-    roleName === "Manager" ||
-    roleName === "Division Head" ||
-    roleName === "Director";
-
-  const isHrAdmin = roleName === "HR Admin";
-  const isLeaderRole = roleName === "Leader";
-  const isQARole = roleName === "Quality Assurance";
-  const isSectionHeadRole = roleName === "Section Head";
-  const isAdmin = user?.is_admin === true || roleName === "Admin";
+  const isAdmin = user?.is_admin === true;
   const canViewManpower = user?.can_view_manpower === true;
-  const showAdminOnlySection = !isLeaderRole && !isQARole && isAdmin;
-  const isManagerRole = roleName === "Manager";
-  const showManpowerSection = isAdmin || canViewManpower;
 
-  const showAdminSection = showAdminOnlySection || showManpowerSection;
+  // NAV_ITEMS (menu alur bisnis) tetap difilter lewat permission matrix.
+  const navItems = filterByPermission(NAV_ITEMS, can);
 
+  // Data Master & Manpower TIDAK lewat filterByPermission — gate-nya
+  // langsung is_admin / can_view_manpower, sesuai keputusan desain.
+  // MASTER_DATA_ITEM dimasukkan utuh (bukan di-flatten) supaya tetap
+  // tampil sebagai menu induk collapsible dengan children di dalamnya.
   const visibleAdminSectionItems: NavItem[] = [
-    ...(showAdminOnlySection ? [masterDataNavItem] : []),
-    ...(showManpowerSection ? manpowerNavItems : []),
+    ...(isAdmin ? [MASTER_DATA_ITEM] : []),
+    ...(isAdmin || canViewManpower ? MANPOWER_ITEMS : []),
   ];
-
-  const navItems: NavItem[] = isLeaderRole
-    ? [
-        { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
-        {
-          label: "Competency Assessment",
-          path: "/competency-assessment",
-          icon: <IconClipboard />,
-        },
-        {
-          label: "My Submissions",
-          path: "/my-submissions",
-          icon: <IconListCheck />,
-        },
-        { label: "Evaluations", path: "/evaluations", icon: <IconClipboard /> },
-      ]
-    : isQARole
-      ? [
-          { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
-          { label: "QA Review", path: "/qa-review", icon: <IconQaReview /> },
-          { label: "My Reviews", path: "/my-reviews", icon: <IconListCheck /> },
-        ]
-      : [
-          { label: "Dashboard", path: "/dashboard", icon: <IconDashboard /> },
-          ...(!isApproverRole && !isHrAdmin
-            ? [
-                {
-                  label: "On Progress FPTK",
-                  path: "/fptklist",
-                  icon: <IconFPTK />,
-                },
-              ]
-            : []),
-          ...(!isApproverRole
-            ? [
-                {
-                  label: "Approved FPTK",
-                  path: "/fptk/approved",
-                  icon: <IconApproved />,
-                },
-              ]
-            : []),
-          ...(!isApproverRole && !isHrAdmin
-            ? [
-                {
-                  label: "Rejected FPTK",
-                  path: "/fptk/rejected",
-                  icon: <IconRejected />,
-                },
-              ]
-            : []),
-          ...(isApproverRole ? approvalNavItems : []),
-          ...(isApproverRole
-            ? [
-                {
-                  label: "FPTK History",
-                  path: "/fptk/history",
-                  icon: <IconHistory />,
-                },
-              ]
-            : []),
-          ...(isAdmin
-            ? [
-                {
-                  label: "Competency Assessment",
-                  path: "/competency-assessment",
-                  icon: <IconClipboard />,
-                },
-              ]
-            : []),
-          ...(isAdmin
-            ? [
-                {
-                  label: "My Submissions",
-                  path: "/my-submissions",
-                  icon: <IconListCheck />,
-                },
-              ]
-            : []),
-          ...(isAdmin
-            ? [
-                {
-                  label: "My Reviews",
-                  path: "/my-reviews",
-                  icon: <IconListCheck />,
-                },
-              ]
-            : []),
-          ...(isAdmin || isSectionHeadRole || isManagerRole
-            ? [
-                {
-                  label: "Evaluations",
-                  path: "/evaluations",
-                  icon: <IconClipboard />,
-                },
-              ]
-            : []),
-          ...(isAdmin || isHrAdmin
-            ? [
-                {
-                  label: "HR Decisions",
-                  path: "/evaluations/hr-decisions",
-                  icon: <IconListCheck />,
-                },
-              ]
-            : []),
-          ...(isAdmin
-            ? [
-                {
-                  label: "QA Review",
-                  path: "/qa-review",
-                  icon: <IconQaReview />,
-                },
-              ]
-            : []),
-        ];
+  const showAdminSection = visibleAdminSectionItems.length > 0;
 
   const isChildActive = (item: NavItem) =>
     !!item.children?.some((c) => c.path === location.pathname);
@@ -518,9 +591,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
     }));
   };
 
-  // ── Redesign: sidebar gelap dominan brand.600→brand.800, item aktif
-  // solid brand.500 (#1A5EA8), teks/ikon putih dengan opacity bertingkat
-  // untuk hierarki visual. ──
   const renderNavItem = (item: NavItem, depth = 0) => {
     const hasChildren = !!item.children && item.children.length > 0;
     const isActive = location.pathname === item.path;
@@ -541,12 +611,15 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
           cursor="pointer"
           bg={highlighted ? "brand.400" : "transparent"}
           color={highlighted ? "white" : "whiteAlpha.800"}
-          fontWeight={highlighted ? "400" : "400"}
+          fontWeight="400"
+          transformOrigin="left center"
           _hover={{
             bg: highlighted ? "brand.500" : "whiteAlpha.100",
             color: "white",
+            transform: "translateX(4px) scale(1.02)",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
           }}
-          transition="all 0.15s"
+          transition="all 0.2s ease"
           onClick={() => (hasChildren ? toggleMenu(item) : navigate(item.path))}
           position="relative"
           boxShadow={highlighted ? "0 2px 8px rgba(0,0,0,0.25)" : "none"}
@@ -595,7 +668,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
         transition="left 0.25s ease"
         boxShadow="5px 0 14px rgba(6, 26, 56, 0.25)"
       >
-        {/* Accent bar */}
         <Box
           h="4px"
           flexShrink={0}
@@ -604,7 +676,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
           gradientTo="brand.300"
         />
 
-        {/* Brand */}
         <Flex
           align="center"
           gap={3}
@@ -652,7 +723,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
           </Box>
         </Flex>
 
-        {/* Nav items */}
         <Box
           flex={1}
           py={3}
@@ -664,7 +734,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             msOverflowStyle: "none",
           }}
         >
-          {" "}
           <Text
             fontSize="10px"
             fontWeight="600"
@@ -698,7 +767,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open }) => {
           )}
         </Box>
 
-        {/* Footer kecil — opsional, penanda versi/role aktif */}
         <Box
           px={4}
           py={3}

@@ -21,6 +21,7 @@ const EMPTY_FORM: CreateEmployeeInput = {
   npk: "",
   name: "",
   gender: "male",
+  group: null,
   department_id: null,
   section_id: null,
   role_level: "",
@@ -105,6 +106,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
       setForm({
         npk: editTarget.npk,
         name: editTarget.name,
+        group: editTarget.group ?? null,
         gender: editTarget.gender,
         department_id: editTarget.department_id,
         section_id: editTarget.section_id,
@@ -520,6 +522,26 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                     </select>
                     {errorText("station_id")}
                   </Box>
+                  {/* Group */}
+                  <Box>
+                    <label style={labelStyle}>Group</label>
+                    <select
+                      style={selectStyle}
+                      value={form.group ?? ""}
+                      onChange={(e) =>
+                        handleChange(
+                          "group",
+                          e.target.value ? e.target.value : null,
+                        )
+                      }
+                    >
+                      <option value="">Select group</option>
+                      <option value="A">Group A</option>
+                      <option value="B">Group B</option>
+                    </select>
+                    {errorText("group")}
+                  </Box>
+                  <Box />
                   <Box>
                     <label style={labelStyle}>Gender *</label>
                     <select

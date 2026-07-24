@@ -3,22 +3,28 @@ import { Box, Text, Flex, Input, HStack, Stack, Grid } from "@chakra-ui/react";
 import { FiSave, FiArrowLeft, FiPlus, FiTrash2 } from "react-icons/fi";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
-import fptkService from "../../services/fptkService";
 import employeeService from "../../services/employeeService";
-import type { CreateRequisitionInput, MasterData } from "../../types/fptk";
+import type { CreateRequisitionInput } from "../../types/fptk";
 import type { Employee } from "../../types/employee";
 import { toaster } from "../../components/ui/toaster";
 import { useAuth } from "../../contexts/AuthContext";
 import userService from "../../services/userService";
-import { useCreateFptk } from "../../hooks/queries/useFptkQueries";
+import {
+  useCreateFptk,
+  useMasterData,
+} from "../../hooks/queries/useFptkQueries";
 
 const FptkForm: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
   const { mutateAsync: createFptk, isPending: loading } = useCreateFptk();
+
+  // ── React Query: master data (employee statuses, dll) ──
+  const { data: masterDataResponse } = useMasterData();
+  const masterData = masterDataResponse?.data ?? null;
+
   const [approverLoading, setApproverLoading] = useState(true);
-  const [masterData, setMasterData] = useState<MasterData | null>(null);
   const [activeEmployees, setActiveEmployees] = useState<Employee[]>([]);
   const [searchParams] = useSearchParams();
 
@@ -89,15 +95,22 @@ const FptkForm: React.FC = () => {
     director: string | null;
   }>({ manager: null, division: null, director: null });
 
+  // Approver chain & active employees belum punya query hook khusus
+  // (di luar domain FPTK: userService / employeeService), jadi tetap
+  // di-fetch manual di sini.
   useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+
     const loadData = async () => {
+      setApproverLoading(true);
       try {
-        const [masterRes, approverRes, employeeRes] = await Promise.all([
-          fptkService.getMasterData(),
-          userService.getApproversForUser(user!.id),
+        const [approverRes, employeeRes] = await Promise.all([
+          userService.getApproversForUser(user.id),
           employeeService.getActiveEmployees(),
         ]);
-        setMasterData(masterRes.data);
+        if (cancelled) return;
         setApproverChain({
           manager: approverRes.data.approver_manager?.name ?? null,
           division: approverRes.data.approver_division?.name ?? null,
@@ -105,13 +118,21 @@ const FptkForm: React.FC = () => {
         });
         setActiveEmployees(employeeRes.data as Employee[]);
       } catch {
-        toaster.create({ title: "Failed to load data", type: "error" });
+        if (!cancelled) {
+          toaster.create({ title: "Failed to load data", type: "error" });
+        }
       } finally {
-        setApproverLoading(false);
+        if (!cancelled) {
+          setApproverLoading(false);
+        }
       }
     };
 
     void loadData();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   useEffect(() => {

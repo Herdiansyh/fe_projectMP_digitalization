@@ -61,6 +61,7 @@ export interface Intern {
   section?: Section | null;
   created_at?: string;
   updated_at?: string;
+  group: "A" | "B" | null;
 }
 
 export interface CreateInternInput {
@@ -77,6 +78,7 @@ export interface CreateInternInput {
   join_date: string;
   start_contract: string;
   end_contract: string | null;
+  group: "A" | "B" | null;
 }
 
 export type UpdateInternInput = Partial<CreateInternInput>;
@@ -88,4 +90,10 @@ export interface InternListParams {
   department_id?: number;
   section_id?: number;
   near_expiry?: boolean;
+  all?: boolean;
+
+  area_id?: number;
+  line_id?: number;
+  station_id?: number;
+  group?: string;
 }

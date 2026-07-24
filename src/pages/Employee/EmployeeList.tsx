@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Box, Text, Flex, Input, HStack, Grid } from "@chakra-ui/react";
-import { FiPlus, FiEdit2, FiTrash2, FiSearch } from "react-icons/fi";
+import { Box, Text, Flex, Input, HStack, Grid, Stack } from "@chakra-ui/react";
+import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiPrinter } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
 import employeeService from "../../services/employeeService";
 import areaService from "../../services/areaService";
@@ -12,6 +12,10 @@ import DeleteModal from "./DeleteModal";
 import EmployeeFormModal from "./EmployeeFormModal";
 import type { MasterData } from "../../types/fptk";
 import EmployeeDetailModal from "./EmployeeDetailModal";
+import type { Line } from "../../types/line";
+import type { Station } from "../../types/station";
+import stationService from "../../services/stationService";
+import lineService from "../../services/lineService";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -120,7 +124,14 @@ const EmployeeList: React.FC = () => {
   const [detailTarget, setDetailTarget] = useState<Employee | null>(null);
 
   const debouncedSearch = useDebounce(search, 400);
+  const [printingAll, setPrintingAll] = useState(false);
+  const [filterArea, setFilterArea] = useState("");
+  const [filterLine, setFilterLine] = useState("");
+  const [filterStation, setFilterStation] = useState("");
+  const [lines, setLines] = useState<Line[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
 
+  const [filterGroup, setFilterGroup] = useState("");
   const fetchEmployees = useCallback(
     async (page = 1) => {
       try {
@@ -133,11 +144,15 @@ const EmployeeList: React.FC = () => {
           employment_type: filterType || undefined,
           is_active:
             filterActive === "" ? undefined : filterActive === "active",
+          area_id: filterArea ? Number(filterArea) : undefined,
+          line_id: filterLine ? Number(filterLine) : undefined,
+          station_id: filterStation ? Number(filterStation) : undefined,
+          group: filterGroup || undefined,
         });
         setEmployees(res.data.data);
-        setTotalPages(res.data.last_page);
-        setTotalData(res.data.total);
-        setCurrentPage(res.data.current_page);
+        setTotalPages(res.data.meta.last_page);
+        setTotalData(res.data.meta.total);
+        setCurrentPage(res.data.meta.current_page);
       } catch {
         toaster.create({
           title: "Failed to load employee data",
@@ -147,9 +162,17 @@ const EmployeeList: React.FC = () => {
         setLoading(false);
       }
     },
-    [debouncedSearch, filterDept, filterType, filterActive],
+    [
+      debouncedSearch,
+      filterDept,
+      filterType,
+      filterActive,
+      filterArea,
+      filterLine,
+      filterStation,
+      filterGroup,
+    ],
   );
-
   // Master data (department/section) + Area & Station di-fetch sekali saat
   // halaman dimuat, supaya modal form tidak perlu loading ulang tiap dibuka.
   useEffect(() => {
@@ -159,11 +182,89 @@ const EmployeeList: React.FC = () => {
       .then((res) => setAreas(res.data))
       .catch(() => setAreas([]));
   }, []);
+  useEffect(() => {
+    if (!filterArea) {
+      setLines([]);
+      setFilterLine("");
+      setStations([]);
+      setFilterStation("");
+      return;
+    }
+    void lineService
+      .getLines({ area_id: Number(filterArea) })
+      .then((res) => setLines(res.data))
+      .catch(() => setLines([]));
+    setFilterLine("");
+    setStations([]);
+    setFilterStation("");
+  }, [filterArea]);
 
+  useEffect(() => {
+    if (!filterLine) {
+      setStations([]);
+      setFilterStation("");
+      return;
+    }
+    void stationService
+      .getStations({ line_id: Number(filterLine) })
+      .then((res) => setStations(res.data))
+      .catch(() => setStations([]));
+    setFilterStation("");
+  }, [filterLine]);
   useEffect(() => {
     void fetchEmployees(1);
   }, [fetchEmployees]);
+  const handlePrintAllFiltered = async () => {
+    try {
+      setPrintingAll(true);
+      const res = await employeeService.getAllEmployees({
+        search: debouncedSearch || undefined,
+        department_id: filterDept ? Number(filterDept) : undefined,
+        employment_type: filterType || undefined,
+        is_active: filterActive === "" ? undefined : filterActive === "active",
+        area_id: filterArea ? Number(filterArea) : undefined,
+        line_id: filterLine ? Number(filterLine) : undefined,
+        station_id: filterStation ? Number(filterStation) : undefined,
+        group: filterGroup || undefined,
+      });
 
+      const allFiltered = res.data.data;
+
+      if (!allFiltered || allFiltered.length === 0) {
+        toaster.create({ title: "No data to print", type: "warning" });
+        return;
+      }
+
+      const payload = allFiltered.map((e) => ({
+        subject_type: "employee",
+        subject_id: e.id,
+      }));
+
+      const API_BASE_URL =
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+      const printUrl =
+        API_BASE_URL.replace(/\/api\/?$/, "") + "/print/manpower/bulk";
+
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = printUrl;
+      form.target = "_blank";
+
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "items";
+      input.value = JSON.stringify(payload);
+      form.appendChild(input);
+
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+    } catch {
+      toaster.create({ title: "Failed to prepare print data", type: "error" });
+    } finally {
+      setPrintingAll(false);
+    }
+  };
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
@@ -235,34 +336,81 @@ const EmployeeList: React.FC = () => {
               {totalData} total registered employees
             </Text>
           </Box>
-          <button
-            type="button"
-            onClick={() => {
-              setEditTarget(null);
-              setFormOpen(true);
-            }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "10px 20px",
-              fontSize: "14px",
-              fontWeight: 600,
-              borderRadius: "8px",
-              color: "#ffffff",
-              backgroundColor: "#1A5EA8",
-              border: "none",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor = "#154d8c")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = "#1A5EA8")
-            }
-          >
-            <FiPlus size={15} /> Add Employee
-          </button>
+          <Stack gap={3} direction={{ base: "column", md: "row" }}>
+            <Box w={{ base: "100%", md: "auto" }}>
+              <Box
+                as="button"
+                type="button"
+                onClick={handlePrintAllFiltered}
+                disabled={printingAll || totalData === 0}
+                display="inline-flex"
+                alignItems="center"
+                justifyContent="center"
+                w="100%"
+                gap="8px"
+                px="clamp(14px, 3vw, 20px)"
+                py="clamp(8px, 2vw, 10px)"
+                fontSize="clamp(12px, 2vw, 14px)"
+                fontWeight={600}
+                borderRadius="8px"
+                color={printingAll || totalData === 0 ? "#94a3b8" : "#1A5EA8"}
+                bg="#ffffff"
+                border="1px solid"
+                borderColor={
+                  printingAll || totalData === 0 ? "#e2e8f0" : "#1A5EA8"
+                }
+                cursor={
+                  printingAll || totalData === 0 ? "not-allowed" : "pointer"
+                }
+                whiteSpace="nowrap"
+                transition="all 0.2s ease"
+                _hover={
+                  printingAll || totalData === 0
+                    ? {}
+                    : {
+                        bg: "#f8fafc",
+                        transform: "translateY(-1px) scale(1.05)",
+                      }
+                }
+              >
+                <FiPrinter size={15} />
+                {printingAll ? "Preparing..." : `Print All (${totalData})`}
+              </Box>
+            </Box>
+            <Box w={{ base: "100%", md: "auto" }}>
+              <Box
+                as="button"
+                type="button"
+                onClick={() => {
+                  setEditTarget(null);
+                  setFormOpen(true);
+                }}
+                display="inline-flex"
+                alignItems="center"
+                justifyContent="center"
+                w="100%"
+                gap="8px"
+                px="clamp(14px, 3vw, 20px)"
+                py="clamp(8px, 2vw, 10px)"
+                fontSize="clamp(12px, 2vw, 14px)"
+                fontWeight={600}
+                borderRadius="8px"
+                color="#ffffff"
+                bg="#1A5EA8"
+                border="none"
+                cursor="pointer"
+                whiteSpace="nowrap"
+                transition="all 0.2s ease"
+                _hover={{
+                  bg: "#3A76B8",
+                  transform: "translateY(-1px) scale(1.05)",
+                }}
+              >
+                <FiPlus size={15} />
+                Add Employee
+              </Box>
+            </Box>
+          </Stack>
         </Flex>
 
         {/* Filters */}
@@ -276,7 +424,10 @@ const EmployeeList: React.FC = () => {
           mb={4}
         >
           <Grid
-            templateColumns={{ base: "1fr", md: "2fr 1fr 1fr 1fr" }}
+            templateColumns={{
+              base: "1fr",
+              md: "2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr",
+            }}
             gap={3}
           >
             <Box position="relative">
@@ -350,6 +501,88 @@ const EmployeeList: React.FC = () => {
               <option value="">All Status</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
+            </select>
+            {/* ── Filter Area ── */}
+            <select
+              value={filterArea}
+              onChange={(e) => setFilterArea(e.target.value)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "8px",
+                border: "1px solid #e2e8f0",
+                backgroundColor: "#f9fafb",
+                fontSize: "14px",
+                color: "#1a202c",
+              }}
+            >
+              <option value="">All Areas</option>
+              {areas.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+
+            {/* ── Filter Line (aktif hanya jika Area dipilih) ── */}
+            <select
+              value={filterLine}
+              onChange={(e) => setFilterLine(e.target.value)}
+              disabled={!filterArea}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "8px",
+                border: "1px solid #e2e8f0",
+                backgroundColor: filterArea ? "#f9fafb" : "#f1f5f9",
+                fontSize: "14px",
+                color: filterArea ? "#1a202c" : "#94a3b8",
+                cursor: filterArea ? "pointer" : "not-allowed",
+              }}
+            >
+              <option value="">All Lines</option>
+              {lines.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+
+            {/* ── Filter Station (aktif hanya jika Line dipilih) ── */}
+            <select
+              value={filterStation}
+              onChange={(e) => setFilterStation(e.target.value)}
+              disabled={!filterLine}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "8px",
+                border: "1px solid #e2e8f0",
+                backgroundColor: filterLine ? "#f9fafb" : "#f1f5f9",
+                fontSize: "14px",
+                color: filterLine ? "#1a202c" : "#94a3b8",
+                cursor: filterLine ? "pointer" : "not-allowed",
+              }}
+            >
+              <option value="">All Stations</option>
+              {stations.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filterGroup}
+              onChange={(e) => setFilterGroup(e.target.value)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "8px",
+                border: "1px solid #e2e8f0",
+                backgroundColor: "#f9fafb",
+                fontSize: "14px",
+                color: "#1a202c",
+              }}
+            >
+              <option value="">All Groups</option>
+              <option value="A">Group A</option>
+              <option value="B">Group B</option>
             </select>
           </Grid>
         </Box>
@@ -435,7 +668,6 @@ const EmployeeList: React.FC = () => {
                           style={{
                             padding: "12px 16px",
                             fontSize: "13px",
-                            fontWeight: 600,
                             color: "#1a202c",
                           }}
                         >

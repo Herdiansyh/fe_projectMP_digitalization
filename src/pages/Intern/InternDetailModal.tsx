@@ -1,9 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Box, Text, Flex, HStack, Grid } from "@chakra-ui/react";
-import { FiClock, FiUser, FiX } from "react-icons/fi";
+import { FiClock, FiPrinter, FiUser, FiX } from "react-icons/fi";
 import type { Intern } from "../../types/intern";
-import type { AssessableSubject } from "../../types/competency";
+import type {
+  AssessableSubject,
+  StationCompetencySummary,
+} from "../../types/competency";
 import AssessmentHistoryModal from "../Competency/AssessmentHistoryModal";
+import competencyService from "../../services/competencyService";
+import CompetencyDonutBadge from "../../components/competency/CompetencyDonutBadge";
 
 const formatDate = (dateString?: string | null) => {
   if (!dateString) return "-";
@@ -48,12 +53,37 @@ const InternDetailModal = ({
   onClose: () => void;
 }) => {
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [stationSummary, setStationSummary] = useState<
+    StationCompetencySummary[]
+  >([]);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && intern) {
+      setLoadingSummary(true);
+      competencyService
+        .getStationSummary("intern", intern.id)
+        .then((res) => setStationSummary(res.data))
+        .catch(() => setStationSummary([]))
+        .finally(() => setLoadingSummary(false));
+    }
+  }, [isOpen, intern]);
 
   if (!isOpen || !intern) return null;
 
+  const handlePrint = () => {
+    const API_BASE_URL =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+    const printUrl =
+      API_BASE_URL.replace(/\/api\/?$/, "") +
+      `/print/manpower/intern/${intern.id}`;
+    //           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ini yang menghapus "/api" di akhir
+    window.open(printUrl, "_blank");
+  };
+
   const isWarning = !!intern.is_near_expiry;
 
-  // Bentuk subject minimal yang dibutuhkan AssessmentHistoryModal
   const assessmentSubject: AssessableSubject = {
     id: intern.id,
     npk: intern.npk,
@@ -61,7 +91,7 @@ const InternDetailModal = ({
     subject_type: "intern",
     station_id: intern.station?.id ?? 0,
     station: intern.station || undefined,
-    latest_assessment: null, // tidak dipakai oleh history modal
+    latest_assessment: null,
   };
 
   return (
@@ -73,6 +103,14 @@ const InternDetailModal = ({
         style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
         onClick={onClose}
       />
+      {/*
+        Outer positioning wrapper.
+        - width is responsive (100% up to a max, with side padding so it never
+          touches the screen edges on small viewports)
+        - height is capped to the viewport (minus a top/bottom margin) so the
+          modal never overflows the screen; the inner card handles its own
+          internal scrolling.
+      */}
       <Box
         position="fixed"
         top="50%"
@@ -82,7 +120,9 @@ const InternDetailModal = ({
           transform: "translate(-50%, -50%)",
           width: "100%",
           maxWidth: "560px",
+          maxHeight: "calc(100vh - 32px)",
           padding: "0 16px",
+          display: "flex",
         }}
       >
         <Box
@@ -91,76 +131,129 @@ const InternDetailModal = ({
           shadow="xl"
           borderWidth="1px"
           borderColor="gray.100"
+          display="flex"
+          flexDirection="column"
           overflow="hidden"
+          w="100%"
+          maxH="calc(100vh - 32px)"
         >
-          {/* Header — tetap sama */}
-          <Flex px={6} pt={6} pb={4} justify="space-between" align="flex-start">
-            <HStack gap={3} align="flex-start">
-              <Box
-                w="44px"
-                h="44px"
-                borderRadius="10px"
-                bg="#eff6ff"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                flexShrink={0}
-              >
-                <FiUser size={20} color="#1d4ed8" />
-              </Box>
-              <Box>
-                <Text fontSize="17px" fontWeight="700" color="gray.800">
-                  {intern.name}
-                </Text>
-                <Text fontSize="13px" color="gray.500" mt={0.5}>
-                  NPK {intern.npk}
-                </Text>
-              </Box>
-            </HStack>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                width: "30px",
-                height: "30px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: "6px",
-                color: "#64748b",
-                backgroundColor: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
+          {/* Header (fixed, does not scroll) */}
+          <Box flexShrink={0} borderBottom="1px solid" borderColor="gray.100">
+            <Flex
+              px={{ base: 4, md: 6 }}
+              pt={{ base: 4, md: 6 }}
+              pb={4}
+              justify="space-between"
+              align="flex-start"
+              wrap="wrap"
+              gap={3}
             >
-              <FiX size={15} />
-            </button>
-          </Flex>
+              <HStack gap={3} align="flex-start">
+                <Box
+                  w="44px"
+                  h="44px"
+                  borderRadius="10px"
+                  bg="#eff6ff"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  flexShrink={0}
+                >
+                  <FiUser size={20} color="#1d4ed8" />
+                </Box>
+                <Box>
+                  <Text fontSize="17px" fontWeight="700" color="gray.800">
+                    {intern.name}
+                  </Text>
+                  <Text fontSize="13px" color="gray.500" mt={0.5}>
+                    NPK {intern.npk}
+                  </Text>
+                </Box>
+              </HStack>
+              <HStack gap={2} flexShrink={0}>
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "6px 14px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    borderRadius: "8px",
+                    color: "#ffffff",
+                    backgroundColor: isHovered ? "#169696" : "#008080",
+                    border: "1px solid #008080",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    transform: isHovered ? "scale(1.05)" : "scale(1)",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={() => setIsHovered(true)}
+                  onMouseLeave={() => setIsHovered(false)}
+                >
+                  <FiPrinter size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  style={{
+                    width: "30px",
+                    height: "30px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: "6px",
+                    color: "#64748b",
+                    backgroundColor: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#eef2f7";
+                    e.currentTarget.style.transform = "scale(1.08)";
+                    e.currentTarget.style.color = "#334155";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f8fafc";
+                    e.currentTarget.style.transform = "scale(1)";
+                    e.currentTarget.style.color = "#64748b";
+                  }}
+                >
+                  <FiX size={15} />
+                </button>
+              </HStack>
+            </Flex>
 
-          {isWarning && (
-            <Box px={6} pb={2}>
-              <Box
-                bg="#fff1f2"
-                border="1px solid #fecdd3"
-                borderRadius="8px"
-                px={3}
-                py={2}
-              >
-                <Text fontSize="13px" fontWeight="600" color="#be123c">
-                  ⚠ Need Evaluation — internship ends in{" "}
-                  {intern.days_until_expiry} day
-                  {intern.days_until_expiry === 1 ? "" : "s"}
-                </Text>
+            {isWarning && (
+              <Box px={{ base: 4, md: 6 }} pb={2}>
+                <Box
+                  bg="#fff1f2"
+                  border="1px solid #fecdd3"
+                  borderRadius="8px"
+                  px={3}
+                  py={2}
+                >
+                  <Text fontSize="13px" fontWeight="600" color="#be123c">
+                    ⚠ Need Evaluation — internship ends in{" "}
+                    {intern.days_until_expiry} day
+                    {intern.days_until_expiry === 1 ? "" : "s"}
+                  </Text>
+                </Box>
               </Box>
-            </Box>
-          )}
+            )}
+          </Box>
 
-          <Box h="1px" bg="gray.100" />
-
-          {/* Body — tetap sama */}
-          <Box px={6} py={5}>
-            <Grid templateColumns="1fr 1fr" gap={4} mb={4}>
+          {/* Body (the only part that scrolls) */}
+          <Box flex="1" overflowY="auto" px={{ base: 4, md: 6 }} py={5}>
+            <Grid
+              templateColumns={{ base: "1fr", sm: "1fr 1fr" }}
+              gap={4}
+              mb={4}
+            >
               <DetailRow
                 label="Gender"
                 value={
@@ -178,11 +271,15 @@ const InternDetailModal = ({
               <DetailRow label="Area" value={intern.area?.name} />
               <DetailRow label="Line" value={intern.line?.name} />
               <DetailRow label="Station" value={intern.station?.name} />
+              <DetailRow
+                label="Group"
+                value={intern.group ? `Group ${intern.group}` : "-"}
+              />
             </Grid>
 
             <Box h="1px" bg="gray.100" my={4} />
 
-            <Grid templateColumns="1fr 1fr" gap={4}>
+            <Grid templateColumns={{ base: "1fr", sm: "1fr 1fr" }} gap={4}>
               <DetailRow
                 label="Join Date"
                 value={formatDate(intern.join_date)}
@@ -203,12 +300,54 @@ const InternDetailModal = ({
                 }
               />
             </Grid>
+
+            <Box h="1px" bg="gray.100" my={4} />
+
+            <Text
+              fontSize="11px"
+              fontWeight={700}
+              color="gray.400"
+              mb={3}
+              textTransform="uppercase"
+              letterSpacing="0.05em"
+            >
+              Competency by Station
+            </Text>
+
+            {loadingSummary ? (
+              <Text fontSize="13px" color="gray.400">
+                Loading...
+              </Text>
+            ) : stationSummary.length === 0 ? (
+              <Text fontSize="13px" color="gray.400">
+                No approved assessment yet.
+              </Text>
+            ) : (
+              <Flex gap={4} wrap="wrap">
+                {stationSummary.map((s) => (
+                  <CompetencyDonutBadge
+                    key={s.station_id}
+                    score={s.final_score}
+                    stationName={s.station_name}
+                    periodLabel={s.period_label}
+                  />
+                ))}
+              </Flex>
+            )}
           </Box>
 
-          <Box h="1px" bg="gray.100" />
-
-          {/* Footer — tambah tombol Assessment History, sejajar dengan Close */}
-          <Flex px={6} py={4} justify="space-between" align="center">
+          {/* Footer (fixed, does not scroll) */}
+          <Flex
+            px={{ base: 4, md: 6 }}
+            py={4}
+            justify="space-between"
+            align="center"
+            flexShrink={0}
+            borderTop="1px solid"
+            borderColor="gray.100"
+            wrap="wrap"
+            gap={3}
+          >
             <button
               type="button"
               onClick={() => setHistoryOpen(true)}

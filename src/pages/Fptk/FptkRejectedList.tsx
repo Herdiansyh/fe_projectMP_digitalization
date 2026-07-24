@@ -1,56 +1,28 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Text, Flex, HStack } from "@chakra-ui/react";
 import { FiSearch, FiPrinter, FiEye } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
-import fptkService from "../../services/fptkService";
-import type { Requisition, RequisitionListParams } from "../../types/fptk";
+import { useFptkList } from "../../hooks/queries/useFptkQueries";
 
 // ── Komponen utama ────────────────────────────────────────────────────────────
 const FptkRejectedList: React.FC = () => {
   const navigate = useNavigate();
-  const [requisitions, setRequisitions] = useState<Requisition[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const [pagination, setPagination] = useState({
-    current_page: 1,
-    last_page: 1,
-    per_page: 10,
-    total: 0,
-  });
   const [page, setPage] = useState(1);
-  const [filters] = useState<RequisitionListParams>({
-    status: "Rejected",
-  });
   const [searchInput, setSearchInput] = useState("");
-
-  const fetchRequisitions = useCallback(
-    async (params: RequisitionListParams) => {
-      try {
-        setLoading(true);
-        const cleanParams = Object.fromEntries(
-          Object.entries(params).filter(
-            ([, v]) => v !== "" && v !== undefined && v !== null,
-          ),
-        ) as RequisitionListParams;
-        const response = await fptkService.getRequisitions(cleanParams);
-        setRequisitions(response.data.data);
-        setPagination({
-          current_page: response.data.current_page,
-          last_page: response.data.last_page,
-          per_page: response.data.per_page,
-          total: response.data.total,
-        });
-      } catch {
-        alert("Failed to fetch requisitions");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
-
   const [clientSearch, setClientSearch] = useState("");
+
+  // ── React Query: daftar FPTK Rejected ──
+  const listParams = { status: "Rejected", page, per_page: 10 };
+  const { data: listResponse, isLoading: loading } = useFptkList(listParams);
+
+  const requisitions = listResponse?.data?.data ?? [];
+  const pagination = {
+    current_page: listResponse?.data?.meta?.current_page ?? 1,
+    last_page: listResponse?.data?.meta?.last_page ?? 1,
+    per_page: listResponse?.data?.meta?.per_page ?? 10,
+    total: listResponse?.data?.meta?.total ?? 0,
+  };
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -59,10 +31,6 @@ const FptkRejectedList: React.FC = () => {
     }, 400);
     return () => clearTimeout(timeout);
   }, [searchInput]);
-
-  useEffect(() => {
-    void fetchRequisitions({ page, per_page: 10, ...filters });
-  }, [page, filters, fetchRequisitions]);
 
   const displayedRequisitions = clientSearch
     ? requisitions.filter(

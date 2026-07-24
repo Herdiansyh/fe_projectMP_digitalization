@@ -33,7 +33,28 @@ const employeeService = {
     );
     return response.data;
   },
+  // Untuk export / print semua data
+  getAllEmployees: async (
+    params?: Omit<EmployeeListParams, "page" | "per_page">,
+  ): Promise<ApiResponse<{ data: Employee[] }>> => {
+    const cleanParams = {
+      ...Object.fromEntries(
+        Object.entries(params ?? {}).filter(
+          ([, value]) => value !== "" && value !== undefined && value !== null,
+        ),
+      ),
+      all: true,
+    };
 
+    const response = await axiosInstance.get<ApiResponse<{ data: Employee[] }>>(
+      "/employees",
+      {
+        params: cleanParams,
+      },
+    );
+
+    return response.data;
+  },
   // Create new employee
   createEmployee: async (
     data: CreateEmployeeInput,

@@ -23,6 +23,7 @@ const EMPTY_FORM: CreateInternInput = {
   gender: "male",
   department_id: null,
   section_id: null,
+  group: null,
   role_level: "",
   jabatan: "",
   area_id: null,
@@ -108,6 +109,7 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
         npk: editTarget.npk,
         name: editTarget.name,
         gender: editTarget.gender,
+        group: editTarget.group ?? null,
         department_id: editTarget.department_id,
         section_id: editTarget.section_id,
         role_level: editTarget.role_level ?? "",
@@ -498,6 +500,24 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
                       ))}
                     </select>
                     {errorText("line_id")}
+                  </Box>{" "}
+                  <Box>
+                    <label style={labelStyle}>Group</label>
+                    <select
+                      style={selectStyle}
+                      value={form.group ?? ""}
+                      onChange={(e) =>
+                        handleChange(
+                          "group",
+                          e.target.value ? e.target.value : null,
+                        )
+                      }
+                    >
+                      <option value="">Select group</option>
+                      <option value="A">Group A</option>
+                      <option value="B">Group B</option>
+                    </select>
+                    {errorText("group")}
                   </Box>
                   <Box>
                     <label style={labelStyle}>Station</label>
@@ -528,11 +548,7 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
                       ))}
                     </select>
                     {errorText("station_id")}
-                  </Box>
-                </Grid>
-
-                {/* Start & End Contract */}
-                <Grid templateColumns="1fr 1fr" gap={4}>
+                  </Box>{" "}
                   <Box>
                     <label style={labelStyle}>Join Date *</label>
                     <input
@@ -546,6 +562,7 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
                     />
                     {errorText("join_date")}
                   </Box>
+                  {/* start contract */}
                   <Box>
                     <label style={labelStyle}>Internship Start Date *</label>
                     <input
@@ -558,7 +575,8 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
                       }
                     />
                     {errorText("start_contract")}
-                  </Box>
+                  </Box>{" "}
+                  {/* end contract */}
                   <Box>
                     <label style={labelStyle}>Internship End Date *</label>
                     <input

@@ -7,6 +7,7 @@ import type {
   MySubmissionItem,
   AssessmentDetail,
   MyReviewItem,
+  MonitoringItem,
 } from "../types/competency";
 
 const competencyService = {
@@ -84,6 +85,23 @@ const competencyService = {
     data: MyReviewItem[];
   }> => {
     const response = await axiosInstance.get("/assessments/my-reviews");
+    return response.data;
+  },
+
+  getMonitoring: async (): Promise<{
+    success: boolean;
+    data: MonitoringItem[];
+  }> => {
+    const response = await axiosInstance.get("/assessments/monitoring");
+    return response.data;
+  },
+  getStationSummary: async (
+    subjectType: "employee" | "intern",
+    subjectId: number,
+  ): Promise<{ success: boolean; data: StationCompetencySummary[] }> => {
+    const response = await axiosInstance.get("/assessments/station-summary", {
+      params: { subject_type: subjectType, subject_id: subjectId },
+    });
     return response.data;
   },
 };
