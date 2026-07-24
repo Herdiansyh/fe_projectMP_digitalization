@@ -18,7 +18,40 @@ const formatDate = (dateString?: string | null) => {
     year: "numeric",
   });
 };
+const getContractDuration = (start?: string | null, end?: string | null) => {
+  if (!start) return "-";
 
+  const startDate = new Date(start);
+
+  // gunakan hari ini atau end contract (mana yang lebih kecil)
+  const today = new Date();
+  const endDate = end && new Date(end) < today ? new Date(end) : today;
+
+  let years = endDate.getFullYear() - startDate.getFullYear();
+  let months = endDate.getMonth() - startDate.getMonth();
+  let days = endDate.getDate() - startDate.getDate();
+
+  if (days < 0) {
+    months--;
+    const prevMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+    days += prevMonth.getDate();
+  }
+
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+
+  const parts: string[] = [];
+
+  if (years > 0) parts.push(`${years} Year${years > 1 ? "s" : ""}`);
+
+  if (months > 0) parts.push(`${months} Month${months > 1 ? "s" : ""}`);
+
+  if (days > 0) parts.push(`${days} Day${days > 1 ? "s" : ""}`);
+
+  return parts.length ? parts.join(" ") : "0 Day";
+};
 const DetailRow = ({
   label,
   value,
@@ -298,6 +331,13 @@ const InternDetailModal = ({
                     {formatDate(intern.end_contract)}
                   </Text>
                 }
+              />
+              <DetailRow
+                label="Total Working Period"
+                value={getContractDuration(
+                  intern.start_contract,
+                  intern.end_contract,
+                )}
               />
             </Grid>
 
