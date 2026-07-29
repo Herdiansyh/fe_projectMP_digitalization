@@ -594,36 +594,41 @@ const EvaluationForm: React.FC = () => {
             <Text fontSize="16px" fontWeight="700" color="gray.800">
               {subjectType === "intern" ? "Intern" : "Employee"} Details
             </Text>
-            {/* === TAMBAHAN INTERN: switch Employee/Intern, hanya muncul
-                saat create manual (bukan prefill, bukan edit) — di edit
-                mode subjectType sudah fix dari data tersimpan. === */}
+            {/* === TAMBAHAN INTERN: tab Employee/Intern, teks dipisah "|",
+                hanya muncul saat create manual (bukan prefill, bukan edit)
+                — di edit mode subjectType sudah fix dari data tersimpan. === */}
             {!isEditMode && !isPrefilled && (
               <HStack gap={2}>
-                {(["employee", "intern"] as SubjectType[]).map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => {
-                      setSubjectType(type);
-                      setSelectedEmployeeId("");
-                      setSelectedInternId("");
-                    }}
-                    style={{
-                      padding: "6px 14px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      borderRadius: "6px",
-                      border: "1px solid",
-                      borderColor: subjectType === type ? "#1A5EA8" : "#e2e8f0",
-                      backgroundColor:
-                        subjectType === type ? "#1A5EA8" : "#fff",
-                      color: subjectType === type ? "#fff" : "#475569",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {type === "employee" ? "Employee" : "Intern"}
-                  </button>
-                ))}
+                {(["employee", "intern"] as SubjectType[]).map(
+                  (type, index) => (
+                    <React.Fragment key={type}>
+                      {index > 0 && (
+                        <Text fontSize="13px" color="#cbd5e1" userSelect="none">
+                          |
+                        </Text>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSubjectType(type);
+                          setSelectedEmployeeId("");
+                          setSelectedInternId("");
+                        }}
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: subjectType === type ? 700 : 500,
+                          color: subjectType === type ? "#1A5EA8" : "#94a3b8",
+                          cursor: "pointer",
+                          background: "transparent",
+                          border: "none",
+                          padding: 0,
+                        }}
+                      >
+                        {type === "employee" ? "Employee" : "Intern"}
+                      </button>
+                    </React.Fragment>
+                  ),
+                )}
               </HStack>
             )}
           </Flex>
@@ -721,7 +726,7 @@ const EvaluationForm: React.FC = () => {
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, npk: event.target.value }))
                 }
-                disabled={isPrefilled}
+                disabled
               />
             </Box>
             <Box flex={1} minW="220px">
@@ -733,7 +738,7 @@ const EvaluationForm: React.FC = () => {
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, jabatan: event.target.value }))
                 }
-                disabled={isPrefilled}
+                disabled
               />
             </Box>
             <Box flex={1} minW="220px">
