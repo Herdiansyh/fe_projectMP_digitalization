@@ -1,11 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Flex, HStack, Input, Text, Textarea } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  HStack,
+  Input,
+  Stack,
+  Text,
+  Textarea,
+} from "@chakra-ui/react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { FiAlertCircle, FiInfo } from "react-icons/fi";
+import { FiAlertCircle, FiInfo, FiTrash2 } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
 import { useAuth } from "../../contexts/AuthContext";
 import evaluationService from "../../services/evaluationService";
 import employeeService from "../../services/employeeService";
+import internService from "../../services/internService";
 import type {
   Evaluation,
   EvaluationGroup,
@@ -13,8 +22,11 @@ import type {
   EvaluationScorePayload,
 } from "../../types/evaluation";
 import type { Employee } from "../../types/employee";
+import type { Intern } from "../../types/intern";
 import ScoringRubricTable from "./ScoringRubricTable";
 import AlertDialog from "../../components/common/AlertDialog";
+import { notify } from "../../utils/toast";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 
 type AlertVariant = "warning" | "error";
 
@@ -23,6 +35,9 @@ interface AlertState {
   message: string;
   variant: AlertVariant;
 }
+
+// === TAMBAHAN INTERN ===
+type SubjectType = "employee" | "intern";
 
 const EvaluationForm: React.FC = () => {
   const navigate = useNavigate();
@@ -34,14 +49,27 @@ const EvaluationForm: React.FC = () => {
   const isEditMode = Boolean(id);
 
   const prefillEmployeeId = searchParams.get("employee_id");
-  const isPrefilled = Boolean(prefillEmployeeId) && !isEditMode;
+  const prefillInternId = searchParams.get("intern_id");
+  const isPrefilled =
+    (Boolean(prefillEmployeeId) || Boolean(prefillInternId)) && !isEditMode;
+
+  const [subjectType, setSubjectType] = useState<SubjectType>(
+    prefillInternId ? "intern" : "employee",
+  );
+
   const [employees, setEmployees] = useState<Employee[]>([]);
+  // === TAMBAHAN INTERN ===
+  const [interns, setInterns] = useState<Intern[]>([]);
   const [criteriaGroups, setCriteriaGroups] = useState<EvaluationGroup[]>([]);
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | "">(
     prefillEmployeeId ? Number(prefillEmployeeId) : "",
+  );
+  // === TAMBAHAN INTERN ===
+  const [selectedInternId, setSelectedInternId] = useState<number | "">(
+    prefillInternId ? Number(prefillInternId) : "",
   );
   const [form, setForm] = useState({
     npk: searchParams.get("npk") ?? "",
@@ -54,9 +82,7 @@ const EvaluationForm: React.FC = () => {
     reminder_note: "",
   });
   const prefillName = searchParams.get("name") ?? "";
-
-  // "scores" = skor milik role yang SEDANG login & berhak edit di stage ini
-  // "leaderScores" = skor Leader, dipakai sebagai referensi read-only saat SH mengisi
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [scores, setScores] = useState<Record<number, number>>({});
   const [leaderScores, setLeaderScores] = useState<Record<number, number>>({});
 
@@ -69,7 +95,6 @@ const EvaluationForm: React.FC = () => {
       notes: "",
     });
 
-  // ─── Dialog alert (menggantikan window.alert) ──────────────────────────────
   const [alertInfo, setAlertInfo] = useState<AlertState | null>(null);
 
   const showAlert = (
@@ -80,11 +105,6 @@ const EvaluationForm: React.FC = () => {
     setAlertInfo({ title, message, variant });
   };
 
-  // Mode form penilaian ditentukan dari role user & stage evaluation saat ini.
-  // - create mode (belum ada evaluation) selalu dianggap "leader"
-  // - Section Head hanya bisa edit (mode "section_head") saat stage-nya "section_head"
-  // - Leader hanya bisa edit (mode "leader") saat stage-nya "leader"
-  // - selain itu (Manager, atau giliran bukan miliknya) -> readonly
   const scoringMode: "leader" | "section_head" | "readonly" = useMemo(() => {
     if (!isEditMode || !evaluation) return "leader";
     if (
@@ -102,11 +122,14 @@ const EvaluationForm: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [employeesResponse, criteriaResponse] = await Promise.all([
-          employeeService.getEmployees({ per_page: 100 }),
-          evaluationService.getCriteria(),
-        ]);
-        setEmployees(employeesResponse.data?.data ?? []);
+        const [employeesResponse, internsResponse, criteriaResponse] =
+          await Promise.all([
+            employeeService.getActiveEmployees(),
+            internService.getActiveInterns(),
+            evaluationService.getCriteria(),
+          ]);
+        setEmployees(employeesResponse.data ?? []);
+        setInterns(internsResponse.data ?? []);
         setCriteriaGroups(criteriaResponse.data ?? []);
       } catch {
         // ignore for now
@@ -127,7 +150,15 @@ const EvaluationForm: React.FC = () => {
         const response = await evaluationService.getEvaluation(Number(id));
         const item = response.data;
         setEvaluation(item);
-        setSelectedEmployeeId(item.employee_id);
+
+        // === TAMBAHAN INTERN: tentukan subjectType dari data tersimpan ===
+        const loadedSubjectType: SubjectType = item.intern_id
+          ? "intern"
+          : "employee";
+        setSubjectType(loadedSubjectType);
+        setSelectedEmployeeId(item.employee_id ?? "");
+        setSelectedInternId(item.intern_id ?? "");
+
         setForm({
           npk: item.npk ?? "",
           jabatan: item.jabatan ?? "",
@@ -199,8 +230,14 @@ const EvaluationForm: React.FC = () => {
     void loadEvaluation();
   }, [id, isEditMode, navigate, roleName]);
 
+  // Auto-fill dari Employee yang dipilih manual (bukan prefill dari trigger)
   useEffect(() => {
-    if (!isEditMode && !isPrefilled && selectedEmployeeId) {
+    if (
+      !isEditMode &&
+      !isPrefilled &&
+      subjectType === "employee" &&
+      selectedEmployeeId
+    ) {
       const employee = employees.find((e) => e.id === selectedEmployeeId);
       if (employee) {
         setForm((prev) => ({
@@ -217,7 +254,34 @@ const EvaluationForm: React.FC = () => {
         }));
       }
     }
-  }, [selectedEmployeeId, employees, isEditMode, isPrefilled]);
+  }, [selectedEmployeeId, employees, isEditMode, isPrefilled, subjectType]);
+
+  // === TAMBAHAN INTERN: auto-fill dari Intern yang dipilih manual ===
+  useEffect(() => {
+    if (
+      !isEditMode &&
+      !isPrefilled &&
+      subjectType === "intern" &&
+      selectedInternId
+    ) {
+      const intern = interns.find((i) => i.id === selectedInternId);
+      if (intern) {
+        setForm((prev) => ({
+          ...prev,
+          npk: intern.npk ?? "",
+          jabatan: intern.jabatan ?? "",
+          join_date: intern.join_date ? intern.join_date.split("T")[0] : "",
+          start_date: intern.start_contract
+            ? intern.start_contract.split("T")[0]
+            : "",
+          end_date: intern.end_contract
+            ? intern.end_contract.split("T")[0]
+            : "",
+        }));
+      }
+    }
+  }, [selectedInternId, interns, isEditMode, isPrefilled, subjectType]);
+
   useEffect(() => {
     if (recommendation.employee_status === "kontrak_berakhir") {
       setRecommendation((prev) => ({
@@ -248,7 +312,10 @@ const EvaluationForm: React.FC = () => {
     );
   };
   const handleCreate = async () => {
-    if (!selectedEmployeeId) return;
+    // === UBAH (Intern): validasi subjek terpilih tergantung subjectType ===
+    const selectedSubjectId =
+      subjectType === "intern" ? selectedInternId : selectedEmployeeId;
+    if (!selectedSubjectId) return;
     if (saving) return; // cegah double-submit kalau user klik berkali-kali
 
     const unfilled = getUnfilledCriteria();
@@ -267,7 +334,11 @@ const EvaluationForm: React.FC = () => {
       let basePayload;
       if (isPrefilled) {
         basePayload = {
-          employee_id: Number(selectedEmployeeId),
+          // === UBAH (Intern): employee_id ATAU intern_id, exclusive ===
+          employee_id:
+            subjectType === "employee" ? Number(selectedSubjectId) : undefined,
+          intern_id:
+            subjectType === "intern" ? Number(selectedSubjectId) : undefined,
           npk: form.npk || undefined,
           jabatan: form.jabatan || undefined,
           join_date: form.join_date || null,
@@ -275,12 +346,25 @@ const EvaluationForm: React.FC = () => {
           end_date: form.end_date || null,
           pkwt: form.pkwt || null,
         };
+      } else if (subjectType === "intern") {
+        const intern = interns.find((item) => item.id === selectedSubjectId);
+        basePayload = {
+          employee_id: undefined,
+          intern_id: Number(selectedSubjectId),
+          npk: intern?.npk,
+          jabatan: intern?.jabatan,
+          join_date: intern?.join_date ?? null,
+          start_date: intern?.start_contract ?? null,
+          end_date: intern?.end_contract ?? null,
+          pkwt: form.pkwt || null,
+        };
       } else {
         const employee = employees.find(
-          (item) => item.id === selectedEmployeeId,
+          (item) => item.id === selectedSubjectId,
         );
         basePayload = {
-          employee_id: Number(selectedEmployeeId),
+          employee_id: Number(selectedSubjectId),
+          intern_id: undefined,
           npk: employee?.npk,
           jabatan: employee?.jabatan,
           join_date: employee?.join_date ?? null,
@@ -290,9 +374,6 @@ const EvaluationForm: React.FC = () => {
         };
       }
 
-      // Semua data (evaluation + scores + recommendation) dikirim dalam SATU
-      // request. Backend akan bungkus ini dalam satu DB transaction, jadi
-      // kalau ada bagian yang gagal, tidak ada draft "nyangkut" di tengah jalan.
       const payload = {
         ...basePayload,
         scores: Object.entries(scores).map(([criteriaId, score]) => ({
@@ -305,6 +386,7 @@ const EvaluationForm: React.FC = () => {
       const response = await evaluationService.createEvaluation(payload);
       const newId = response.data.id;
 
+      notify.success("Evaluation created successfully");
       navigate(`/evaluations/${newId}`);
     } catch {
       showAlert("Gagal Menyimpan", "Failed to create evaluation", "error");
@@ -355,18 +437,17 @@ const EvaluationForm: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (
-      !evaluation ||
-      !window.confirm("Are you sure you want to delete this draft?")
-    )
-      return;
+    if (!evaluation) return;
     setSaving(true);
     try {
       await evaluationService.deleteEvaluation(evaluation.id);
+      notify.success("Evaluation deleted successfully");
       navigate("/evaluations");
     } catch {
       showAlert("Gagal Menghapus", "Failed to delete evaluation", "error");
       setSaving(false);
+    } finally {
+      setDeleteConfirmOpen(false);
     }
   };
 
@@ -381,6 +462,9 @@ const EvaluationForm: React.FC = () => {
   }
 
   const isScoringReadonly = scoringMode === "readonly";
+  // === TAMBAHAN INTERN ===
+  const selectedSubjectId =
+    subjectType === "intern" ? selectedInternId : selectedEmployeeId;
 
   return (
     <MainLayout>
@@ -391,68 +475,159 @@ const EvaluationForm: React.FC = () => {
               {isEditMode ? "Edit Evaluation" : "Create Evaluation"}
             </Text>
             <Text fontSize="13px" color="gray.500" mt={0.5}>
-              Fill the employee details and scoring rubric.
+              {/* === TAMBAHAN INTERN === */}
+              Fill the {subjectType === "intern" ? "intern" : "employee"}{" "}
+              details and scoring rubric.
             </Text>
           </Box>
-          <HStack gap={2}>
+          <Stack
+            gap={2}
+            direction={{ base: "column", sm: "row" }}
+            w={{ base: "100%", sm: "auto" }}
+          >
             {isEditMode && evaluation?.status === "draft" && (
-              <button
-                type="button"
-                onClick={handleDelete}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  border: "none",
-                  backgroundColor: "#ef4444",
-                  color: "#fff",
-                }}
-                disabled={saving}
+              <Box
+                as="button"
+                onClick={saving ? undefined : () => setDeleteConfirmOpen(true)}
+                display="inline-flex"
+                alignItems="center"
+                justifyContent="center"
+                w={{ base: "100%", sm: "auto" }}
+                px="clamp(14px, 3vw, 20px)"
+                py="clamp(8px, 2vw, 10px)"
+                fontSize="clamp(12px, 2vw, 14px)"
+                fontWeight={600}
+                borderRadius="8px"
+                color="#ffffff"
+                bg="#ef4444"
+                border="none"
+                cursor={saving ? "not-allowed" : "pointer"}
+                opacity={saving ? 0.6 : 1}
+                whiteSpace="nowrap"
+                transition="all 0.2s ease"
+                _hover={
+                  saving
+                    ? {}
+                    : {
+                        bg: "#dc2626",
+                        transform: "translatey(-1px) scale(1.02)",
+                        boxShadow: "0 4px 12px rgba(239,68,68,0.35)",
+                      }
+                }
               >
                 Cancel Evaluation
-              </button>
+              </Box>
             )}
-            <button
-              type="button"
+
+            <Box
+              as="button"
               onClick={() => navigate("/evaluations")}
-              style={{
-                padding: "8px 14px",
-                borderRadius: "8px",
-                border: "1px solid #e2e8f0",
-                backgroundColor: "#fff",
-                color: "#475569",
+              display="inline-flex"
+              alignItems="center"
+              justifyContent="center"
+              w={{ base: "100%", sm: "auto" }}
+              px="clamp(14px, 3vw, 20px)"
+              py="clamp(8px, 2vw, 10px)"
+              fontSize="clamp(12px, 2vw, 14px)"
+              fontWeight={600}
+              borderRadius="8px"
+              color="#475569"
+              bg="#ffffff"
+              border="1px solid"
+              borderColor="#e2e8f0"
+              cursor="pointer"
+              whiteSpace="nowrap"
+              transition="all 0.2s ease"
+              _hover={{
+                bg: "#f8fafc",
+                transform: "translatey(-1px) scale(1.02)",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
               }}
             >
               Cancel
-            </button>
+            </Box>
+
             {!isScoringReadonly && (
-              <button
-                type="button"
-                onClick={isEditMode ? handleSave : handleCreate}
-                disabled={saving}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  border: "none",
-                  backgroundColor: "#3b82f6",
-                  color: "#fff",
-                  opacity: saving ? 0.6 : 1,
-                  cursor: saving ? "not-allowed" : "pointer",
-                }}
+              <Box
+                as="button"
+                onClick={
+                  saving ? undefined : isEditMode ? handleSave : handleCreate
+                }
+                display="inline-flex"
+                alignItems="center"
+                justifyContent="center"
+                w={{ base: "100%", sm: "auto" }}
+                px="clamp(14px, 3vw, 20px)"
+                py="clamp(8px, 2vw, 10px)"
+                fontSize="clamp(12px, 2vw, 14px)"
+                fontWeight={600}
+                borderRadius="8px"
+                color="#ffffff"
+                bg="#1A5EA8"
+                border="none"
+                cursor={saving ? "not-allowed" : "pointer"}
+                opacity={saving ? 0.6 : 1}
+                whiteSpace="nowrap"
+                transition="all 0.2s ease"
+                _hover={
+                  saving
+                    ? {}
+                    : {
+                        bg: "#3A76B8",
+                        transform: "translatey(-1px) scale(1.02)",
+                        boxShadow: "0 4px 12px rgba(26,94,168,0.35)",
+                      }
+                }
               >
                 {saving
                   ? "Saving..."
                   : isEditMode
                     ? "Save Evaluation"
                     : "Create Evaluation"}
-              </button>
+              </Box>
             )}
-          </HStack>
+          </Stack>
         </Flex>
 
         <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
-          <Text fontSize="16px" fontWeight="700" color="gray.800" mb={4}>
-            Employee Details
-          </Text>
+          <Flex justify="space-between" align="center" mb={4}>
+            <Text fontSize="16px" fontWeight="700" color="gray.800">
+              {subjectType === "intern" ? "Intern" : "Employee"} Details
+            </Text>
+            {/* === TAMBAHAN INTERN: switch Employee/Intern, hanya muncul
+                saat create manual (bukan prefill, bukan edit) — di edit
+                mode subjectType sudah fix dari data tersimpan. === */}
+            {!isEditMode && !isPrefilled && (
+              <HStack gap={2}>
+                {(["employee", "intern"] as SubjectType[]).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => {
+                      setSubjectType(type);
+                      setSelectedEmployeeId("");
+                      setSelectedInternId("");
+                    }}
+                    style={{
+                      padding: "6px 14px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      borderRadius: "6px",
+                      border: "1px solid",
+                      borderColor: subjectType === type ? "#1A5EA8" : "#e2e8f0",
+                      backgroundColor:
+                        subjectType === type ? "#1A5EA8" : "#fff",
+                      color: subjectType === type ? "#fff" : "#475569",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {type === "employee" ? "Employee" : "Intern"}
+                  </button>
+                ))}
+              </HStack>
+            )}
+          </Flex>
+
           {isPrefilled ? (
             <Box
               bg="orange.50"
@@ -462,7 +637,8 @@ const EvaluationForm: React.FC = () => {
               borderColor="orange.200"
             >
               <Text fontSize="14px" fontWeight="600" color="gray.700">
-                {prefillName || `Employee #${selectedEmployeeId}`}
+                {prefillName ||
+                  `${subjectType === "intern" ? "Intern" : "Employee"} #${selectedSubjectId}`}
               </Text>
               <Text fontSize="13px" color="gray.500">
                 {form.npk}
@@ -472,35 +648,65 @@ const EvaluationForm: React.FC = () => {
               </Text>
             </Box>
           ) : !isEditMode ? (
-            <select
-              value={selectedEmployeeId}
-              onChange={(event) =>
-                setSelectedEmployeeId(Number(event.target.value))
-              }
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: "8px",
-                border: "1px solid #e2e8f0",
-                backgroundColor: "#fff",
-                fontSize: "14px",
-                color: "#1a202c",
-              }}
-            >
-              <option value="">Select employee</option>
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.name} ({employee.npk})
-                </option>
-              ))}
-            </select>
+            subjectType === "intern" ? (
+              <select
+                value={selectedInternId}
+                onChange={(event) =>
+                  setSelectedInternId(Number(event.target.value))
+                }
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  backgroundColor: "#fff",
+                  fontSize: "14px",
+                  color: "#1a202c",
+                }}
+              >
+                <option value="">Select intern</option>
+                {interns.map((intern) => (
+                  <option key={intern.id} value={intern.id}>
+                    {intern.name} ({intern.npk})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select
+                value={selectedEmployeeId}
+                onChange={(event) =>
+                  setSelectedEmployeeId(Number(event.target.value))
+                }
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  backgroundColor: "#fff",
+                  fontSize: "14px",
+                  color: "#1a202c",
+                }}
+              >
+                <option value="">Select employee</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name} ({employee.npk})
+                  </option>
+                ))}
+              </select>
+            )
           ) : (
             <Box bg="gray.50" p={4} rounded="md">
+              {/* === TAMBAHAN INTERN: tampilkan intern atau employee sesuai subjectType === */}
               <Text fontSize="14px" fontWeight="600" color="gray.700">
-                {evaluation?.employee?.name}
+                {subjectType === "intern"
+                  ? evaluation?.intern?.name
+                  : evaluation?.employee?.name}
               </Text>
               <Text fontSize="13px" color="gray.500">
-                {evaluation?.employee?.npk}
+                {subjectType === "intern"
+                  ? evaluation?.intern?.npk
+                  : evaluation?.employee?.npk}
               </Text>
             </Box>
           )}
@@ -515,6 +721,7 @@ const EvaluationForm: React.FC = () => {
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, npk: event.target.value }))
                 }
+                disabled={isPrefilled}
               />
             </Box>
             <Box flex={1} minW="220px">
@@ -526,6 +733,7 @@ const EvaluationForm: React.FC = () => {
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, jabatan: event.target.value }))
                 }
+                disabled={isPrefilled}
               />
             </Box>
             <Box flex={1} minW="220px">
@@ -632,6 +840,11 @@ const EvaluationForm: React.FC = () => {
           <Text fontSize="16px" fontWeight="700" color="gray.800" mb={4}>
             Recommendation
           </Text>
+          {/* NOTE (Intern): dropdown & value di bawah ini REUSE APA ADANYA
+              dari Employee (permanen/kontrak_berakhir/perpanjang_kontrak),
+              termasuk saat subjectType === "intern" — sesuai keputusan
+              Anda, sementara sampai skema final diputuskan. Tidak ada
+              percabangan label untuk Intern di sini. */}
           <Box mb={4} maxW="320px">
             <Text fontSize="13px" fontWeight="600" mb={2}>
               Decision
@@ -769,8 +982,6 @@ const EvaluationForm: React.FC = () => {
           </Box>
         </Box>
       </Box>
-
-      {/* ── Dialog alert (menggantikan window.alert) ── */}
       <AlertDialog
         open={alertInfo !== null}
         onClose={() => setAlertInfo(null)}
@@ -784,6 +995,18 @@ const EvaluationForm: React.FC = () => {
             <FiInfo size={24} color="#f59e0b" />
           )
         }
+      />{" "}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Draft Evaluation"
+        message="Are you sure you want to delete this draft? This action cannot be undone."
+        confirmText="Delete"
+        confirmColor="#ef4444"
+        loading={saving}
+        loadingText="Deleting..."
+        icon={<FiTrash2 size={22} />}
       />
     </MainLayout>
   );

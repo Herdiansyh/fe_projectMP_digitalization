@@ -340,9 +340,7 @@ const EmployeeList: React.FC = () => {
             <Box w={{ base: "100%", md: "auto" }}>
               <Box
                 as="button"
-                type="button"
-                onClick={handlePrintAllFiltered}
-                disabled={printingAll || totalData === 0}
+                onClick={printingAll || totalData === 0 ? undefined : handlePrintAllFiltered}
                 display="inline-flex"
                 alignItems="center"
                 justifyContent="center"
@@ -380,7 +378,6 @@ const EmployeeList: React.FC = () => {
             <Box w={{ base: "100%", md: "auto" }}>
               <Box
                 as="button"
-                type="button"
                 onClick={() => {
                   setEditTarget(null);
                   setFormOpen(true);

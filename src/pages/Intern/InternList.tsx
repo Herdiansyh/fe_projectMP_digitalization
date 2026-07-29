@@ -55,6 +55,54 @@ const NeedEvaluationBadge = () => (
     ⚠ Need Evaluation
   </span>
 );
+
+// === TAMBAHAN INTERN ===
+// Badge outcome_status, sesuai plan poin 6:
+// 'converted' -> "✓ Naik Kontrak", 'ended' -> "✕ Selesai / Tidak Dilanjutkan"
+const OutcomeBadge: React.FC<{ intern: Intern }> = ({ intern }) => {
+  if (intern.outcome_status === "converted") {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          padding: "2px 8px",
+          borderRadius: "999px",
+          fontSize: "11px",
+          fontWeight: 700,
+          color: "#15803d",
+          backgroundColor: "#f0fdf4",
+          border: "1px solid #bbf7d0",
+        }}
+      >
+        ✓ Naik Kontrak
+      </span>
+    );
+  }
+  if (intern.outcome_status === "ended") {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          padding: "2px 8px",
+          borderRadius: "999px",
+          fontSize: "11px",
+          fontWeight: 700,
+          color: "#475569",
+          backgroundColor: "#f1f5f9",
+          border: "1px solid #e2e8f0",
+        }}
+      >
+        ✕ Selesai / Tidak Dilanjutkan
+      </span>
+    );
+  }
+  return null;
+};
+
 const InternList: React.FC = () => {
   const [interns, setInterns] = useState<Intern[]>([]);
   const [masterData, setMasterData] = useState<MasterData | null>(null);
@@ -90,6 +138,8 @@ const InternList: React.FC = () => {
         line_id: filterLine ? Number(filterLine) : undefined,
         station_id: filterStation ? Number(filterStation) : undefined,
         group: filterGroup || undefined,
+        sort_by: "created_at",
+        sort_order: "desc",
       });
 
       const allFiltered = res.data.data;
@@ -143,6 +193,8 @@ const InternList: React.FC = () => {
           line_id: filterLine ? Number(filterLine) : undefined,
           station_id: filterStation ? Number(filterStation) : undefined,
           group: filterGroup || undefined,
+          sort_by: "created_at",
+          sort_order: "desc",
         });
         setInterns(res.data.data);
         setTotalPages(res.data.meta.last_page);
@@ -163,10 +215,6 @@ const InternList: React.FC = () => {
       filterGroup,
     ],
   );
-  // Master data (department/section) + Area di-fetch sekali saat halaman
-  // dimuat, supaya modal form tidak perlu loading ulang tiap dibuka.
-  // Station TIDAK di-fetch di sini — InternFormModal fetch Station-nya
-  // sendiri secara dinamis berdasarkan Line yang dipilih (cascade Area -> Line -> Station).
   useEffect(() => {
     void fptkService.getMasterData().then((res) => setMasterData(res.data));
     void areaService
@@ -278,9 +326,7 @@ const InternList: React.FC = () => {
             <Box w={{ base: "100%", md: "auto" }}>
               <Box
                 as="button"
-                type="button"
-                onClick={handlePrintAllFiltered}
-                disabled={printingAll || totalData === 0}
+                onClick={printingAll || totalData === 0 ? undefined : handlePrintAllFiltered}
                 display="inline-flex"
                 alignItems="center"
                 justifyContent="center"
@@ -319,7 +365,6 @@ const InternList: React.FC = () => {
             <Box w={{ base: "100%", md: "auto" }}>
               <Box
                 as="button"
-                type="button"
                 onClick={() => {
                   setEditTarget(null);
                   setFormOpen(true);
@@ -560,24 +605,34 @@ const InternList: React.FC = () => {
                 ) : (
                   interns.map((intern) => {
                     const isWarning = !!intern.is_near_expiry;
+                    // === TAMBAHAN INTERN ===
+                    // Intern yang sudah diproses (converted/ended) ditandai
+                    // abu-abu, sesuai plan poin 6. isWarning (near-expiry)
+                    // hanya relevan untuk intern yang masih 'active', jadi
+                    // isProcessed diprioritaskan di atas warna warning.
+                    const isProcessed = intern.outcome_status !== "active";
+                    const rowBg = isProcessed
+                      ? "#f8fafc"
+                      : isWarning
+                        ? "#fff5f5"
+                        : "white";
                     return (
                       <tr
                         key={intern.id}
                         onClick={() => setDetailTarget(intern)}
                         style={{
-                          backgroundColor: isWarning ? "#fff5f5" : "white",
+                          backgroundColor: rowBg,
                           borderBottom: "1px solid #f1f5f9",
                           transition: "background-color 0.15s",
                           cursor: "pointer",
+                          opacity: isProcessed ? 0.6 : 1,
                         }}
                         onMouseEnter={(e) => {
-                          if (!isWarning)
+                          if (!isProcessed && !isWarning)
                             e.currentTarget.style.backgroundColor = "#f8fafc";
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = isWarning
-                            ? "#fff5f5"
-                            : "white";
+                          e.currentTarget.style.backgroundColor = rowBg;
                         }}
                       >
                         <td
@@ -601,6 +656,12 @@ const InternList: React.FC = () => {
                             <Text fontSize="12px" color="gray.400">
                               {intern.gender === "male" ? "Male" : "Female"}
                             </Text>
+                          )}
+                          {/* === TAMBAHAN INTERN: badge outcome_status === */}
+                          {isProcessed && (
+                            <Box mt={1}>
+                              <OutcomeBadge intern={intern} />
+                            </Box>
                           )}
                         </td>
                         <td
@@ -659,7 +720,9 @@ const InternList: React.FC = () => {
                                 {isWarning && "⚠️ "}
                                 {formatDate(intern.end_contract)}
                               </Text>
-                              {isWarning &&
+                              {/* Need Evaluation hanya relevan kalau belum diproses */}
+                              {!isProcessed &&
+                                isWarning &&
                                 intern.days_until_expiry !== null && (
                                   <>
                                     <Box mt={1}>

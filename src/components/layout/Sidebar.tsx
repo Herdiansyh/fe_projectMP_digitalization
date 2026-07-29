@@ -483,14 +483,13 @@ const NAV_ITEMS: NavItem[] = [
     icon: <IconHrDecision />,
     permission: "evaluations.hr_decisions",
   },
+  {
+    label: "HR Decision History",
+    path: "/evaluations/hr-decision-history",
+    icon: <IconHistory />,
+    permission: "evaluations.hr_decisions",
+  },
 ];
-
-/**
- * Menu Data Master: TIDAK memakai permission matrix. Visibility diatur
- * langsung berdasarkan flag `is_admin` milik user (lihat komponen Sidebar,
- * bagian `visibleAdminSectionItems`). Field `permission` sengaja tidak
- * dipasang di item-item ini.
- */
 const MASTER_DATA_ITEM: NavItem = {
   label: "Data Master",
   path: "/master-data",

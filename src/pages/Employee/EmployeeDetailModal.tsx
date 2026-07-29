@@ -114,7 +114,17 @@ const employmentTypeBadge = (type: string) => {
 };
 
 // Status logic removed
-
+const activeStatusBadge = (isActive: boolean) => {
+  return isActive ? (
+    <Badge color="#15803d" bg="#f0fdf4" border="#bbf7d0">
+      Active
+    </Badge>
+  ) : (
+    <Badge color="#b91c1c" bg="#fef2f2" border="#fecaca">
+      Non-active
+    </Badge>
+  );
+};
 const DetailRow = ({
   label,
   value,
@@ -262,8 +272,10 @@ const EmployeeDetailModal = ({
                   <Text fontSize="13px" color="gray.500" mt={0.5}>
                     NPK {employee.npk}
                   </Text>
+
                   <HStack gap={2} mt={2}>
-                    {employmentTypeBadge(employee.employment_type)}
+                    {employmentTypeBadge(employee.employment_type)}{" "}
+                    {activeStatusBadge(employee.is_active)}
                   </HStack>
                 </Box>
               </HStack>
@@ -324,7 +336,6 @@ const EmployeeDetailModal = ({
                 </button>
               </HStack>
             </Flex>
-
             {isWarning && (
               <Box px={{ base: 4, md: 6 }} pb={2}>
                 <Box
@@ -339,6 +350,29 @@ const EmployeeDetailModal = ({
                     {employee.days_until_expiry} day
                     {employee.days_until_expiry === 1 ? "" : "s"}
                   </Text>
+                </Box>
+              </Box>
+            )}{" "}
+            {!employee.is_active && (
+              <Box px={{ base: 4, md: 6 }} pb={2}>
+                <Box
+                  bg="#fef2f2"
+                  border="1px solid #fecaca"
+                  borderRadius="8px"
+                  px={3}
+                  py={2}
+                >
+                  <Text fontSize="13px" fontWeight="600" color="#b91c1c">
+                    Deactivated
+                    {employee.deactivated_at
+                      ? ` on ${formatDate(employee.deactivated_at)}`
+                      : ""}
+                  </Text>
+                  {employee.deactivated_reason && (
+                    <Text fontSize="12px" color="#991b1b" mt={0.5}>
+                      Reason: {employee.deactivated_reason}
+                    </Text>
+                  )}
                 </Box>
               </Box>
             )}

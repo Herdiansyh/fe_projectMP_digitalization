@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { Badge, Box, Flex, HStack, Text } from "@chakra-ui/react";
-import { FiPlus, FiSearch, FiAlertTriangle } from "react-icons/fi";
+import { FiPlus, FiSearch, FiAlertTriangle, FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
 import { useAuth } from "../../contexts/AuthContext";
@@ -9,7 +9,15 @@ import {
   usePendingTriggers,
   useDeleteEvaluation,
 } from "../../hooks/queries/useEvaluationQueries";
-import type { PendingTrigger } from "../../types/evaluation";
+import type {
+  PendingTrigger,
+  PendingInternTrigger,
+} from "../../types/evaluation";
+import { notify } from "../../utils/toast";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+
+// === TAMBAHAN INTERN ===
+type EvaluationTab = "employee" | "intern";
 
 const EvaluationList: React.FC = () => {
   const navigate = useNavigate();
@@ -23,32 +31,23 @@ const EvaluationList: React.FC = () => {
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  const [activeTab, setActiveTab] = useState<EvaluationTab>("employee");
+  const handleTabChange = (tab: EvaluationTab) => {
+    setActiveTab(tab);
+    setPage(1);
+  };
   const isLeader = user?.role?.name === "Leader";
   const isAdmin = user?.role?.name === "Admin";
-
-  // ─── React Query hooks ─────────────────────────────────────────────────────
-  // Tidak ada useState untuk loading/data — semua dikelola React Query.
-  // refetchOnWindowFocus diaktifkan global di main.tsx, menggantikan
-  // window.addEventListener("focus", ...) yang sebelumnya dipasang manual.
   const { data: pagination, isLoading: loading } = useEvaluationList({
     page,
     per_page: 10,
     status: status || undefined,
-    // search dikirim ke server — backend mencari dari seluruh data sebelum paginate
-    // (bukan client-side filter dari 10 item di halaman ini saja).
-    // NOTE: per 24 Jul 2026 belum dikonfirmasi apakah /evaluations sudah
-    // support param ini. Kalau backend belum kenal, param ini cuma
-    // diabaikan (tidak error) — search akan otomatis aktif begitu backend
-    // menambahkan dukungannya. Kalau ternyata backend memvalidasi query
-    // params secara strict dan menolak field asing, param ini perlu
-    // dihapus sampai backend siap.
+    type: activeTab,
     search: debouncedSearch || undefined,
   });
-
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const { data: pendingTriggers = [], isLoading: loadingTriggers } =
-    usePendingTriggers(isLeader || isAdmin);
-
+    usePendingTriggers(isLeader || isAdmin, activeTab);
   const { mutate: deleteDraft } = useDeleteEvaluation();
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
@@ -59,38 +58,61 @@ const EvaluationList: React.FC = () => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
       setDebouncedSearch(value);
-      setPage(1); // reset ke halaman 1 saat search berubah
+      setPage(1);
     }, 500);
   };
 
-  const handleDeleteDraft = (id: number) => {
-    if (!window.confirm("Are you sure you want to cancel this evaluation?"))
-      return;
-    deleteDraft(id, {
-      onError: () => alert("Failed to delete evaluation"),
+  const requestDeleteDraft = (id: number) => {
+    setDeleteTargetId(id);
+  };
+
+  const confirmDeleteDraft = () => {
+    if (deleteTargetId === null) return;
+    deleteDraft(deleteTargetId, {
+      onSuccess: () => {
+        notify.success("Evaluation cancelled successfully");
+        setDeleteTargetId(null);
+      },
+      onError: () => {
+        notify.error("Failed to delete evaluation");
+        setDeleteTargetId(null);
+      },
     });
   };
 
-  const handleStartEvaluation = (emp: PendingTrigger) => {
+  const handleStartEvaluation = (
+    subject: PendingTrigger | PendingInternTrigger,
+  ) => {
     const params = new URLSearchParams({
-      employee_id: String(emp.id),
-      name: emp.name ?? "",
-      npk: emp.npk ?? "",
-      jabatan: emp.jabatan ?? "",
-      department_id: emp.department_id ? String(emp.department_id) : "",
-      join_date: emp.join_date ?? "",
-      start_date: emp.start_contract ?? "",
-      end_date: emp.end_contract ?? "",
+      name: subject.name ?? "",
+      npk: subject.npk ?? "",
+      jabatan: subject.jabatan ?? "",
+      department_id: subject.department_id ? String(subject.department_id) : "",
+      join_date: subject.join_date ?? "",
+      start_date: subject.start_contract ?? "",
+      end_date: subject.end_contract ?? "",
     });
+    if (activeTab === "intern") {
+      params.set("intern_id", String(subject.id));
+    } else {
+      params.set("employee_id", String(subject.id));
+    }
     navigate(`/evaluations/create?${params.toString()}`);
   };
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
   const getStatusColor = (value: string) => {
+    if (
+      value?.includes("completed_not_extend") ||
+      value?.includes("not_extend")
+    )
+      return "gray";
     if (value?.includes("approved")) return "green";
     if (value?.includes("rejected")) return "red";
+    if (value?.includes("reviewed_by_section_head")) return "cyan";
     if (value?.includes("submitted")) return "orange";
-    return "gray";
+    if (value?.includes("draft")) return "purple";
+    return "blue";
   };
 
   const formatDate = (value: string | null) => {
@@ -104,6 +126,21 @@ const EvaluationList: React.FC = () => {
 
   const evaluations = pagination?.data ?? [];
 
+  // === TAMBAHAN INTERN: style tab switcher, sederhana (mengikuti pola
+  // filter select yang sudah ada di file ini, bukan komponen Chakra Tabs
+  // baru — supaya tidak menambah dependency). ===
+  const tabButtonStyle = (tab: EvaluationTab): React.CSSProperties => ({
+    padding: "8px 4px",
+    fontSize: "14px",
+    fontWeight: activeTab === tab ? 700 : 500,
+    border: "none",
+    borderBottom: "2px solid",
+    borderBottomColor: activeTab === tab ? "#1A5EA8" : "transparent",
+    backgroundColor: "transparent",
+    color: activeTab === tab ? "#1A5EA8" : "#94a3b8",
+    cursor: "pointer",
+    transition: "color 0.15s, border-color 0.15s",
+  });
   return (
     <MainLayout>
       <Box>
@@ -117,35 +154,57 @@ const EvaluationList: React.FC = () => {
             </Text>
           </Box>
           {(isLeader || isAdmin) && (
-            <button
-              type="button"
+            <Box
+              as="button"
               onClick={() => navigate("/evaluations/create")}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "10px 20px",
-                fontSize: "14px",
-                fontWeight: 600,
-                borderRadius: "8px",
-                color: "#ffffff",
-                backgroundColor: "#1A5EA8",
-                border: "none",
-                cursor: "pointer",
+              display="inline-flex"
+              alignItems="center"
+              justifyContent="center"
+              w={{ base: "100%", sm: "auto" }}
+              gap="8px"
+              px="clamp(14px, 3vw, 20px)"
+              py="clamp(8px, 2vw, 10px)"
+              fontSize="clamp(12px, 2vw, 14px)"
+              fontWeight={600}
+              borderRadius="8px"
+              color="#ffffff"
+              bg="#1A5EA8"
+              border="none"
+              cursor="pointer"
+              whiteSpace="nowrap"
+              transition="all 0.2s ease"
+              _hover={{
+                bg: "#3A76B8",
+                transform: "translatey(-1px) scale(1.02)",
+                boxShadow: "0 4px 12px rgba(26,94,168,0.35)",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "#154d8c")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "#1A5EA8")
-              }
             >
               <FiPlus size={15} /> Create New
-            </button>
+            </Box>
           )}
         </Flex>
 
-        {/* ── Table 1: Worklist — MP yang perlu dievaluasi ── */}
+        {/* === TAMBAHAN INTERN: Tab switcher Employee / Intern === */}
+        <HStack gap={2} mb={6} borderBottom="1px solid" borderColor="gray.100">
+          <button
+            type="button"
+            style={tabButtonStyle("employee")}
+            onClick={() => handleTabChange("employee")}
+          >
+            Employee
+          </button>
+          <Text color="gray.300" fontSize="14px">
+            |
+          </Text>
+          <button
+            type="button"
+            style={tabButtonStyle("intern")}
+            onClick={() => handleTabChange("intern")}
+          >
+            Intern
+          </button>
+        </HStack>
+
         {(isLeader || isAdmin) && (
           <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
             <HStack mb={4} gap={2}>
@@ -165,7 +224,8 @@ const EvaluationList: React.FC = () => {
             ) : pendingTriggers.length === 0 ? (
               <Flex justify="center" py={8}>
                 <Text color="gray.400">
-                  Tidak ada manpower yang perlu dievaluasi saat ini
+                  There is no workforce that needs to be evaluated at this
+                  time{" "}
                 </Text>
               </Flex>
             ) : (
@@ -298,7 +358,7 @@ const EvaluationList: React.FC = () => {
                 <FiSearch size={14} />
               </Box>
               <input
-                placeholder="Search by employee name or NPK"
+                placeholder="Search by name or NPK"
                 value={searchInput}
                 onChange={handleSearchChange}
                 style={{
@@ -362,7 +422,7 @@ const EvaluationList: React.FC = () => {
                   <tr style={{ backgroundColor: "#f8fafc" }}>
                     {[
                       "No",
-                      "Employee",
+                      activeTab === "intern" ? "Intern" : "Employee",
                       "NPK",
                       "Status",
                       "Stage",
@@ -388,96 +448,142 @@ const EvaluationList: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {evaluations.map((evaluation, index) => (
-                    <tr
-                      key={evaluation.id}
-                      style={{
-                        borderBottom: "1px solid #f1f5f9",
-                        cursor: "pointer",
-                      }}
-                      onClick={() => navigate(`/evaluations/${evaluation.id}`)}
-                    >
-                      <td
+                  {evaluations.map((evaluation, index) => {
+                    // === TAMBAHAN INTERN: subjek bisa employee atau intern,
+                    // tergantung tab aktif (keduanya tidak akan pernah
+                    // sama-sama terisi, sesuai CHECK constraint exclusive
+                    // di DB). ===
+                    const subject =
+                      activeTab === "intern"
+                        ? evaluation.intern
+                        : evaluation.employee;
+                    return (
+                      <tr
+                        key={evaluation.id}
                         style={{
-                          padding: "12px 14px",
-                          fontSize: "13px",
-                          color: "#64748b",
+                          borderBottom: "1px solid #f1f5f9",
+                          cursor: "pointer",
                         }}
+                        onClick={() =>
+                          navigate(`/evaluations/${evaluation.id}`)
+                        }
                       >
-                        {(page - 1) * 10 + index + 1}
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px 14px",
-                          fontSize: "13px",
-                          color: "#1e293b",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {evaluation.employee?.name ?? "-"}
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px 14px",
-                          fontSize: "13px",
-                          color: "#475569",
-                        }}
-                      >
-                        {evaluation.employee?.npk ?? evaluation.npk ?? "-"}
-                      </td>
-                      <td style={{ padding: "12px 14px" }}>
-                        <Badge colorPalette={getStatusColor(evaluation.status)}>
-                          {evaluation.status.replace(/_/g, " ")}
-                        </Badge>
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px 14px",
-                          fontSize: "13px",
-                          color: "#475569",
-                        }}
-                      >
-                        {evaluation.current_stage.replace(/_/g, " ")}
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px 14px",
-                          fontSize: "13px",
-                          color: "#475569",
-                        }}
-                      >
-                        {formatDate(evaluation.updated_at)}
-                      </td>
-                      <td style={{ padding: "12px 14px" }}>
-                        <HStack gap={3}>
-                          <Text fontSize="13px" color="blue.600">
-                            Open
-                          </Text>
-                          {evaluation.status === "draft" && (
-                            <button
-                              type="button"
+                        <td
+                          style={{
+                            padding: "12px 14px",
+                            fontSize: "13px",
+                            color: "#64748b",
+                          }}
+                        >
+                          {(page - 1) * 10 + index + 1}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 14px",
+                            fontSize: "13px",
+                            color: "#1e293b",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {subject?.name ?? "-"}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 14px",
+                            fontSize: "13px",
+                            color: "#475569",
+                          }}
+                        >
+                          {subject?.npk ?? evaluation.npk ?? "-"}
+                        </td>
+                        <td style={{ padding: "12px 14px" }}>
+                          <Badge
+                            colorPalette={getStatusColor(evaluation.status)}
+                          >
+                            {evaluation.status.replace(/_/g, " ")}
+                          </Badge>
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 14px",
+                            fontSize: "13px",
+                            color: "#475569",
+                          }}
+                        >
+                          {evaluation.current_stage.replace(/_/g, " ")}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 14px",
+                            fontSize: "13px",
+                            color: "#475569",
+                          }}
+                        >
+                          {formatDate(evaluation.updated_at)}
+                        </td>
+                        <td style={{ padding: "12px 14px" }}>
+                          <HStack gap={3}>
+                            <Box
+                              as="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDeleteDraft(evaluation.id);
+                                navigate(`/evaluations/${evaluation.id}`);
                               }}
-                              style={{
-                                padding: "4px 8px",
-                                fontSize: "12px",
-                                fontWeight: 600,
-                                borderRadius: "4px",
-                                color: "#ef4444",
-                                border: "1px solid #ef4444",
-                                backgroundColor: "transparent",
-                                cursor: "pointer",
+                              display="inline-flex"
+                              alignItems="center"
+                              justifyContent="center"
+                              px="8px"
+                              py="4px"
+                              fontSize="12px"
+                              fontWeight={600}
+                              borderRadius="4px"
+                              color="#1A5EA8"
+                              border="1px solid"
+                              borderColor="#1A5EA8"
+                              bg="transparent"
+                              cursor="pointer"
+                              whiteSpace="nowrap"
+                              transition="all 0.15s ease"
+                              _hover={{
+                                bg: "#eff6ff",
                               }}
                             >
-                              Cancel
-                            </button>
-                          )}
-                        </HStack>
-                      </td>
-                    </tr>
-                  ))}
+                              Open
+                            </Box>
+                            {evaluation.status === "draft" && (
+                              <Box
+                                as="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  requestDeleteDraft(evaluation.id);
+                                }}
+                                display="inline-flex"
+                                alignItems="center"
+                                justifyContent="center"
+                                px="8px"
+                                py="4px"
+                                fontSize="12px"
+                                fontWeight={600}
+                                borderRadius="4px"
+                                color="#ef4444"
+                                border="1px solid"
+                                borderColor="#ef4444"
+                                bg="transparent"
+                                cursor="pointer"
+                                whiteSpace="nowrap"
+                                transition="all 0.15s ease"
+                                _hover={{
+                                  bg: "#fef2f2",
+                                }}
+                              >
+                                Cancel
+                              </Box>
+                            )}
+                          </HStack>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </Box>
@@ -535,7 +641,18 @@ const EvaluationList: React.FC = () => {
             </Flex>
           )}
         </Box>
-      </Box>
+      </Box>{" "}
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={confirmDeleteDraft}
+        title="Cancel Evaluation"
+        message="Are you sure you want to cancel this evaluation? This action cannot be undone."
+        confirmText="Yes, Cancel"
+        cancelText="No"
+        confirmColor="#ef4444"
+        icon={<FiTrash2 size={22} />}
+      />
     </MainLayout>
   );
 };

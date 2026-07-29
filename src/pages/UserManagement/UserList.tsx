@@ -83,12 +83,12 @@ const UserList: React.FC = () => {
       setLoading(true);
       const response = await userService.getUsers(params);
       setUsers(response.data.data);
-      const resData = response.data as any;
+      const resData = response.data;
       setPagination({
-        current_page: resData.meta?.current_page ?? resData.current_page ?? 1,
-        last_page: resData.meta?.last_page ?? resData.last_page ?? 1,
-        per_page: resData.meta?.per_page ?? resData.per_page ?? 10,
-        total: resData.meta?.total ?? resData.total ?? 0,
+        current_page: resData.current_page ?? 1,
+        last_page: resData.last_page ?? 1,
+        per_page: resData.per_page ?? 10,
+        total: resData.total ?? 0,
       });
     } catch {
       alert("Failed to load user data.");

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -8,8 +8,13 @@ import {
   Text,
   Textarea,
 } from "@chakra-ui/react";
-import evaluationService from "../../services/evaluationService";
 import type { Evaluation } from "../../types/evaluation";
+import {
+  useExtendContract,
+  useCloseContract,
+} from "../../hooks/queries/useEvaluationQueries";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { FiAlertTriangle } from "react-icons/fi";
 
 interface HrDecisionModalProps {
   evaluation: Evaluation;
@@ -27,53 +32,86 @@ const HrDecisionModal: React.FC<HrDecisionModalProps> = ({
   onError,
 }) => {
   const [mode, setMode] = useState<Mode>("choose");
-  const [saving, setSaving] = useState(false);
-
-  // Extend form state
-  const [newEndContract, setNewEndContract] = useState("");
-  const [pkwtNumber, setPkwtNumber] = useState("");
+  const isInternSubject = !!evaluation.intern_id;
+  const subject = isInternSubject ? evaluation.intern : evaluation.employee;
+  const subjectLabel = isInternSubject ? "Intern" : "Employee";
   const [extendMonths, setExtendMonths] = useState("");
   const [notes, setNotes] = useState("");
-
-  // Close form state
   const [closeAction, setCloseAction] = useState<"deactivate" | "delete">(
     "deactivate",
   );
+  const [startDate, setStartDate] = useState(
+    evaluation.end_date ? evaluation.end_date.split("T")[0] : "",
+  );
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const { mutate: extendContract, isPending: extending } = useExtendContract();
+  const { mutate: closeContract, isPending: closing } = useCloseContract();
+  const computedEndDatePreview = useMemo(() => {
+    const months = Number(extendMonths);
+    if (!months || months <= 0 || !startDate) return null;
 
-  const handleExtend = async () => {
-    if (!newEndContract) {
-      onError("Tanggal kontrak baru wajib diisi");
+    const baseDate = new Date(startDate);
+    const result = new Date(baseDate);
+    result.setMonth(result.getMonth() + months);
+    return result.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }, [extendMonths, startDate]);
+  const handleExtend = () => {
+    const months = Number(extendMonths);
+    if (!startDate) {
+      onError("Tanggal mulai kontrak baru wajib diisi");
       return;
     }
-    setSaving(true);
-    try {
-      await evaluationService.extendContract(evaluation.id, {
-        new_end_contract: newEndContract,
-        pkwt_number: pkwtNumber || null,
-        extend_months: extendMonths ? Number(extendMonths) : null,
-        notes: notes || null,
-      });
-      onSuccess();
-    } catch {
-      onError("Failed to extend contract");
-    } finally {
-      setSaving(false);
+    if (!months || months <= 0) {
+      onError("Lama perpanjangan (bulan) wajib diisi");
+      return;
     }
+    extendContract(
+      {
+        id: evaluation.id,
+        payload: {
+          start_date: startDate,
+          extend_months: months,
+          notes: notes || null,
+        },
+      },
+      {
+        onSuccess: () => onSuccess(),
+        onError: () => onError("Failed to extend contract"),
+      },
+    );
+  };
+  const executeClose = () => {
+    closeContract(
+      {
+        id: evaluation.id,
+        payload: {
+          action: closeAction,
+          reason: reason || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          setConfirmCloseOpen(false);
+          onSuccess();
+        },
+        onError: () => {
+          setConfirmCloseOpen(false);
+          onError("Failed to close contract");
+        },
+      },
+    );
   };
 
-  const handleClose = async () => {
-    setSaving(true);
-    try {
-      await evaluationService.closeContract(evaluation.id, {
-        action: closeAction,
-        reason: reason || null,
-      });
-      onSuccess();
-    } catch {
-      onError("Failed to close contract");
-    } finally {
-      setSaving(false);
+  const requestClose = () => {
+    if (closeAction === "delete") {
+      setConfirmCloseOpen(true);
+    } else {
+      executeClose();
     }
   };
 
@@ -99,10 +137,10 @@ const HrDecisionModal: React.FC<HrDecisionModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <Text fontSize="18px" fontWeight="700" color="gray.800" mb={1}>
-          {evaluation.employee?.name ?? "-"}
+          {subject?.name ?? "-"}
         </Text>
         <Text fontSize="13px" color="gray.500" mb={5}>
-          NPK: {evaluation.employee?.npk ?? evaluation.npk ?? "-"} · End
+          {subjectLabel} · NPK: {subject?.npk ?? evaluation.npk ?? "-"} · End
           Contract:{" "}
           {evaluation.end_date
             ? new Date(evaluation.end_date).toLocaleDateString("id-ID")
@@ -136,34 +174,31 @@ const HrDecisionModal: React.FC<HrDecisionModalProps> = ({
           <Flex direction="column" gap={3}>
             <Box>
               <Text fontSize="12px" color="gray.500" mb={1}>
-                Tanggal Kontrak Baru *
+                Tanggal Mulai Kontrak Baru *
               </Text>
               <Input
                 type="date"
-                value={newEndContract}
-                onChange={(e) => setNewEndContract(e.target.value)}
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
               />
             </Box>
             <Box>
               <Text fontSize="12px" color="gray.500" mb={1}>
-                Nomor PKWT
-              </Text>
-              <Input
-                value={pkwtNumber}
-                onChange={(e) => setPkwtNumber(e.target.value)}
-                placeholder="Opsional"
-              />
-            </Box>
-            <Box>
-              <Text fontSize="12px" color="gray.500" mb={1}>
-                Lama Perpanjangan (bulan)
+                Lama Perpanjangan (bulan) *
               </Text>
               <Input
                 type="number"
+                min={1}
                 value={extendMonths}
                 onChange={(e) => setExtendMonths(e.target.value)}
-                placeholder="Opsional"
+                placeholder="Contoh: 3"
               />
+              {computedEndDatePreview && (
+                <Text fontSize="12px" color="green.600" mt={1}>
+                  Kontrak baru akan berakhir pada:{" "}
+                  <b>{computedEndDatePreview}</b>
+                </Text>
+              )}
             </Box>
             <Box>
               <Text fontSize="12px" color="gray.500" mb={1}>
@@ -179,7 +214,7 @@ const HrDecisionModal: React.FC<HrDecisionModalProps> = ({
               <Button
                 type="button"
                 colorPalette="green"
-                loading={saving}
+                loading={extending}
                 loadingText="Menyimpan..."
                 onClick={handleExtend}
               >
@@ -232,8 +267,9 @@ const HrDecisionModal: React.FC<HrDecisionModalProps> = ({
                 p={3}
               >
                 <Text fontSize="12px" color="red.700" fontWeight="600">
-                  ⚠️ Data employee dan seluruh riwayat evaluasi terkait akan
-                  terhapus permanen. Tindakan ini tidak bisa dibatalkan.
+                  ⚠️ Data {subjectLabel.toLowerCase()} dan seluruh riwayat
+                  evaluasi terkait akan terhapus permanen. Tindakan ini tidak
+                  bisa dibatalkan.
                 </Text>
               </Box>
             )}
@@ -251,9 +287,9 @@ const HrDecisionModal: React.FC<HrDecisionModalProps> = ({
               <Button
                 type="button"
                 colorPalette="red"
-                loading={saving}
+                loading={closing}
                 loadingText="Memproses..."
-                onClick={handleClose}
+                onClick={requestClose}
               >
                 Konfirmasi
               </Button>
@@ -268,6 +304,18 @@ const HrDecisionModal: React.FC<HrDecisionModalProps> = ({
           </Flex>
         )}
       </Box>
+      <ConfirmDialog
+        open={confirmCloseOpen}
+        onClose={() => setConfirmCloseOpen(false)}
+        onConfirm={executeClose}
+        title="Delete Contract Record"
+        message={`Are you sure you want to permanently delete this ${subjectLabel.toLowerCase()}'s contract record? This action cannot be undone.`}
+        confirmText="Delete"
+        confirmColor="#ef4444"
+        loading={closing}
+        loadingText="Deleting..."
+        icon={<FiAlertTriangle size={22} />}
+      />
     </Box>
   );
 };

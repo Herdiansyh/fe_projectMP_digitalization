@@ -78,6 +78,8 @@ export interface CreateEmployeeInput {
   start_contract: string;
   end_contract?: string | null;
   group: "A" | "B" | null;
+  is_active?: boolean;
+  deactivated_reason?: string | null;
 }
 
 export interface UpdateEmployeeInput {
@@ -96,6 +98,8 @@ export interface UpdateEmployeeInput {
   start_contract?: string;
   end_contract?: string | null;
   group: "A" | "B" | null;
+  is_active?: boolean;
+  deactivated_reason?: string | null;
 }
 
 export interface EmployeeListParams {

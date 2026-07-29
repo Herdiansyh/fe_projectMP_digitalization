@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Badge, Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import MainLayout from "../../components/layout/MainLayout";
-import evaluationService from "../../services/evaluationService";
-import type { Evaluation, PaginatedResponse } from "../../types/evaluation";
+import type { Evaluation } from "../../types/evaluation";
 import AlertDialog from "../../components/common/AlertDialog";
 import { FiAlertCircle, FiInfo } from "react-icons/fi";
 import HrDecisionModal from "./HrDecisionModal";
+import { usePendingHrDecisions } from "../../hooks/queries/useEvaluationQueries";
+import { notify } from "../../utils/toast";
+import HrDecisionDetailModal from "./HrdecisionDetailModal";
 
 type AlertVariant = "warning" | "error";
 interface AlertState {
@@ -14,40 +16,50 @@ interface AlertState {
   variant: AlertVariant;
 }
 
+// === TAMBAHAN INTERN ===
+type HrDecisionTab = "employee" | "intern";
+
 const HrDecisionsList: React.FC = () => {
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] =
-    useState<PaginatedResponse<Evaluation> | null>(null);
   const [activeEvaluation, setActiveEvaluation] = useState<Evaluation | null>(
     null,
   );
+
+  const [detailEvaluation, setDetailEvaluation] = useState<Evaluation | null>(
+    null,
+  );
   const [alertInfo, setAlertInfo] = useState<AlertState | null>(null);
+
+  // === TAMBAHAN INTERN: tab switcher ===
+  const [activeTab, setActiveTab] = useState<HrDecisionTab>("employee");
+  const handleTabChange = (tab: HrDecisionTab) => {
+    setActiveTab(tab);
+    setPage(1);
+  };
 
   const showAlert = (
     title: string,
     message: string,
     variant: AlertVariant = "warning",
   ) => setAlertInfo({ title, message, variant });
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const response = await evaluationService.getPendingHrDecisions({
-        page,
-        per_page: 10,
-      });
-      setPagination(response);
-    } catch {
-      setPagination(null);
-    } finally {
-      setLoading(false);
-    }
+  const handleDecisionSuccess = () => {
+    notify.success(
+      activeTab === "intern"
+        ? "Intern contract decision saved successfully"
+        : "Employee contract decision saved successfully",
+    );
+    setActiveEvaluation(null);
   };
 
-  useEffect(() => {
-    void loadData();
-  }, [page]);
+  const handleDecisionError = (message: string) => {
+    showAlert("Gagal Menyimpan", message, "error");
+  };
+
+  const { data: pagination, isLoading: loading } = usePendingHrDecisions({
+    page,
+    per_page: 10,
+    type: activeTab,
+  });
 
   const formatDate = (value: string | null) => {
     if (!value) return "-";
@@ -60,6 +72,19 @@ const HrDecisionsList: React.FC = () => {
 
   const evaluations = pagination?.data ?? [];
 
+  const tabButtonStyle = (tab: HrDecisionTab): React.CSSProperties => ({
+    padding: "8px 4px",
+    fontSize: "14px",
+    fontWeight: activeTab === tab ? 700 : 500,
+    border: "none",
+    borderBottom: "2px solid",
+    borderBottomColor: activeTab === tab ? "#1A5EA8" : "transparent",
+    backgroundColor: "transparent",
+    color: activeTab === tab ? "#1A5EA8" : "#94a3b8",
+    cursor: "pointer",
+    transition: "color 0.15s, border-color 0.15s",
+  });
+
   return (
     <MainLayout>
       <Box>
@@ -68,10 +93,30 @@ const HrDecisionsList: React.FC = () => {
             HR Admin — Contract Decisions
           </Text>
           <Text fontSize="13px" color="gray.500" mt={0.5}>
-            Evaluasi yang sudah disetujui, menunggu keputusan perpanjangan
-            kontrak
+            Evaluation approved, awaiting a decision on contract extension
           </Text>
         </Box>
+
+        {/* === TAMBAHAN INTERN: Tab switcher Employee / Intern === */}
+        <HStack gap={2} mb={6} borderBottom="1px solid" borderColor="gray.100">
+          <button
+            type="button"
+            style={tabButtonStyle("employee")}
+            onClick={() => handleTabChange("employee")}
+          >
+            Employee
+          </button>
+          <Text color="gray.300" fontSize="14px">
+            |
+          </Text>
+          <button
+            type="button"
+            style={tabButtonStyle("intern")}
+            onClick={() => handleTabChange("intern")}
+          >
+            Intern
+          </button>
+        </HStack>
 
         <Box bg="white" rounded="lg" shadow="sm" p={6}>
           {loading ? (
@@ -91,10 +136,12 @@ const HrDecisionsList: React.FC = () => {
                   <tr style={{ backgroundColor: "#f8fafc" }}>
                     {[
                       "No",
-                      "Employee",
+                      activeTab === "intern" ? "Intern" : "Employee",
                       "NPK",
                       "Recommendation",
-                      "End Contract",
+                      activeTab === "intern"
+                        ? "End Internship"
+                        : "End Contract",
                       "Forwarded By",
                       "Action",
                     ].map((h) => (
@@ -127,6 +174,13 @@ const HrDecisionsList: React.FC = () => {
                           new Date(a.acted_at ?? 0).getTime(),
                       )[0];
 
+                    // === TAMBAHAN INTERN: subjek employee atau intern
+                    // tergantung tab aktif. ===
+                    const subject =
+                      activeTab === "intern"
+                        ? evaluation.intern
+                        : evaluation.employee;
+
                     return (
                       <tr
                         key={evaluation.id}
@@ -149,7 +203,7 @@ const HrDecisionsList: React.FC = () => {
                             color: "#1e293b",
                           }}
                         >
-                          {evaluation.employee?.name ?? "-"}
+                          {subject?.name ?? "-"}
                         </td>
                         <td
                           style={{
@@ -158,9 +212,17 @@ const HrDecisionsList: React.FC = () => {
                             color: "#475569",
                           }}
                         >
-                          {evaluation.employee?.npk ?? evaluation.npk ?? "-"}
+                          {subject?.npk ?? evaluation.npk ?? "-"}
                         </td>
                         <td style={{ padding: "12px 14px" }}>
+                          {/* ASUMSI: field rekomendasi masih pakai
+                              extend_pkwt yang sama untuk Intern (belum
+                              diputuskan — lihat plan "Open Question #1").
+                              Untuk tab Intern label diganti jadi
+                              "Lanjut/Tidak Lanjut" tapi logikanya masih
+                              baca extend_pkwt yang sama. Tolong dikoreksi
+                              begitu field final untuk rekomendasi Intern
+                              sudah diputuskan. */}
                           <Badge
                             colorPalette={
                               evaluation.recommendation?.extend_pkwt
@@ -168,9 +230,13 @@ const HrDecisionsList: React.FC = () => {
                                 : "orange"
                             }
                           >
-                            {evaluation.recommendation?.extend_pkwt
-                              ? "Rekomendasi: Perpanjang"
-                              : "Rekomendasi: Tidak Perpanjang"}
+                            {activeTab === "intern"
+                              ? evaluation.recommendation?.extend_pkwt
+                                ? "Rekomendasi: Lanjut"
+                                : "Rekomendasi: Tidak Lanjut"
+                              : evaluation.recommendation?.extend_pkwt
+                                ? "Rekomendasi: Perpanjang"
+                                : "Rekomendasi: Tidak Perpanjang"}
                           </Badge>
                         </td>
                         <td
@@ -207,7 +273,18 @@ const HrDecisionsList: React.FC = () => {
                           <Button
                             type="button"
                             size="xs"
-                            colorPalette="purple"
+                            variant="outline"
+                            mr={2}
+                            mb={1}
+                            onClick={() => setDetailEvaluation(evaluation)}
+                          >
+                            Detail
+                          </Button>
+                          <Button
+                            type="button"
+                            size="xs"
+                            mb={1}
+                            colorPalette="blue"
                             onClick={() => setActiveEvaluation(evaluation)}
                           >
                             Process
@@ -260,19 +337,21 @@ const HrDecisionsList: React.FC = () => {
           )}
         </Box>
       </Box>
-
       {activeEvaluation && (
         <HrDecisionModal
           evaluation={activeEvaluation}
           onClose={() => setActiveEvaluation(null)}
-          onSuccess={() => {
-            setActiveEvaluation(null);
-            void loadData();
-          }}
-          onError={(msg) => showAlert("Gagal Memproses", msg, "error")}
+          onSuccess={handleDecisionSuccess}
+          onError={handleDecisionError}
+        />
+      )}{" "}
+      {detailEvaluation && (
+        <HrDecisionDetailModal
+          evaluation={detailEvaluation}
+          subjectType={activeTab}
+          onClose={() => setDetailEvaluation(null)}
         />
       )}
-
       <AlertDialog
         open={alertInfo !== null}
         onClose={() => setAlertInfo(null)}

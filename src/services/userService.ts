@@ -40,10 +40,23 @@ const userService = {
           ),
         )
       : {};
-    const response = await axiosInstance.get<UserListApiResponse>("/users", {
+    const response = await axiosInstance.get<any>("/users", {
       params: cleanParams,
     });
-    return response.data;
+
+    const payload = response.data.data; // { data: [...], links, meta }
+
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      data: {
+        data: payload.data,
+        current_page: payload.meta.current_page,
+        last_page: payload.meta.last_page,
+        per_page: payload.meta.per_page,
+        total: payload.meta.total,
+      },
+    };
   },
 
   // Get single user

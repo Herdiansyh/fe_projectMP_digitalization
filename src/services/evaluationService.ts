@@ -11,8 +11,11 @@ import type {
   EvaluationGroup,
   PaginatedResponse,
   PendingTrigger,
+  PendingInternTrigger,
   CloseContractPayload,
   ExtendContractPayload,
+  PromotePayload,
+  NotExtendPayload,
 } from "../types/evaluation";
 
 const evaluationService = {
@@ -33,12 +36,21 @@ const evaluationService = {
           ),
         )
       : {};
-    type EvaluationsApiResponse = ApiResponse<PaginatedResponse<Evaluation>>;
-    const response = await axiosInstance.get<EvaluationsApiResponse>(
-      "/evaluations",
-      { params: cleanParams },
-    );
-    return response.data.data;
+    const response = await axiosInstance.get<any>("/evaluations", {
+      params: cleanParams,
+    });
+
+    const payload = response.data.data; // { data: [...], links, meta }
+
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      data: payload.data,
+      current_page: payload.meta.current_page,
+      last_page: payload.meta.last_page,
+      per_page: payload.meta.per_page,
+      total: payload.meta.total,
+    };
   },
 
   createEvaluation: async (
@@ -127,12 +139,17 @@ const evaluationService = {
     return response.data;
   },
 
-  getPendingTriggers: async (): Promise<ApiResponse<PendingTrigger[]>> => {
-    const response = await axiosInstance.get<ApiResponse<PendingTrigger[]>>(
-      "/evaluations/pending-triggers",
-    );
+  getPendingTriggers: async (
+    type?: "employee" | "intern",
+  ): Promise<ApiResponse<(PendingTrigger | PendingInternTrigger)[]>> => {
+    const response = await axiosInstance.get<
+      ApiResponse<(PendingTrigger | PendingInternTrigger)[]>
+    >("/evaluations/pending-triggers", {
+      params: type ? { type } : {},
+    });
     return response.data;
   },
+
   forwardToHrAdmin: async (
     id: number,
     payload?: EvaluationActionPayload,
@@ -154,12 +171,22 @@ const evaluationService = {
           ),
         )
       : {};
-    type Res = ApiResponse<PaginatedResponse<Evaluation>>;
-    const response = await axiosInstance.get<Res>(
+    const response = await axiosInstance.get<any>(
       "/evaluations/pending-hr-decisions",
       { params: cleanParams },
     );
-    return response.data.data;
+
+    const payload = response.data.data; // { data: [...], links, meta }
+
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      data: payload.data,
+      current_page: payload.meta.current_page,
+      last_page: payload.meta.last_page,
+      per_page: payload.meta.per_page,
+      total: payload.meta.total,
+    };
   },
 
   extendContract: async (
@@ -182,6 +209,55 @@ const evaluationService = {
       payload,
     );
     return response.data;
+  },
+
+  // === TAMBAHAN INTERN ===
+  // Sesuai routes/api.php: POST /evaluations/{evaluation}/promote
+  promoteIntern: async (
+    id: number,
+    payload: PromotePayload,
+  ): Promise<ApiResponse<Evaluation>> => {
+    const response = await axiosInstance.post<ApiResponse<Evaluation>>(
+      `/evaluations/${id}/promote`,
+      payload,
+    );
+    return response.data;
+  },
+
+  // === TAMBAHAN INTERN ===
+  // Sesuai routes/api.php: POST /evaluations/{evaluation}/not-extend
+  notExtendIntern: async (
+    id: number,
+    payload: NotExtendPayload,
+  ): Promise<ApiResponse<Evaluation>> => {
+    const response = await axiosInstance.post<ApiResponse<Evaluation>>(
+      `/evaluations/${id}/not-extend`,
+      payload,
+    );
+    return response.data;
+  },
+
+  getHrDecisionHistory: async (
+    params?: EvaluationListParams,
+  ): Promise<PaginatedResponse<Evaluation>> => {
+    const response = await axiosInstance.get(
+      "/evaluations/hr-decision-history",
+      {
+        params,
+      },
+    );
+
+    const payload = response.data.data; // { data: [...], links, meta }
+
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      data: payload.data,
+      current_page: payload.meta.current_page,
+      last_page: payload.meta.last_page,
+      per_page: payload.meta.per_page,
+      total: payload.meta.total,
+    };
   },
 };
 

@@ -33,6 +33,8 @@ const EMPTY_FORM: CreateEmployeeInput = {
   join_date: "",
   start_contract: "",
   end_contract: null,
+  is_active: true,
+  deactivated_reason: null,
 };
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -119,6 +121,8 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
         join_date: editTarget.join_date ?? "",
         start_contract: editTarget.start_contract,
         end_contract: editTarget.end_contract ?? null,
+        is_active: editTarget.is_active ?? true,
+        deactivated_reason: editTarget.deactivated_reason ?? null,
       });
     } else {
       setForm(EMPTY_FORM);
@@ -571,7 +575,52 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                     {errorText("gender")}
                   </Box>
                 </Grid>
-
+                <Grid templateColumns="1fr 1fr" gap={4}>
+                  <Box>
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#374151",
+                        cursor: "pointer",
+                        width: "fit-content",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.is_active ?? true}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          handleChange("is_active", checked);
+                          if (checked) {
+                            handleChange("deactivated_reason", null);
+                          }
+                        }}
+                      />
+                      Active
+                    </label>
+                  </Box>
+                  {!form.is_active && (
+                    <Box>
+                      <label style={labelStyle}>Deactivation Reason</label>
+                      <input
+                        style={inputStyle}
+                        value={form.deactivated_reason ?? ""}
+                        onChange={(e) =>
+                          handleChange(
+                            "deactivated_reason",
+                            e.target.value || null,
+                          )
+                        }
+                        placeholder="Example: Resigned, Terminated, etc."
+                      />
+                      {errorText("deactivated_reason")}
+                    </Box>
+                  )}
+                </Grid>
                 {/* Employment Type */}
                 <Grid templateColumns="1fr 1fr" gap={4}>
                   <Box>
