@@ -456,23 +456,41 @@ const EvaluationDetail: React.FC = () => {
             <Button
               type="button"
               onClick={() => navigate("/evaluations")}
-              variant="outline"
-              colorPalette="brand"
               size="sm"
               w={{ base: "full", sm: "auto" }}
+              bg="white"
+              color="#1A5EA8"
+              border="1px solid"
+              borderColor="#1A5EA8"
+              fontWeight="600"
+              borderRadius="8px"
+              px={5}
+              transition="all 0.2s ease"
+              _hover={{
+                bg: "#EFF6FF",
+                borderColor: "#164C87",
+              }}
             >
               Back
             </Button>
-
             {canFillScoresSH && (
               <Button
                 type="button"
                 onClick={handleSaveShScores}
                 loading={savingScores}
                 loadingText="Saving..."
-                colorPalette="accent"
                 size="sm"
                 w={{ base: "full", sm: "auto" }}
+                bg="#1A5EA8"
+                color="white"
+                fontWeight="600"
+                borderRadius="8px"
+                px={5}
+                transition="all 0.2s ease"
+                _hover={{
+                  bg: "#164C87",
+                  boxShadow: "0 4px 12px rgba(26,94,168,0.3)",
+                }}
               >
                 Save Scores (SH)
               </Button>
@@ -511,9 +529,18 @@ const EvaluationDetail: React.FC = () => {
                 onClick={handleApprove}
                 loading={approving}
                 loadingText="Approving..."
-                colorPalette="green"
                 size="sm"
                 w={{ base: "full", sm: "auto" }}
+                bg="#16A34A"
+                color="white"
+                fontWeight="600"
+                borderRadius="8px"
+                px={5}
+                transition="all 0.2s ease"
+                _hover={{
+                  bg: "#15803D",
+                  boxShadow: "0 4px 12px rgba(22,163,74,0.3)",
+                }}
               >
                 Approve
               </Button>
@@ -525,9 +552,18 @@ const EvaluationDetail: React.FC = () => {
                 onClick={handleReject}
                 loading={rejecting}
                 loadingText="Rejecting..."
-                colorPalette="red"
                 size="sm"
                 w={{ base: "full", sm: "auto" }}
+                bg="#DC2626"
+                color="white"
+                fontWeight="600"
+                borderRadius="8px"
+                px={5}
+                transition="all 0.2s ease"
+                _hover={{
+                  bg: "#B91C1C",
+                  boxShadow: "0 4px 12px rgba(220,38,38,0.3)",
+                }}
               >
                 Reject
               </Button>

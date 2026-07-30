@@ -61,6 +61,25 @@ const HrDecisionsList: React.FC = () => {
     type: activeTab,
   });
 
+  // === TAMBAHAN BADGE NOTIF: fetch ringkas (per_page kecil) untuk kedua
+  // tab supaya bisa ditampilkan jumlah pending di tab switcher, terlepas
+  // dari tab mana yang sedang aktif. Kita hanya butuh `pagination.total`,
+  // bukan datanya, jadi per_page dibuat kecil (1) untuk meminimalkan
+  // payload. ===
+  const { data: employeeCountData } = usePendingHrDecisions({
+    page: 1,
+    per_page: 1,
+    type: "employee",
+  });
+  const { data: internCountData } = usePendingHrDecisions({
+    page: 1,
+    per_page: 1,
+    type: "intern",
+  });
+
+  const employeePendingCount = employeeCountData?.total ?? 0;
+  const internPendingCount = internCountData?.total ?? 0;
+
   const formatDate = (value: string | null) => {
     if (!value) return "-";
     return new Date(value).toLocaleDateString("id-ID", {
@@ -85,6 +104,34 @@ const HrDecisionsList: React.FC = () => {
     transition: "color 0.15s, border-color 0.15s",
   });
 
+  // === TAMBAHAN BADGE NOTIF: komponen kecil untuk lingkaran merah berisi
+  // angka, diposisikan absolute di pojok kanan atas tombol tab. ===
+  const NotifBadge: React.FC<{ count: number }> = ({ count }) => {
+    if (count <= 0) return null;
+    return (
+      <Box
+        position="absolute"
+        top="-2px"
+        right="-10px"
+        minW="16px"
+        h="16px"
+        px="4px"
+        borderRadius="full"
+        bg="#ef4444"
+        color="white"
+        fontSize="10px"
+        fontWeight="700"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        lineHeight="1"
+        boxShadow="0 0 0 2px white"
+      >
+        {count > 99 ? "99+" : count}
+      </Box>
+    );
+  };
+
   return (
     <MainLayout>
       <Box>
@@ -99,23 +146,31 @@ const HrDecisionsList: React.FC = () => {
 
         {/* === TAMBAHAN INTERN: Tab switcher Employee / Intern === */}
         <HStack gap={2} mb={6} borderBottom="1px solid" borderColor="gray.100">
-          <button
-            type="button"
-            style={tabButtonStyle("employee")}
-            onClick={() => handleTabChange("employee")}
-          >
-            Employee
-          </button>
+          <Box position="relative" display="inline-block">
+            <button
+              type="button"
+              style={tabButtonStyle("employee")}
+              onClick={() => handleTabChange("employee")}
+            >
+              Employee
+            </button>
+            <NotifBadge count={employeePendingCount} />
+          </Box>
+
           <Text color="gray.300" fontSize="14px">
             |
           </Text>
-          <button
-            type="button"
-            style={tabButtonStyle("intern")}
-            onClick={() => handleTabChange("intern")}
-          >
-            Intern
-          </button>
+
+          <Box position="relative" display="inline-block">
+            <button
+              type="button"
+              style={tabButtonStyle("intern")}
+              onClick={() => handleTabChange("intern")}
+            >
+              Intern
+            </button>
+            <NotifBadge count={internPendingCount} />
+          </Box>
         </HStack>
 
         <Box bg="white" rounded="lg" shadow="sm" p={6}>

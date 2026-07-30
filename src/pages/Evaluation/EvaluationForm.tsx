@@ -107,6 +107,15 @@ const EvaluationForm: React.FC = () => {
 
   const scoringMode: "leader" | "section_head" | "readonly" = useMemo(() => {
     if (!isEditMode || !evaluation) return "leader";
+
+    // Admin bisa override edit skor kapan pun, di stage manapun evaluation
+    // sedang berada — ikuti current_stage supaya skor yang diisi tetap
+    // tersimpan sebagai role yang relevan (leader/section_head).
+    if (roleName === "Admin") {
+      if (evaluation.current_stage === "section_head") return "section_head";
+      return "leader";
+    }
+
     if (
       roleName === "Section Head" &&
       evaluation.current_stage === "section_head"
@@ -485,6 +494,34 @@ const EvaluationForm: React.FC = () => {
             direction={{ base: "column", sm: "row" }}
             w={{ base: "100%", sm: "auto" }}
           >
+            {" "}
+            <Box
+              as="button"
+              onClick={() => navigate("/evaluations")}
+              display="inline-flex"
+              alignItems="center"
+              justifyContent="center"
+              w={{ base: "100%", sm: "auto" }}
+              px="clamp(14px, 3vw, 20px)"
+              py="clamp(8px, 2vw, 10px)"
+              fontSize="clamp(12px, 2vw, 14px)"
+              fontWeight={600}
+              borderRadius="8px"
+              color="#475569"
+              bg="#ffffff"
+              border="1px solid"
+              borderColor="#e2e8f0"
+              cursor="pointer"
+              whiteSpace="nowrap"
+              transition="all 0.2s ease"
+              _hover={{
+                bg: "#f8fafc",
+                transform: "translatey(-1px) scale(1.02)",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              }}
+            >
+              Cancel
+            </Box>
             {isEditMode && evaluation?.status === "draft" && (
               <Box
                 as="button"
@@ -518,35 +555,6 @@ const EvaluationForm: React.FC = () => {
                 Cancel Evaluation
               </Box>
             )}
-
-            <Box
-              as="button"
-              onClick={() => navigate("/evaluations")}
-              display="inline-flex"
-              alignItems="center"
-              justifyContent="center"
-              w={{ base: "100%", sm: "auto" }}
-              px="clamp(14px, 3vw, 20px)"
-              py="clamp(8px, 2vw, 10px)"
-              fontSize="clamp(12px, 2vw, 14px)"
-              fontWeight={600}
-              borderRadius="8px"
-              color="#475569"
-              bg="#ffffff"
-              border="1px solid"
-              borderColor="#e2e8f0"
-              cursor="pointer"
-              whiteSpace="nowrap"
-              transition="all 0.2s ease"
-              _hover={{
-                bg: "#f8fafc",
-                transform: "translatey(-1px) scale(1.02)",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              }}
-            >
-              Cancel
-            </Box>
-
             {!isScoringReadonly && (
               <Box
                 as="button"

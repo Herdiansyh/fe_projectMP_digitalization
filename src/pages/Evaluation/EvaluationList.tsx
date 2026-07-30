@@ -46,8 +46,20 @@ const EvaluationList: React.FC = () => {
     search: debouncedSearch || undefined,
   });
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
-  const { data: pendingTriggers = [], isLoading: loadingTriggers } =
-    usePendingTriggers(isLeader || isAdmin, activeTab);
+  const {
+    data: employeePendingTriggers = [],
+    isLoading: loadingEmployeeTriggers,
+  } = usePendingTriggers(isLeader || isAdmin, "employee");
+  const { data: internPendingTriggers = [], isLoading: loadingInternTriggers } =
+    usePendingTriggers(isLeader || isAdmin, "intern");
+
+  const pendingTriggers =
+    activeTab === "intern" ? internPendingTriggers : employeePendingTriggers;
+  const loadingTriggers =
+    activeTab === "intern" ? loadingInternTriggers : loadingEmployeeTriggers;
+
+  const employeePendingCount = employeePendingTriggers.length;
+  const internPendingCount = internPendingTriggers.length;
   const { mutate: deleteDraft } = useDeleteEvaluation();
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
@@ -186,23 +198,73 @@ const EvaluationList: React.FC = () => {
 
         {/* === TAMBAHAN INTERN: Tab switcher Employee / Intern === */}
         <HStack gap={2} mb={6} borderBottom="1px solid" borderColor="gray.100">
-          <button
-            type="button"
-            style={tabButtonStyle("employee")}
-            onClick={() => handleTabChange("employee")}
-          >
-            Employee
-          </button>
+          <Box position="relative" display="inline-block">
+            <button
+              type="button"
+              style={tabButtonStyle("employee")}
+              onClick={() => handleTabChange("employee")}
+            >
+              Employee
+            </button>
+            {employeePendingCount > 0 && (
+              <Box
+                position="absolute"
+                top="-2px"
+                right="-10px"
+                minW="16px"
+                h="16px"
+                px="4px"
+                borderRadius="full"
+                bg="#ef4444"
+                color="white"
+                fontSize="10px"
+                fontWeight="700"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                lineHeight="1"
+                boxShadow="0 0 0 2px white"
+              >
+                {employeePendingCount > 99 ? "99+" : employeePendingCount}
+              </Box>
+            )}
+          </Box>
+
           <Text color="gray.300" fontSize="14px">
             |
           </Text>
-          <button
-            type="button"
-            style={tabButtonStyle("intern")}
-            onClick={() => handleTabChange("intern")}
-          >
-            Intern
-          </button>
+
+          <Box position="relative" display="inline-block">
+            <button
+              type="button"
+              style={tabButtonStyle("intern")}
+              onClick={() => handleTabChange("intern")}
+            >
+              Intern
+            </button>
+            {internPendingCount > 0 && (
+              <Box
+                position="absolute"
+                top="-2px"
+                right="-10px"
+                minW="16px"
+                h="16px"
+                px="4px"
+                borderRadius="full"
+                bg="#ef4444"
+                color="white"
+                fontSize="10px"
+                fontWeight="700"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                lineHeight="1"
+                boxShadow="0 0 0 2px white"
+              >
+                {internPendingCount > 99 ? "99+" : internPendingCount}
+              </Box>
+            )}
+          </Box>
         </HStack>
 
         {(isLeader || isAdmin) && (

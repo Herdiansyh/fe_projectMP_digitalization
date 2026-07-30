@@ -49,7 +49,7 @@ function App() {
   return (
     <AuthProvider>
       <Toaster
-        position="bottom-right"
+        position="top-center"
         toastOptions={{
           duration: 3000,
           style: {
