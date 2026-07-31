@@ -27,6 +27,10 @@ import ScoringRubricTable from "./ScoringRubricTable";
 import AlertDialog from "../../components/common/AlertDialog";
 import { notify } from "../../utils/toast";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { useTourGuide } from "../../hooks/useTourGuide";
+import SpotlightTour from "../../components/common/SpotLightTour";
+import HelpButton from "../../components/common/HelpButton";
+import { evaluationFormTourSteps } from "../../hooks/tours/evaluationFormTour";
 
 type AlertVariant = "warning" | "error";
 
@@ -36,7 +40,6 @@ interface AlertState {
   variant: AlertVariant;
 }
 
-// === TAMBAHAN INTERN ===
 type SubjectType = "employee" | "intern";
 
 const EvaluationForm: React.FC = () => {
@@ -57,8 +60,13 @@ const EvaluationForm: React.FC = () => {
     prefillInternId ? "intern" : "employee",
   );
 
+  // Untuk Intern, kenaikan Intern -> Employee TIDAK ditentukan oleh scoring
+  // evaluasi. Leader hanya isi Recommendation; checkbox "Extend PKWT" yang
+  // menentukan apakah intern tetap magang (extend_pkwt = false) atau naik
+  // jadi employee (extend_pkwt = true, dengan pkwt_number wajib diisi).
+  const isIntern = subjectType === "intern";
+
   const [employees, setEmployees] = useState<Employee[]>([]);
-  // === TAMBAHAN INTERN ===
   const [interns, setInterns] = useState<Intern[]>([]);
   const [criteriaGroups, setCriteriaGroups] = useState<EvaluationGroup[]>([]);
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
@@ -67,7 +75,6 @@ const EvaluationForm: React.FC = () => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | "">(
     prefillEmployeeId ? Number(prefillEmployeeId) : "",
   );
-  // === TAMBAHAN INTERN ===
   const [selectedInternId, setSelectedInternId] = useState<number | "">(
     prefillInternId ? Number(prefillInternId) : "",
   );
@@ -77,7 +84,6 @@ const EvaluationForm: React.FC = () => {
     join_date: searchParams.get("join_date") ?? "",
     start_date: searchParams.get("start_date") ?? "",
     end_date: searchParams.get("end_date") ?? "",
-    pkwt: "",
     reminder_date: "",
     reminder_note: "",
   });
@@ -105,18 +111,28 @@ const EvaluationForm: React.FC = () => {
     setAlertInfo({ title, message, variant });
   };
 
+  // ─── Tour Guide ──────────────────────────────────────────────────────────
+  const formTourSteps = useMemo(
+    () => evaluationFormTourSteps(isIntern, isEditMode, isPrefilled),
+    [isIntern, isEditMode, isPrefilled],
+  );
+  const tour = useTourGuide(
+    `evaluation_form_${isIntern ? "intern" : "employee"}_v1`,
+    formTourSteps,
+  );
+
   const scoringMode: "leader" | "section_head" | "readonly" = useMemo(() => {
     if (!isEditMode || !evaluation) return "leader";
 
-    // Admin bisa override edit skor kapan pun, di stage manapun evaluation
-    // sedang berada — ikuti current_stage supaya skor yang diisi tetap
-    // tersimpan sebagai role yang relevan (leader/section_head).
     if (roleName === "Admin") {
-      if (evaluation.current_stage === "section_head") return "section_head";
+      if (!isIntern && evaluation.current_stage === "section_head") {
+        return "section_head";
+      }
       return "leader";
     }
 
     if (
+      !isIntern &&
       roleName === "Section Head" &&
       evaluation.current_stage === "section_head"
     ) {
@@ -126,7 +142,7 @@ const EvaluationForm: React.FC = () => {
       return "leader";
     }
     return "readonly";
-  }, [isEditMode, evaluation, roleName]);
+  }, [isEditMode, evaluation, roleName, isIntern]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -160,7 +176,6 @@ const EvaluationForm: React.FC = () => {
         const item = response.data;
         setEvaluation(item);
 
-        // === TAMBAHAN INTERN: tentukan subjectType dari data tersimpan ===
         const loadedSubjectType: SubjectType = item.intern_id
           ? "intern"
           : "employee";
@@ -174,7 +189,6 @@ const EvaluationForm: React.FC = () => {
           join_date: item.join_date ?? "",
           start_date: item.start_date ?? "",
           end_date: item.end_date ?? "",
-          pkwt: item.pkwt ?? "",
           reminder_date: item.reminder_date ?? "",
           reminder_note: item.reminder_note ?? "",
         });
@@ -186,48 +200,48 @@ const EvaluationForm: React.FC = () => {
           notes: item.recommendation?.notes ?? "",
         });
 
-        // Pisahkan skor Leader (selalu jadi referensi) dari skor role yang
-        // sedang login & berhak edit di stage saat ini.
-        const currentRoleKey =
-          roleName === "Section Head"
-            ? "section_head"
-            : roleName === "Leader"
-              ? "leader"
-              : null;
-
-        const initialLeaderScores: Record<number, number> = {};
-        const initialEditableScores: Record<number, number> = {};
-
-        item.scores.forEach((score) => {
-          if (score.score === null) return;
-          if (score.filled_by_role === "leader") {
-            initialLeaderScores[score.criteria_id] = score.score;
-          }
-          if (currentRoleKey && score.filled_by_role === currentRoleKey) {
-            initialEditableScores[score.criteria_id] = score.score;
-          }
-        });
-
-        setLeaderScores(initialLeaderScores);
-
-        // Untuk mode readonly (mis. Manager melihat), tampilkan skor SH kalau
-        // ada, fallback ke skor Leader kalau SH belum isi — supaya viewer
-        // tetap lihat hasil terakhir yang relevan.
-        if (currentRoleKey) {
-          setScores(initialEditableScores);
+        if (loadedSubjectType === "intern") {
+          setLeaderScores({});
+          setScores({});
         } else {
-          const shScores: Record<number, number> = {};
+          const currentRoleKey =
+            roleName === "Section Head"
+              ? "section_head"
+              : roleName === "Leader"
+                ? "leader"
+                : null;
+
+          const initialLeaderScores: Record<number, number> = {};
+          const initialEditableScores: Record<number, number> = {};
+
           item.scores.forEach((score) => {
-            if (
-              score.score !== null &&
-              score.filled_by_role === "section_head"
-            ) {
-              shScores[score.criteria_id] = score.score;
+            if (score.score === null) return;
+            if (score.filled_by_role === "leader") {
+              initialLeaderScores[score.criteria_id] = score.score;
+            }
+            if (currentRoleKey && score.filled_by_role === currentRoleKey) {
+              initialEditableScores[score.criteria_id] = score.score;
             }
           });
-          setScores(
-            Object.keys(shScores).length > 0 ? shScores : initialLeaderScores,
-          );
+
+          setLeaderScores(initialLeaderScores);
+
+          if (currentRoleKey) {
+            setScores(initialEditableScores);
+          } else {
+            const shScores: Record<number, number> = {};
+            item.scores.forEach((score) => {
+              if (
+                score.score !== null &&
+                score.filled_by_role === "section_head"
+              ) {
+                shScores[score.criteria_id] = score.score;
+              }
+            });
+            setScores(
+              Object.keys(shScores).length > 0 ? shScores : initialLeaderScores,
+            );
+          }
         }
       } catch {
         navigate("/evaluations");
@@ -239,7 +253,6 @@ const EvaluationForm: React.FC = () => {
     void loadEvaluation();
   }, [id, isEditMode, navigate, roleName]);
 
-  // Auto-fill dari Employee yang dipilih manual (bukan prefill dari trigger)
   useEffect(() => {
     if (
       !isEditMode &&
@@ -265,7 +278,6 @@ const EvaluationForm: React.FC = () => {
     }
   }, [selectedEmployeeId, employees, isEditMode, isPrefilled, subjectType]);
 
-  // === TAMBAHAN INTERN: auto-fill dari Intern yang dipilih manual ===
   useEffect(() => {
     if (
       !isEditMode &&
@@ -301,7 +313,7 @@ const EvaluationForm: React.FC = () => {
       }));
     }
   }, [recommendation.employee_status]);
-  // Kumpulkan semua criteria_id dari seluruh grup & subgrup rubrik
+
   const allCriteriaIds = useMemo(() => {
     return criteriaGroups.flatMap((group) =>
       group.subgroups.flatMap((subgroup) =>
@@ -310,40 +322,65 @@ const EvaluationForm: React.FC = () => {
     );
   }, [criteriaGroups]);
 
-  // State untuk menyimpan id kriteria yang belum diisi (dipakai untuk highlight)
   const [unfilledIds, setUnfilledIds] = useState<number[]>([]);
 
-  // Cek apakah masih ada kriteria yang skornya belum diisi
   const getUnfilledCriteria = () => {
+    if (isIntern) return [];
     return allCriteriaIds.filter(
       (criteriaId) =>
         scores[criteriaId] === undefined || scores[criteriaId] === null,
     );
   };
+
+  // === Validasi tambahan: durasi selalu wajib untuk perpanjang kontrak/magang,
+  // pkwt_number hanya wajib jika extend_pkwt dicentang.
+  const validateRecommendation = (): string | null => {
+    if (recommendation.employee_status === "perpanjang_kontrak") {
+      // Duration selalu wajib diisi — baik untuk perpanjang magang (Intern
+      // tetap intern) maupun perpanjang kontrak PKWT (Employee, atau Intern
+      // yang naik jadi karyawan).
+      if (!recommendation.extend_months || recommendation.extend_months <= 0) {
+        return "Durasi (bulan) wajib diisi.";
+      }
+      // PKWT number hanya wajib jika extend_pkwt dicentang (Employee
+      // perpanjang kontrak, atau Intern naik jadi karyawan).
+      if (recommendation.extend_pkwt && !recommendation.pkwt_number) {
+        return "Nomor PKWT wajib diisi jika 'Extend PKWT' dicentang.";
+      }
+    }
+    return null;
+  };
+
   const handleCreate = async () => {
-    // === UBAH (Intern): validasi subjek terpilih tergantung subjectType ===
     const selectedSubjectId =
       subjectType === "intern" ? selectedInternId : selectedEmployeeId;
     if (!selectedSubjectId) return;
-    if (saving) return; // cegah double-submit kalau user klik berkali-kali
+    if (saving) return;
 
-    const unfilled = getUnfilledCriteria();
-    if (unfilled.length > 0) {
-      setUnfilledIds(unfilled);
-      showAlert(
-        "Skor Belum Lengkap",
-        "Harap isi seluruh skor penilaian sebelum menyimpan evaluasi.",
-      );
-      return;
+    if (!isIntern) {
+      const unfilled = getUnfilledCriteria();
+      if (unfilled.length > 0) {
+        setUnfilledIds(unfilled);
+        showAlert(
+          "Skor Belum Lengkap",
+          "Harap isi seluruh skor penilaian sebelum menyimpan evaluasi.",
+        );
+        return;
+      }
     }
     setUnfilledIds([]);
+
+    const recommendationError = validateRecommendation();
+    if (recommendationError) {
+      showAlert("Data Belum Lengkap", recommendationError);
+      return;
+    }
 
     setSaving(true);
     try {
       let basePayload;
       if (isPrefilled) {
         basePayload = {
-          // === UBAH (Intern): employee_id ATAU intern_id, exclusive ===
           employee_id:
             subjectType === "employee" ? Number(selectedSubjectId) : undefined,
           intern_id:
@@ -353,7 +390,6 @@ const EvaluationForm: React.FC = () => {
           join_date: form.join_date || null,
           start_date: form.start_date || null,
           end_date: form.end_date || null,
-          pkwt: form.pkwt || null,
         };
       } else if (subjectType === "intern") {
         const intern = interns.find((item) => item.id === selectedSubjectId);
@@ -365,7 +401,6 @@ const EvaluationForm: React.FC = () => {
           join_date: intern?.join_date ?? null,
           start_date: intern?.start_contract ?? null,
           end_date: intern?.end_contract ?? null,
-          pkwt: form.pkwt || null,
         };
       } else {
         const employee = employees.find(
@@ -379,16 +414,17 @@ const EvaluationForm: React.FC = () => {
           join_date: employee?.join_date ?? null,
           start_date: employee?.start_contract ?? null,
           end_date: employee?.end_contract ?? null,
-          pkwt: form.pkwt || null,
         };
       }
 
       const payload = {
         ...basePayload,
-        scores: Object.entries(scores).map(([criteriaId, score]) => ({
-          criteria_id: Number(criteriaId),
-          score,
-        })),
+        scores: isIntern
+          ? []
+          : Object.entries(scores).map(([criteriaId, score]) => ({
+              criteria_id: Number(criteriaId),
+              score,
+            })),
         recommendation,
       };
 
@@ -403,10 +439,14 @@ const EvaluationForm: React.FC = () => {
       setSaving(false);
     }
   };
+
   const handleSave = async () => {
     if (!evaluation) return;
 
-    if (scoringMode === "leader" || scoringMode === "section_head") {
+    if (
+      !isIntern &&
+      (scoringMode === "leader" || scoringMode === "section_head")
+    ) {
       const unfilled = getUnfilledCriteria();
       if (unfilled.length > 0) {
         setUnfilledIds(unfilled);
@@ -419,11 +459,20 @@ const EvaluationForm: React.FC = () => {
     }
     setUnfilledIds([]);
 
+    const recommendationError = validateRecommendation();
+    if (recommendationError) {
+      showAlert("Data Belum Lengkap", recommendationError);
+      return;
+    }
+
     setSaving(true);
     try {
       await evaluationService.updateEvaluation(evaluation.id, form);
 
-      if (scoringMode === "leader" || scoringMode === "section_head") {
+      if (
+        !isIntern &&
+        (scoringMode === "leader" || scoringMode === "section_head")
+      ) {
         const payload: EvaluationScorePayload = {
           scores: Object.entries(scores).map(([criteriaId, score]) => ({
             criteria_id: Number(criteriaId),
@@ -471,9 +520,9 @@ const EvaluationForm: React.FC = () => {
   }
 
   const isScoringReadonly = scoringMode === "readonly";
-  // === TAMBAHAN INTERN ===
   const selectedSubjectId =
     subjectType === "intern" ? selectedInternId : selectedEmployeeId;
+  const isContractEnded = recommendation.employee_status === "kontrak_berakhir";
 
   return (
     <MainLayout>
@@ -484,9 +533,9 @@ const EvaluationForm: React.FC = () => {
               {isEditMode ? "Edit Evaluation" : "Create Evaluation"}
             </Text>
             <Text fontSize="13px" color="gray.500" mt={0.5}>
-              {/* === TAMBAHAN INTERN === */}
-              Fill the {subjectType === "intern" ? "intern" : "employee"}{" "}
-              details and scoring rubric.
+              {isIntern
+                ? "Fill the intern details and recommendation. Scoring rubric is not required for interns."
+                : "Fill the employee details and scoring rubric."}
             </Text>
           </Box>
           <Stack
@@ -494,7 +543,7 @@ const EvaluationForm: React.FC = () => {
             direction={{ base: "column", sm: "row" }}
             w={{ base: "100%", sm: "auto" }}
           >
-            {" "}
+            <HelpButton onClick={tour.start} />
             <Box
               as="button"
               onClick={() => navigate("/evaluations")}
@@ -602,11 +651,8 @@ const EvaluationForm: React.FC = () => {
             <Text fontSize="16px" fontWeight="700" color="gray.800">
               {subjectType === "intern" ? "Intern" : "Employee"} Details
             </Text>
-            {/* === TAMBAHAN INTERN: tab Employee/Intern, teks dipisah "|",
-                hanya muncul saat create manual (bukan prefill, bukan edit)
-                — di edit mode subjectType sudah fix dari data tersimpan. === */}
             {!isEditMode && !isPrefilled && (
-              <HStack gap={2}>
+              <HStack gap={2} data-tour="subject-type-tabs">
                 {(["employee", "intern"] as SubjectType[]).map(
                   (type, index) => (
                     <React.Fragment key={type}>
@@ -663,6 +709,7 @@ const EvaluationForm: React.FC = () => {
           ) : !isEditMode ? (
             subjectType === "intern" ? (
               <select
+                data-tour="subject-select"
                 value={selectedInternId}
                 onChange={(event) =>
                   setSelectedInternId(Number(event.target.value))
@@ -686,6 +733,7 @@ const EvaluationForm: React.FC = () => {
               </select>
             ) : (
               <select
+                data-tour="subject-select"
                 value={selectedEmployeeId}
                 onChange={(event) =>
                   setSelectedEmployeeId(Number(event.target.value))
@@ -710,7 +758,6 @@ const EvaluationForm: React.FC = () => {
             )
           ) : (
             <Box bg="gray.50" p={4} rounded="md">
-              {/* === TAMBAHAN INTERN: tampilkan intern atau employee sesuai subjectType === */}
               <Text fontSize="14px" fontWeight="600" color="gray.700">
                 {subjectType === "intern"
                   ? evaluation?.intern?.name
@@ -799,66 +846,110 @@ const EvaluationForm: React.FC = () => {
             </Box>
             <Box flex={1} minW="220px">
               <Text fontSize="13px" fontWeight="600" mb={2}>
-                PKWT
+                PKWT Number
               </Text>
-              <Input
-                value={form.pkwt}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, pkwt: event.target.value }))
-                }
-              />
+              <Box
+                bg="gray.50"
+                border="1px solid #e2e8f0"
+                borderRadius="8px"
+                px={3}
+                py="8px"
+                minH="38px"
+                display="flex"
+                alignItems="center"
+              >
+                {isIntern ? (
+                  <Text fontSize="13px" color="gray.400">
+                    Belum mempunyai PKWT
+                  </Text>
+                ) : isEditMode ? (
+                  <Text fontSize="14px" color="gray.700" fontWeight={500}>
+                    {evaluation?.employee?.pkwt_number ?? "-"}
+                  </Text>
+                ) : (
+                  <Text fontSize="14px" color="gray.700" fontWeight={500}>
+                    {employees.find((e) => e.id === selectedEmployeeId)
+                      ?.pkwt_number ?? "-"}
+                  </Text>
+                )}
+              </Box>
             </Box>
           </HStack>
         </Box>
 
-        <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
-          <Flex justify="space-between" align="center" mb={4}>
-            <Text fontSize="16px" fontWeight="700" color="gray.800">
-              Scoring Rubric
+        {/*
+          FIX: data-tour="scoring-rubric" DIPINDAH dari Box pembungkus besar
+          (yang membungkus seluruh tabel rubric, tinggi > viewport) ke Flex
+          header di dalamnya. Ini menghilangkan bug spotlight raksasa /
+          tooltip kepotong di step "Isi Evaluation Assessment".
+        */}
+        {!isIntern ? (
+          <Box bg="white" rounded="lg" shadow="sm" p={6} mb={6}>
+            <Flex
+              justify="space-between"
+              align="center"
+              mb={4}
+              data-tour="scoring-rubric"
+            >
+              <Text fontSize="16px" fontWeight="700" color="gray.800">
+                Evaluation Assessment
+              </Text>
+              {scoringMode === "section_head" && (
+                <Text fontSize="12px" color="gray.500">
+                  Skor{" "}
+                  <Text as="span" fontWeight="700" color="#1d4ed8">
+                    LD
+                  </Text>{" "}
+                  ditampilkan sebagai referensi (tidak bisa diubah). Isi skor{" "}
+                  <Text as="span" fontWeight="700" color="#16a34a">
+                    SH
+                  </Text>{" "}
+                  di sebelahnya.
+                </Text>
+              )}
+              {isScoringReadonly && (
+                <Text fontSize="12px" color="gray.500">
+                  Tampilan saja — tidak bisa diedit di tahap ini
+                </Text>
+              )}
+            </Flex>
+            <ScoringRubricTable
+              criteriaGroups={criteriaGroups}
+              scores={scores}
+              leaderScores={leaderScores}
+              mode={scoringMode}
+              unfilledIds={unfilledIds}
+              onChange={(criteriaId, value) => {
+                setScores((prev) => ({ ...prev, [criteriaId]: value }));
+                setUnfilledIds((prev) =>
+                  prev.filter((id) => id !== criteriaId),
+                );
+              }}
+            />
+          </Box>
+        ) : (
+          <Box
+            bg="blue.50"
+            border="1px solid"
+            borderColor="blue.200"
+            rounded="lg"
+            p={4}
+            mb={6}
+            data-tour="intern-no-scoring-note"
+          >
+            <Text fontSize="13px" color="blue.700">
+              Penilaian Evaluasi tidak diperlukan untuk Intern. Kenaikan status
+              intern ditentukan sepenuhnya dari bagian Recommendation di bawah.
             </Text>
-            {scoringMode === "section_head" && (
-              <Text fontSize="12px" color="gray.500">
-                Skor{" "}
-                <Text as="span" fontWeight="700" color="#1d4ed8">
-                  LD
-                </Text>{" "}
-                ditampilkan sebagai referensi (tidak bisa diubah). Isi skor{" "}
-                <Text as="span" fontWeight="700" color="#16a34a">
-                  SH
-                </Text>{" "}
-                di sebelahnya.
-              </Text>
-            )}
-            {isScoringReadonly && (
-              <Text fontSize="12px" color="gray.500">
-                Tampilan saja — tidak bisa diedit di tahap ini
-              </Text>
-            )}
-          </Flex>
-          <ScoringRubricTable
-            criteriaGroups={criteriaGroups}
-            scores={scores}
-            leaderScores={leaderScores}
-            mode={scoringMode}
-            unfilledIds={unfilledIds}
-            onChange={(criteriaId, value) => {
-              setScores((prev) => ({ ...prev, [criteriaId]: value }));
-              // hapus highlight begitu user mengisi kriteria tsb
-              setUnfilledIds((prev) => prev.filter((id) => id !== criteriaId));
-            }}
-          />
-        </Box>
+          </Box>
+        )}
 
         <Box bg="white" rounded="lg" shadow="sm" p={6}>
           <Text fontSize="16px" fontWeight="700" color="gray.800" mb={4}>
             Recommendation
           </Text>
-          {/* NOTE (Intern): dropdown & value di bawah ini REUSE APA ADANYA
-              dari Employee (permanen/kontrak_berakhir/perpanjang_kontrak),
-              termasuk saat subjectType === "intern" — sesuai keputusan
-              Anda, sementara sampai skema final diputuskan. Tidak ada
-              percabangan label untuk Intern di sini. */}
-          <Box mb={4} maxW="320px">
+
+          <Box mb={4} maxW="320px" data-tour="decision-dropdown">
             <Text fontSize="13px" fontWeight="600" mb={2}>
               Decision
             </Text>
@@ -881,105 +972,138 @@ const EvaluationForm: React.FC = () => {
               }}
             >
               <option value="">Pilih status</option>
-              <option value="permanen">Permanen</option>
-              <option value="kontrak_berakhir">Kontrak Berakhir</option>
-              <option value="perpanjang_kontrak">Perpanjang Kontrak</option>
+              <option value="permanen">
+                {isIntern ? "Permanen (Langsung Karyawan Tetap)" : "Permanen"}
+              </option>
+              <option value="kontrak_berakhir">
+                {isIntern
+                  ? "Magang Selesai / Tidak Dilanjutkan"
+                  : "Kontrak Berakhir"}
+              </option>
+              <option value="perpanjang_kontrak">
+                {isIntern
+                  ? "Perpanjang Kontrak / Magang"
+                  : "Perpanjang Kontrak"}
+              </option>
             </select>
+
+            {isIntern &&
+              recommendation.employee_status === "perpanjang_kontrak" && (
+                <Text fontSize="12px" color="gray.500" mt="8px">
+                  {recommendation.extend_pkwt
+                    ? "Intern akan diangkat menjadi karyawan (PKWT) sesuai nomor & durasi di bawah."
+                    : "Intern tetap berstatus magang, hanya kontrak magangnya diperpanjang."}
+                </Text>
+              )}
           </Box>
 
           <Box mb={4}>
-            {(() => {
-              const isContractEnded =
-                recommendation.employee_status === "kontrak_berakhir";
+            <label
+              data-tour="extend-pkwt-checkbox"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: isContractEnded ? "#9ca3af" : "#374151",
+                marginBottom: isContractEnded ? "4px" : "12px",
+                cursor: isContractEnded ? "not-allowed" : "pointer",
+                width: "fit-content",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={recommendation.extend_pkwt ?? false}
+                disabled={isContractEnded}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setRecommendation((prev) => ({
+                    ...prev,
+                    extend_pkwt: checked,
+                    // Hanya reset pkwt_number saat uncheck — extend_months TETAP dipakai
+                    // baik untuk durasi magang (intern tetap intern) maupun durasi PKWT
+                    // (intern naik jadi karyawan / employee perpanjang kontrak).
+                    ...(checked ? {} : { pkwt_number: "" }),
+                  }));
+                }}
+              />
+              Extend PKWT
+              {isIntern && (
+                <Text
+                  as="span"
+                  fontSize="11px"
+                  color="#94a3b8"
+                  fontWeight={500}
+                >
+                  (centang = naik jadi karyawan PKWT)
+                </Text>
+              )}
+            </label>
 
-              return (
-                <>
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      color: isContractEnded ? "#9ca3af" : "#374151",
-                      marginBottom: isContractEnded ? "4px" : "12px",
-                      cursor: isContractEnded ? "not-allowed" : "pointer",
-                      width: "fit-content",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={recommendation.extend_pkwt ?? false}
-                      disabled={isContractEnded}
-                      onChange={(event) => {
-                        const checked = event.target.checked;
-                        setRecommendation((prev) => ({
-                          ...prev,
-                          extend_pkwt: checked,
-                          ...(checked
-                            ? {}
-                            : { pkwt_number: "", extend_months: null }),
-                        }));
-                      }}
-                    />
-                    Extend PKWT
-                  </label>
+            {isContractEnded && (
+              <Text fontSize="12px" color="gray.500" mb="12px">
+                Tidak tersedia karena status keputusan adalah{" "}
+                <Text as="span" fontWeight="600" color="gray.600">
+                  "Kontrak Berakhir"
+                </Text>
+                .
+              </Text>
+            )}
 
-                  {isContractEnded && (
-                    <Text fontSize="12px" color="gray.500" mb="12px">
-                      Tidak tersedia karena status keputusan adalah{" "}
-                      <Text as="span" fontWeight="600" color="gray.600">
-                        "Kontrak Berakhir"
-                      </Text>
-                      .
-                    </Text>
-                  )}
+            <HStack gap={4} wrap="wrap" data-tour="pkwt-number-input">
+              {/* PKWT Number: untuk Employee selalu tampil (disabled sesuai
+                  extend_pkwt seperti perilaku lama). Untuk Intern, field ini HANYA
+                  dirender kalau extend_pkwt dicentang — kalau tidak dicentang berarti
+                  Intern tetap magang dan belum punya PKWT sama sekali, jadi field ini
+                  tidak relevan ditampilkan (bukan sekadar di-disable). */}
+              {(!isIntern || recommendation.extend_pkwt) && (
+                <Box flex={1} minW="220px">
+                  <Text fontSize="13px" fontWeight="600" mb={2}>
+                    PKWT Baru
+                  </Text>
+                  <Input
+                    placeholder="PKWT 1/2/3/4"
+                    value={recommendation.pkwt_number ?? ""}
+                    disabled={
+                      isContractEnded ||
+                      (!isIntern && !recommendation.extend_pkwt)
+                    }
+                    onChange={(event) =>
+                      setRecommendation((prev) => ({
+                        ...prev,
+                        pkwt_number: event.target.value,
+                      }))
+                    }
+                  />
+                </Box>
+              )}
 
-                  <HStack gap={4} wrap="wrap">
-                    <Box flex={1} minW="220px">
-                      <Text fontSize="13px" fontWeight="600" mb={2}>
-                        PKWT
-                      </Text>
-                      <Input
-                        placeholder="PKWT 1/2/3/4"
-                        value={recommendation.pkwt_number ?? ""}
-                        disabled={
-                          !recommendation.extend_pkwt || isContractEnded
-                        }
-                        onChange={(event) =>
-                          setRecommendation((prev) => ({
-                            ...prev,
-                            pkwt_number: event.target.value,
-                          }))
-                        }
-                      />
-                    </Box>
-                    <Box flex={1} minW="220px">
-                      <Text fontSize="13px" fontWeight="600" mb={2}>
-                        Duration (Months)
-                      </Text>
-                      <Input
-                        type="number"
-                        placeholder="Berapa Bulan"
-                        value={recommendation.extend_months ?? ""}
-                        disabled={
-                          !recommendation.extend_pkwt || isContractEnded
-                        }
-                        onChange={(event) =>
-                          setRecommendation((prev) => ({
-                            ...prev,
-                            extend_months: Number(event.target.value) || null,
-                          }))
-                        }
-                      />
-                    </Box>
-                  </HStack>
-                </>
-              );
-            })()}
+              {/* Duration: SELALU aktif selama status "Perpanjang Kontrak/Magang"
+                  dipilih — dipakai baik untuk durasi perpanjangan magang (Intern,
+                  extend_pkwt = false) maupun durasi kontrak PKWT (Employee, atau
+                  Intern yang naik jadi karyawan). TIDAK bergantung ke extend_pkwt. */}
+              <Box flex={1} minW="220px">
+                <Text fontSize="13px" fontWeight="600" mb={2}>
+                  Duration (Months)
+                </Text>
+                <Input
+                  type="number"
+                  placeholder="Berapa Bulan"
+                  value={recommendation.extend_months ?? ""}
+                  disabled={isContractEnded}
+                  onChange={(event) =>
+                    setRecommendation((prev) => ({
+                      ...prev,
+                      extend_months: Number(event.target.value) || null,
+                    }))
+                  }
+                />
+              </Box>
+            </HStack>
           </Box>
 
-          <Box mb={4}>
+          <Box mb={4} data-tour="recommendation-notes">
             <Text fontSize="13px" fontWeight="600" mb={2}>
               Notes
             </Text>
@@ -1021,6 +1145,16 @@ const EvaluationForm: React.FC = () => {
         loadingText="Deleting..."
         icon={<FiTrash2 size={22} />}
       />
+      {tour.isOpen && tour.currentStep && (
+        <SpotlightTour
+          step={tour.currentStep}
+          stepIndex={tour.stepIndex}
+          totalSteps={formTourSteps.length}
+          isLastStep={tour.isLastStep}
+          onNext={tour.next}
+          onSkip={tour.skip}
+        />
+      )}
     </MainLayout>
   );
 };

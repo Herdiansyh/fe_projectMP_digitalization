@@ -49,10 +49,17 @@ const HrDecisionDetailModal: React.FC<HrDecisionDetailModalProps> = ({
   subjectType,
   onClose,
 }) => {
+  const isIntern = subjectType === "intern";
+
   const [criteriaGroups, setCriteriaGroups] = useState<EvaluationGroup[]>([]);
   const [loadingCriteria, setLoadingCriteria] = useState(true);
 
   useEffect(() => {
+    if (isIntern) {
+      setLoadingCriteria(false);
+      return;
+    }
+
     let mounted = true;
     setLoadingCriteria(true);
     evaluationService
@@ -69,7 +76,7 @@ const HrDecisionDetailModal: React.FC<HrDecisionDetailModalProps> = ({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isIntern]);
 
   const subject =
     subjectType === "intern" ? evaluation.intern : evaluation.employee;
@@ -161,7 +168,7 @@ const HrDecisionDetailModal: React.FC<HrDecisionDetailModalProps> = ({
                   </Text>
                   <HStack gap={2} mt={2}>
                     <Badge colorPalette="blue">
-                      {subjectType === "intern" ? "Intern" : "Employee"}
+                      {isIntern ? "Intern" : "Employee"}
                     </Badge>
                     <Badge colorPalette="purple">{evaluation.status}</Badge>
                   </HStack>
@@ -200,7 +207,7 @@ const HrDecisionDetailModal: React.FC<HrDecisionDetailModalProps> = ({
               textTransform="uppercase"
               letterSpacing="0.05em"
             >
-              {subjectType === "intern" ? "Intern" : "Employee"} Details
+              {isIntern ? "Intern" : "Employee"} Details
             </Text>
             <Grid
               templateColumns={{ base: "1fr", sm: "1fr 1fr 1fr" }}
@@ -220,14 +227,22 @@ const HrDecisionDetailModal: React.FC<HrDecisionDetailModalProps> = ({
                 label="End Contract"
                 value={formatDate(evaluation.end_date)}
               />
-              <DetailRow label="PKWT" value={evaluation.pkwt} />
-              <DetailRow
-                label="Total Score"
-                value={evaluation.total_score ?? "-"}
-              />
+              {!isIntern && (
+                <DetailRow
+                  label="PKWT Number"
+                  value={evaluation.employee?.pkwt_number}
+                />
+              )}
+              {/* Total Score hanya relevan untuk Employee — Intern tidak
+                  punya Evaluation Assessment is not required for interns. An intern's status is determined entirely by the Recommendation section below. sama sekali, jadi total_score-nya
+                  selalu null dan tidak perlu ditampilkan. */}
+              {!isIntern && (
+                <DetailRow
+                  label="Total Score"
+                  value={evaluation.total_score ?? "-"}
+                />
+              )}
             </Grid>
-
-            <Box h="1px" bg="gray.100" my={5} />
 
             <Box h="1px" bg="gray.100" my={5} />
 
@@ -296,37 +311,44 @@ const HrDecisionDetailModal: React.FC<HrDecisionDetailModalProps> = ({
               </Box>
             )}
 
-            <Box h="1px" bg="gray.100" my={5} />
-
-            {/* Scoring Rubric — read-only, LD & SH berdampingan */}
-            <Text
-              fontSize="11px"
-              fontWeight={700}
-              color="gray.400"
-              mb={3}
-              textTransform="uppercase"
-              letterSpacing="0.05em"
-            >
-              Scoring Rubric
-            </Text>
-            {loadingCriteria ? (
-              <Text fontSize="13px" color="gray.400">
-                Loading rubric...
-              </Text>
-            ) : criteriaGroups.length === 0 ? (
-              <Text fontSize="13px" color="gray.400">
-                No criteria data available.
-              </Text>
-            ) : (
-              <ScoringRubricTable
-                criteriaGroups={criteriaGroups}
-                scores={hasShScores ? shScores : leaderScores}
-                leaderScores={leaderScores}
-                mode="manager_view"
-                onChange={() => {
-                  /* read-only, no-op */
-                }}
-              />
+            {/* Evaluation Assessment is not required for interns. An intern's status is determined entirely by the Recommendation section below. — HANYA untuk Employee. Intern tidak pernah
+                mengisi rubric sama sekali (baik Leader maupun SH), jadi
+                section ini disembunyikan total untuk subjek Intern. */}
+            {!isIntern && (
+              <>
+                <Box h="1px" bg="gray.100" my={5} />
+                <Text
+                  fontSize="11px"
+                  fontWeight={700}
+                  color="gray.400"
+                  mb={3}
+                  textTransform="uppercase"
+                  letterSpacing="0.05em"
+                >
+                  Evaluation Assessment is not required for interns. An intern's
+                  status is determined entirely by the Recommendation section
+                  below.
+                </Text>
+                {loadingCriteria ? (
+                  <Text fontSize="13px" color="gray.400">
+                    Loading rubric...
+                  </Text>
+                ) : criteriaGroups.length === 0 ? (
+                  <Text fontSize="13px" color="gray.400">
+                    No criteria data available.
+                  </Text>
+                ) : (
+                  <ScoringRubricTable
+                    criteriaGroups={criteriaGroups}
+                    scores={hasShScores ? shScores : leaderScores}
+                    leaderScores={leaderScores}
+                    mode="manager_view"
+                    onChange={() => {
+                      /* read-only, no-op */
+                    }}
+                  />
+                )}
+              </>
             )}
           </Box>
 

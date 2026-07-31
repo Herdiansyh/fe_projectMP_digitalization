@@ -270,24 +270,23 @@ const HrDecisionsList: React.FC = () => {
                           {subject?.npk ?? evaluation.npk ?? "-"}
                         </td>
                         <td style={{ padding: "12px 14px" }}>
-                          {/* ASUMSI: field rekomendasi masih pakai
-                              extend_pkwt yang sama untuk Intern (belum
-                              diputuskan — lihat plan "Open Question #1").
-                              Untuk tab Intern label diganti jadi
-                              "Lanjut/Tidak Lanjut" tapi logikanya masih
-                              baca extend_pkwt yang sama. Tolong dikoreksi
-                              begitu field final untuk rekomendasi Intern
-                              sudah diputuskan. */}
+                          {/* Untuk Intern: berdasarkan employee_status (perpanjang_kontrak = lanjut,
+                              kontrak_berakhir = tidak lanjut). extend_pkwt hanya menentukan jenis lanjut
+                              (naik karyawan vs perpanjang magang). */}
                           <Badge
                             colorPalette={
-                              evaluation.recommendation?.extend_pkwt
+                              evaluation.recommendation?.employee_status ===
+                              "perpanjang_kontrak"
                                 ? "green"
                                 : "orange"
                             }
                           >
                             {activeTab === "intern"
-                              ? evaluation.recommendation?.extend_pkwt
-                                ? "Rekomendasi: Lanjut"
+                              ? evaluation.recommendation?.employee_status ===
+                                "perpanjang_kontrak"
+                                ? evaluation.recommendation?.extend_pkwt
+                                  ? "Rekomendasi: Lanjut (Naik PKWT)"
+                                  : "Rekomendasi: Lanjut (Perpanjang Magang)"
                                 : "Rekomendasi: Tidak Lanjut"
                               : evaluation.recommendation?.extend_pkwt
                                 ? "Rekomendasi: Perpanjang"

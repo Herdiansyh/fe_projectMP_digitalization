@@ -30,6 +30,7 @@ const EMPTY_FORM: CreateEmployeeInput = {
   line_id: null,
   station_id: null,
   employment_type: "permanent",
+  pkwt_number: null,
   join_date: "",
   start_contract: "",
   end_contract: null,
@@ -118,6 +119,7 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
         line_id: editTarget.line_id ?? editTarget.line?.id ?? null,
         station_id: editTarget.station_id ?? editTarget.station?.id ?? null,
         employment_type: editTarget.employment_type,
+        pkwt_number: editTarget.pkwt_number ?? null,
         join_date: editTarget.join_date ?? "",
         start_contract: editTarget.start_contract,
         end_contract: editTarget.end_contract ?? null,
@@ -552,8 +554,10 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                       value={form.employment_type}
                       onChange={(e) => {
                         handleChange("employment_type", e.target.value);
-                        if (e.target.value === "permanent")
+                        if (e.target.value === "permanent") {
                           handleChange("end_contract", null);
+                          handleChange("pkwt_number", null);
+                        }
                       }}
                     >
                       <option value="permanent">Permanent</option>
@@ -669,6 +673,22 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                     </Box>
                   )}
                 </Grid>
+
+                {/* PKWT Number - only for contract employees */}
+                {form.employment_type === "contract" && (
+                  <Box>
+                    <label style={labelStyle}>PKWT Number</label>
+                    <input
+                      style={inputStyle}
+                      value={form.pkwt_number ?? ""}
+                      onChange={(e) =>
+                        handleChange("pkwt_number", e.target.value || null)
+                      }
+                      placeholder="Example: PKWT/2024/001"
+                    />
+                    {errorText("pkwt_number")}
+                  </Box>
+                )}
               </Stack>
             </form>
           </Box>

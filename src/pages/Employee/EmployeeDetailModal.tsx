@@ -471,6 +471,9 @@ const EmployeeDetailModal = ({
                   employee.end_contract,
                 )}
               />
+              {employee.employment_type === "contract" && (
+                <DetailRow label="PKWT Number" value={employee.pkwt_number} />
+              )}
             </Grid>
 
             <Box h="1px" bg="gray.100" my={4} />
