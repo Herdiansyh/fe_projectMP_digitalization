@@ -49,14 +49,20 @@ function useClickOutside(
   ref: React.RefObject<HTMLElement | null>,
   handler: () => void,
 ) {
+  const handlerRef = useRef(handler);
+
+  useEffect(() => {
+    handlerRef.current = handler;
+  }, [handler]);
+
   useEffect(() => {
     const listener = (e: MouseEvent) => {
       if (!ref.current || ref.current.contains(e.target as Node)) return;
-      handler();
+      handlerRef.current();
     };
     document.addEventListener("mousedown", listener);
     return () => document.removeEventListener("mousedown", listener);
-  }, [ref, handler]);
+  }, [ref]);
 }
 
 // ── Badge ─────────────────────────────────────────────────────────────────────

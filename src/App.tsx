@@ -7,23 +7,37 @@ import {
 } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
-import EmployeeList from "./pages/Employee/EmployeeList";
-import InternList from "./pages/Intern/InternList";
-import CompetencyAssessmentList from "./pages/Competency/CompetencyAssessmentList";
-import CompetencyMatrixManage from "./pages/Competency/CompetencyMatrixManage";
-import QaReviewList from "./pages/Competency/QaReviewList";
-import MySubmissionsList from "./pages/Competency/MySubmissionList";
-import MyReviewsList from "./pages/Competency/MyReviewList";
-import EvaluationList from "./pages/Evaluation/EvaluationList";
-import EvaluationForm from "./pages/Evaluation/EvaluationForm";
-import EvaluationDetail from "./pages/Evaluation/EvaluationDetail";
-import HrDecisionsList from "./pages/Evaluation/HrDecisionsList";
 import { Toaster } from "react-hot-toast";
-import HrDecisionHistory from "./pages/Evaluation/HrDecisionHistory";
 
 const Login = lazy(() => import("./pages/Login/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
+const EmployeeList = lazy(() => import("./pages/Employee/EmployeeList"));
+const InternList = lazy(() => import("./pages/Intern/InternList"));
+const CompetencyAssessmentList = lazy(
+  () => import("./pages/Competency/CompetencyAssessmentList"),
+);
+const CompetencyMatrixManage = lazy(
+  () => import("./pages/Competency/CompetencyMatrixManage"),
+);
+const QaReviewList = lazy(() => import("./pages/Competency/QaReviewList"));
+const MySubmissionsList = lazy(
+  () => import("./pages/Competency/MySubmissionList"),
+);
+const MyReviewsList = lazy(() => import("./pages/Competency/MyReviewList"));
+const EvaluationList = lazy(
+  () => import("./pages/Evaluation/EvaluationList"),
+);
+const EvaluationForm = lazy(() => import("./pages/Evaluation/EvaluationForm"));
+const EvaluationDetail = lazy(
+  () => import("./pages/Evaluation/EvaluationDetail"),
+);
+const HrDecisionsList = lazy(
+  () => import("./pages/Evaluation/HrDecisionsList"),
+);
+const HrDecisionHistory = lazy(
+  () => import("./pages/Evaluation/HrDecisionHistory"),
+);
 const EvaluationFormManage = lazy(
   () => import("./pages/EvaluationFormManagement/EvaluationFormManage"),
 );
