@@ -12,12 +12,15 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FiAlertCircle, FiInfo, FiTrash2 } from "react-icons/fi";
 import MainLayout from "../../components/layout/MainLayout";
 import { useAuth } from "../../contexts/AuthContext";
+import {
+  useEvaluationCriteria,
+  useEvaluationDetail,
+} from "../../hooks/queries/useEvaluationQueries";
 import evaluationService from "../../services/evaluationService";
 import employeeService from "../../services/employeeService";
 import internService from "../../services/internService";
 import type {
   Evaluation,
-  EvaluationGroup,
   EvaluationRecommendationPayload,
   EvaluationScorePayload,
 } from "../../types/evaluation";
@@ -66,9 +69,16 @@ const EvaluationForm: React.FC = () => {
   // jadi employee (extend_pkwt = true, dengan pkwt_number wajib diisi).
   const isIntern = subjectType === "intern";
 
+  // ─── TanStack Query ──────────────────────────────────────────────────────
+  // Scoring rubric & detail evaluasi diambil via query (shared cache), bukan
+  // fetch manual per-mount — jadi tidak re-fetch tiap kali masuk halaman.
+  const { data: criteriaRes } = useEvaluationCriteria();
+  const { data: evaluationDetailRes, isLoading: loadingEvaluation } =
+    useEvaluationDetail(Number(id), isEditMode);
+  const criteriaGroups = criteriaRes?.data ?? [];
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [interns, setInterns] = useState<Intern[]>([]);
-  const [criteriaGroups, setCriteriaGroups] = useState<EvaluationGroup[]>([]);
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -147,15 +157,12 @@ const EvaluationForm: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [employeesResponse, internsResponse, criteriaResponse] =
-          await Promise.all([
-            employeeService.getActiveEmployees(),
-            internService.getActiveInterns(),
-            evaluationService.getCriteria(),
-          ]);
+        const [employeesResponse, internsResponse] = await Promise.all([
+          employeeService.getActiveEmployees(),
+          internService.getActiveInterns(),
+        ]);
         setEmployees(employeesResponse.data ?? []);
         setInterns(internsResponse.data ?? []);
-        setCriteriaGroups(criteriaResponse.data ?? []);
       } catch {
         // ignore for now
       }
@@ -169,89 +176,82 @@ const EvaluationForm: React.FC = () => {
       return;
     }
 
-    const loadEvaluation = async () => {
-      try {
-        setLoading(true);
-        const response = await evaluationService.getEvaluation(Number(id));
-        const item = response.data;
-        setEvaluation(item);
+    const item = evaluationDetailRes?.data ?? null;
+    if (!item) {
+      return;
+    }
 
-        const loadedSubjectType: SubjectType = item.intern_id
-          ? "intern"
-          : "employee";
-        setSubjectType(loadedSubjectType);
-        setSelectedEmployeeId(item.employee_id ?? "");
-        setSelectedInternId(item.intern_id ?? "");
+    setLoading(loadingEvaluation);
+    setEvaluation(item);
 
-        setForm({
-          npk: item.npk ?? "",
-          jabatan: item.jabatan ?? "",
-          join_date: item.join_date ?? "",
-          start_date: item.start_date ?? "",
-          end_date: item.end_date ?? "",
-          reminder_date: item.reminder_date ?? "",
-          reminder_note: item.reminder_note ?? "",
-        });
-        setRecommendation({
-          employee_status: item.recommendation?.employee_status ?? "",
-          extend_pkwt: item.recommendation?.extend_pkwt ?? false,
-          pkwt_number: item.recommendation?.pkwt_number ?? "",
-          extend_months: item.recommendation?.extend_months ?? null,
-          notes: item.recommendation?.notes ?? "",
-        });
+    const loadedSubjectType: SubjectType = item.intern_id
+      ? "intern"
+      : "employee";
+    setSubjectType(loadedSubjectType);
+    setSelectedEmployeeId(item.employee_id ?? "");
+    setSelectedInternId(item.intern_id ?? "");
 
-        if (loadedSubjectType === "intern") {
-          setLeaderScores({});
-          setScores({});
-        } else {
-          const currentRoleKey =
-            roleName === "Section Head"
-              ? "section_head"
-              : roleName === "Leader"
-                ? "leader"
-                : null;
+    setForm({
+      npk: item.npk ?? "",
+      jabatan: item.jabatan ?? "",
+      join_date: item.join_date ?? "",
+      start_date: item.start_date ?? "",
+      end_date: item.end_date ?? "",
+      reminder_date: item.reminder_date ?? "",
+      reminder_note: item.reminder_note ?? "",
+    });
+    setRecommendation({
+      employee_status: item.recommendation?.employee_status ?? "",
+      extend_pkwt: item.recommendation?.extend_pkwt ?? false,
+      pkwt_number: item.recommendation?.pkwt_number ?? "",
+      extend_months: item.recommendation?.extend_months ?? null,
+      notes: item.recommendation?.notes ?? "",
+    });
 
-          const initialLeaderScores: Record<number, number> = {};
-          const initialEditableScores: Record<number, number> = {};
+    if (loadedSubjectType === "intern") {
+      setLeaderScores({});
+      setScores({});
+    } else {
+      const currentRoleKey =
+        roleName === "Section Head"
+          ? "section_head"
+          : roleName === "Leader"
+            ? "leader"
+            : null;
 
-          item.scores.forEach((score) => {
-            if (score.score === null) return;
-            if (score.filled_by_role === "leader") {
-              initialLeaderScores[score.criteria_id] = score.score;
-            }
-            if (currentRoleKey && score.filled_by_role === currentRoleKey) {
-              initialEditableScores[score.criteria_id] = score.score;
-            }
-          });
+      const initialLeaderScores: Record<number, number> = {};
+      const initialEditableScores: Record<number, number> = {};
 
-          setLeaderScores(initialLeaderScores);
-
-          if (currentRoleKey) {
-            setScores(initialEditableScores);
-          } else {
-            const shScores: Record<number, number> = {};
-            item.scores.forEach((score) => {
-              if (
-                score.score !== null &&
-                score.filled_by_role === "section_head"
-              ) {
-                shScores[score.criteria_id] = score.score;
-              }
-            });
-            setScores(
-              Object.keys(shScores).length > 0 ? shScores : initialLeaderScores,
-            );
-          }
+      item.scores.forEach((score) => {
+        if (score.score === null) return;
+        if (score.filled_by_role === "leader") {
+          initialLeaderScores[score.criteria_id] = score.score;
         }
-      } catch {
-        navigate("/evaluations");
-      } finally {
-        setLoading(false);
-      }
-    };
+        if (currentRoleKey && score.filled_by_role === currentRoleKey) {
+          initialEditableScores[score.criteria_id] = score.score;
+        }
+      });
 
-    void loadEvaluation();
-  }, [id, isEditMode, navigate, roleName]);
+      setLeaderScores(initialLeaderScores);
+
+      if (currentRoleKey) {
+        setScores(initialEditableScores);
+      } else {
+        const shScores: Record<number, number> = {};
+        item.scores.forEach((score) => {
+          if (
+            score.score !== null &&
+            score.filled_by_role === "section_head"
+          ) {
+            shScores[score.criteria_id] = score.score;
+          }
+        });
+        setScores(
+          Object.keys(shScores).length > 0 ? shScores : initialLeaderScores,
+        );
+      }
+    }
+  }, [id, isEditMode, navigate, roleName, evaluationDetailRes, loadingEvaluation]);
 
   useEffect(() => {
     if (
