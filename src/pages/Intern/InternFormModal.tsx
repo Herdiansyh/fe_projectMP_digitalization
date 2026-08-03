@@ -93,6 +93,7 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
   const [form, setForm] = useState<CreateInternInput>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const [isActive, setIsActive] = useState(true);
 
   // Line fetch dinamis berdasarkan area_id yang dipilih
   const [lines, setLines] = useState<Line[]>([]);
@@ -121,8 +122,10 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
         start_contract: editTarget.start_contract,
         end_contract: editTarget.end_contract ?? null,
       });
+      setIsActive(editTarget.outcome_status !== "ended");
     } else {
       setForm(EMPTY_FORM);
+      setIsActive(true);
     }
     setErrors({});
   }, [editTarget, isOpen]);
@@ -214,7 +217,10 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
     e.preventDefault();
     try {
       setLoading(true);
-      const payload = { ...form };
+      const payload = {
+        ...form,
+        outcome_status: isActive ? "active" : "ended",
+      };
       if (editTarget) {
         await internService.updateIntern(
           editTarget.id,
@@ -591,6 +597,32 @@ const InternFormModal: React.FC<InternFormModalProps> = ({
                     {errorText("end_contract")}
                   </Box>
                 </Grid>
+
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#374151",
+                    cursor: "pointer",
+                    width: "fit-content",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                  />
+                  Active
+                </label>
+                {!isActive && (
+                  <Text fontSize="12px" color="#64748b" mt="4px">
+                    This intern will be marked as inactive / ended and will not
+                    appear in the intern list.
+                  </Text>
+                )}
               </Stack>
             </form>
           </Box>

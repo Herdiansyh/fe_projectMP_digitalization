@@ -112,7 +112,11 @@ const OutcomeBadge: React.FC<{ intern: Intern }> = ({ intern }) => {
       </Badge>
     );
   }
-  return null;
+  return (
+    <Badge color="#1A5EA8" bg="#eff6ff">
+      Aktif
+    </Badge>
+  );
 };
 
 // ── Cascading Location Filter Component ───────────────────────────────────────
@@ -399,6 +403,7 @@ const InternList: React.FC = () => {
       setPrintingAll(true);
       const res = await internService.getAllInterns({
         search: debouncedSearch || undefined,
+        include_converted: false,
         department_id: filterDept ? Number(filterDept) : undefined,
         area_id: filterArea ? Number(filterArea) : undefined,
         line_id: filterLine ? Number(filterLine) : undefined,
@@ -899,11 +904,9 @@ const InternList: React.FC = () => {
                               {intern.gender === "male" ? "Male" : "Female"}
                             </Text>
                           )}
-                          {isProcessed && (
-                            <Box mt="4px">
-                              <OutcomeBadge intern={intern} />
-                            </Box>
-                          )}
+                          <Box mt="4px">
+                            <OutcomeBadge intern={intern} />
+                          </Box>
                         </td>
                         <td style={tdBase}>
                           <Text fontSize="13px" color="#334155">

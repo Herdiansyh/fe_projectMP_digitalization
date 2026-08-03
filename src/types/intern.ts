@@ -326,4 +326,5 @@ export interface InternListParams {
   group?: string;
   sort_by?: string;
   sort_order?: "asc" | "desc";
+  include_converted?: boolean;
 }
