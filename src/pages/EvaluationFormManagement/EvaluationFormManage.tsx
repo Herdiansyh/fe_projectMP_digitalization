@@ -17,7 +17,10 @@ import MainLayout from "../../components/layout/MainLayout";
 import evaluationService from "../../services/evaluationService";
 import manageService from "../../services/evaluationCriteriaManageService";
 import ScoringRubricTable from "../Evaluation/ScoringRubricTable";
-import type { EvaluationGroup } from "../../types/evaluation";
+import type {
+  EvaluationCriteria,
+  EvaluationGroup,
+} from "../../types/evaluation";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 
 const IconTrash = () => (
@@ -91,21 +94,26 @@ const EvaluationFormManage: React.FC = () => {
     loadData();
   }, []);
 
+  // Total bobot: mencakup kriteria langsung-di-grup (tanpa subgroup, mis. Grup A:
+  // Penguasaan Kerja/Kuantitas/Kualitas) DAN kriteria di dalam subgroup.
   const totalWeight = useMemo(() => {
-    return groups.reduce(
-      (acc, g) =>
-        acc +
-        g.subgroups.reduce(
-          (accS, sg) =>
-            accS +
-            sg.criteria.reduce(
-              (accC, c) => accC + (c.is_active ? c.weight : 0),
-              0,
-            ),
+    return groups.reduce((acc, g) => {
+      const directWeight =
+        g.criteria?.reduce(
+          (accC, c) => accC + (c.is_active ? c.weight : 0),
           0,
-        ),
-      0,
-    );
+        ) || 0;
+      const subgroupWeight = g.subgroups.reduce(
+        (accS, sg) =>
+          accS +
+          sg.criteria.reduce(
+            (accC, c) => accC + (c.is_active ? c.weight : 0),
+            0,
+          ),
+        0,
+      );
+      return acc + directWeight + subgroupWeight;
+    }, 0);
   }, [groups]);
 
   // Local Updates
@@ -126,10 +134,15 @@ const EvaluationFormManage: React.FC = () => {
     );
   };
 
+  // Update satu field kriteria — dicari baik di kriteria langsung-di-grup
+  // (group.criteria) maupun di dalam subgroup (subgroup.criteria).
   const handleUpdateCriteria = (id: number, field: string, val: any) => {
     setGroups((prev) =>
       prev.map((g) => ({
         ...g,
+        criteria: g.criteria?.map((c) =>
+          c.id === id ? { ...c, [field]: val } : c,
+        ),
         subgroups: g.subgroups.map((s) => ({
           ...s,
           criteria: s.criteria.map((c) =>
@@ -140,39 +153,40 @@ const EvaluationFormManage: React.FC = () => {
     );
   };
 
+  // Update satu opsi skala — sama, dicari di kriteria langsung-di-grup
+  // maupun di dalam subgroup.
   const handleUpdateScaleOption = (
     criteriaId: number,
     score: number,
     description: string,
   ) => {
+    const applyToCriteria = (c: EvaluationCriteria): EvaluationCriteria => {
+      if (c.id !== criteriaId) return c;
+      const currentOptions = [...(c.scale_options || [])];
+      const optIndex = currentOptions.findIndex((o) => o.score === score);
+      if (optIndex >= 0) {
+        currentOptions[optIndex] = {
+          ...currentOptions[optIndex],
+          description,
+        };
+      } else {
+        currentOptions.push({
+          id: 0,
+          description,
+          score,
+          order: score,
+        });
+      }
+      return { ...c, scale_options: currentOptions };
+    };
+
     setGroups((prev) =>
       prev.map((g) => ({
         ...g,
+        criteria: g.criteria?.map(applyToCriteria),
         subgroups: g.subgroups.map((s) => ({
           ...s,
-          criteria: s.criteria.map((c) => {
-            if (c.id === criteriaId) {
-              const currentOptions = [...(c.scale_options || [])];
-              const optIndex = currentOptions.findIndex(
-                (o) => o.score === score,
-              );
-              if (optIndex >= 0) {
-                currentOptions[optIndex] = {
-                  ...currentOptions[optIndex],
-                  description,
-                };
-              } else {
-                currentOptions.push({
-                  id: 0,
-                  description,
-                  score,
-                  order: score,
-                });
-              }
-              return { ...c, scale_options: currentOptions };
-            }
-            return c;
-          }),
+          criteria: s.criteria.map(applyToCriteria),
         })),
       })),
     );
@@ -237,7 +251,10 @@ const EvaluationFormManage: React.FC = () => {
       toast({ title: "Failed", status: "error" });
     }
   };
-  const handleAddCriteria = async (groupId: number, subgroupId: number) => {
+  const handleAddCriteria = async (
+    groupId: number,
+    subgroupId: number | null,
+  ) => {
     try {
       await manageService.createCriteria(groupId, {
         name: "New Criteria",
@@ -282,6 +299,7 @@ const EvaluationFormManage: React.FC = () => {
           newGroups[gIdx] = { ...newGroups[gIdx], subgroups: newSubgroups };
         }
       } else if (type === "criteria") {
+        // parentId === subgroup.id -> reorder di dalam subgroup
         const gIdx = newGroups.findIndex((g) =>
           g.subgroups.some((s) => s.id === parentId),
         );
@@ -299,10 +317,181 @@ const EvaluationFormManage: React.FC = () => {
           newSubgroups[sIdx] = { ...newSubgroups[sIdx], criteria: newCriteria };
           newGroups[gIdx] = { ...newGroups[gIdx], subgroups: newSubgroups };
         }
+      } else if (type === "direct-criteria") {
+        // parentId === group.id -> reorder kriteria langsung-di-grup (tanpa subgroup)
+        const gIdx = newGroups.findIndex((g) => g.id === parentId);
+        if (gIdx >= 0) {
+          const targetIndex = direction === "up" ? index - 1 : index + 1;
+          const newCriteria = [...(newGroups[gIdx].criteria || [])];
+          [newCriteria[index], newCriteria[targetIndex]] = [
+            newCriteria[targetIndex],
+            newCriteria[index],
+          ];
+          newGroups[gIdx] = { ...newGroups[gIdx], criteria: newCriteria };
+        }
       }
       return newGroups;
     });
   };
+
+  // ── Render satu baris editor kriteria (dipakai untuk kriteria langsung-di-grup
+  // maupun kriteria di dalam subgroup, supaya UI & logikanya konsisten). ──
+  const renderCriteriaEditor = (
+    criteria: EvaluationCriteria,
+    cIdx: number,
+    reorderType: "criteria" | "direct-criteria",
+    reorderParentId: number,
+    siblingCriteria: EvaluationCriteria[],
+  ) => (
+    <Accordion.Root collapsible key={criteria.id}>
+      <Accordion.Item value={criteria.id.toString()} border="none">
+        <Flex
+          align="center"
+          gap={3}
+          mb={2}
+          bg="gray.50"
+          p={2}
+          borderRadius="md"
+          border="1px solid"
+          borderColor="gray.200"
+        >
+          <Switch.Root
+            size="sm"
+            checked={criteria.is_active}
+            onCheckedChange={(e) =>
+              handleUpdateCriteria(criteria.id, "is_active", e.checked)
+            }
+          >
+            <Switch.HiddenInput />
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Root>
+          <Input
+            size="sm"
+            value={criteria.name || ""}
+            onChange={(e) =>
+              handleUpdateCriteria(criteria.id, "name", e.target.value)
+            }
+            flex={1}
+            bg="white"
+          />
+          <Input
+            size="sm"
+            type="number"
+            step="1"
+            min="0"
+            w="60px"
+            value={criteria.weight ?? ""}
+            onChange={(e) => {
+              const raw = e.target.value;
+              // Buang bagian desimal kalau user paste/ketik angka koma
+              const intValue = raw === "" ? 0 : parseInt(raw, 10);
+              handleUpdateCriteria(
+                criteria.id,
+                "weight",
+                Number.isNaN(intValue) ? 0 : intValue,
+              );
+            }}
+            onKeyDown={(e) => {
+              // Cegah user mengetik titik/koma langsung di field ini
+              if (e.key === "." || e.key === ",") {
+                e.preventDefault();
+              }
+            }}
+            bg="white"
+          />
+          <Accordion.ItemTrigger
+            w="auto"
+            p={1}
+            borderRadius="md"
+            bg="blue.50"
+            color="blue.600"
+            px={2}
+            _hover={{ bg: "blue.100" }}
+          >
+            <Text fontSize="xs" fontWeight="bold" mr={1}>
+              Opsi (N1-N5)
+            </Text>
+            <Accordion.ItemIndicator />
+          </Accordion.ItemTrigger>
+          <HStack gap={1}>
+            <IconButton
+              aria-label="Up"
+              size="xs"
+              onClick={() =>
+                handleReorder(
+                  reorderType,
+                  reorderParentId,
+                  siblingCriteria,
+                  cIdx,
+                  "up",
+                )
+              }
+              disabled={cIdx === 0}
+            >
+              <IconUp />
+            </IconButton>
+            <IconButton
+              aria-label="Down"
+              size="xs"
+              onClick={() =>
+                handleReorder(
+                  reorderType,
+                  reorderParentId,
+                  siblingCriteria,
+                  cIdx,
+                  "down",
+                )
+              }
+              disabled={cIdx === siblingCriteria.length - 1}
+            >
+              <IconDown />
+            </IconButton>
+            <IconButton
+              aria-label="Delete"
+              size="xs"
+              colorScheme="red"
+              variant="ghost"
+              onClick={() =>
+                setConfirmDelete({ type: "criteria", id: criteria.id })
+              }
+            >
+              <IconTrash />
+            </IconButton>
+          </HStack>
+        </Flex>
+        <Accordion.ItemContent pb={4} pt={0}>
+          <VStack gap={2} align="stretch" pl={4}>
+            {[1, 2, 3, 4, 5].map((score) => {
+              const opt = criteria.scale_options.find((o) => o.score === score);
+              return (
+                <Flex key={score} align="flex-start" gap={2}>
+                  <Text fontSize="xs" fontWeight="bold" w="24px" pt={2}>
+                    N{score}
+                  </Text>
+                  <Textarea
+                    size="xs"
+                    value={opt?.description || ""}
+                    onChange={(e) =>
+                      handleUpdateScaleOption(
+                        criteria.id,
+                        score,
+                        e.target.value,
+                      )
+                    }
+                    placeholder={`Penjelasan untuk poin ${score}`}
+                    resize="vertical"
+                    minH="40px"
+                  />
+                </Flex>
+              );
+            })}
+          </VStack>
+        </Accordion.ItemContent>
+      </Accordion.Item>
+    </Accordion.Root>
+  );
 
   if (loading)
     return (
@@ -349,8 +538,8 @@ const EvaluationFormManage: React.FC = () => {
             borderRadius="md"
           >
             <Text fontSize="sm" color="orange.800">
-              <b>Warning:</b> Total weight of active criteria is not 100. Please
-              adjust the weights.
+              <b>Warning:</b> Total weight of active criteria is not 100 (saat
+              ini: {totalWeight}). Please adjust the weights.
             </Text>
           </Box>
         )}
@@ -456,6 +645,45 @@ const EvaluationFormManage: React.FC = () => {
                 />
 
                 <Box pl={4}>
+                  {/* Kriteria langsung di grup (tanpa subgroup) — mis. Grup A:
+                      Penguasaan Kerja, Kuantitas, Kualitas. Sebelumnya tidak
+                      pernah dirender di sini sehingga tidak bisa diedit. */}
+                  {group.criteria && group.criteria.length > 0 && (
+                    <Box
+                      mb={3}
+                      border="1px dashed"
+                      borderColor="gray.300"
+                      borderRadius="md"
+                      p={3}
+                      bg="white"
+                    >
+                      <Text
+                        fontSize="xs"
+                        fontWeight="semibold"
+                        color="gray.500"
+                        mb={2}
+                      >
+                        Kriteria langsung (tanpa subgroup)
+                      </Text>
+                      {group.criteria.map((criteria, cIdx) =>
+                        renderCriteriaEditor(
+                          criteria,
+                          cIdx,
+                          "direct-criteria",
+                          group.id,
+                          group.criteria || [],
+                        ),
+                      )}
+                      <Button
+                        size="xs"
+                        mt={2}
+                        onClick={() => handleAddCriteria(group.id, null)}
+                      >
+                        + Add Criteria (tanpa subgroup)
+                      </Button>
+                    </Box>
+                  )}
+
                   {group.subgroups.map((subgroup, sIdx) => (
                     <Box
                       key={subgroup.id}
@@ -562,184 +790,15 @@ const EvaluationFormManage: React.FC = () => {
                       />
 
                       <Box pl={4}>
-                        {subgroup.criteria.map((criteria, cIdx) => (
-                          <Accordion.Root collapsible key={criteria.id}>
-                            <Accordion.Item
-                              value={criteria.id.toString()}
-                              border="none"
-                            >
-                              <Flex
-                                align="center"
-                                gap={3}
-                                mb={2}
-                                bg="gray.50"
-                                p={2}
-                                borderRadius="md"
-                                border="1px solid"
-                                borderColor="gray.200"
-                              >
-                                <Switch.Root
-                                  size="sm"
-                                  checked={criteria.is_active}
-                                  onCheckedChange={(e) =>
-                                    handleUpdateCriteria(
-                                      criteria.id,
-                                      "is_active",
-                                      e.checked,
-                                    )
-                                  }
-                                >
-                                  <Switch.HiddenInput />
-                                  <Switch.Control>
-                                    <Switch.Thumb />
-                                  </Switch.Control>
-                                </Switch.Root>
-                                <Input
-                                  size="sm"
-                                  value={criteria.name || ""}
-                                  onChange={(e) =>
-                                    handleUpdateCriteria(
-                                      criteria.id,
-                                      "name",
-                                      e.target.value,
-                                    )
-                                  }
-                                  flex={1}
-                                  bg="white"
-                                />
-                                <Input
-                                  size="sm"
-                                  type="number"
-                                  step="1"
-                                  min="0"
-                                  w="60px"
-                                  value={criteria.weight ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    // Buang bagian desimal kalau user paste/ketik angka koma
-                                    const intValue =
-                                      raw === "" ? 0 : parseInt(raw, 10);
-                                    handleUpdateCriteria(
-                                      criteria.id,
-                                      "weight",
-                                      Number.isNaN(intValue) ? 0 : intValue,
-                                    );
-                                  }}
-                                  onKeyDown={(e) => {
-                                    // Cegah user mengetik titik/koma langsung di field ini
-                                    if (e.key === "." || e.key === ",") {
-                                      e.preventDefault();
-                                    }
-                                  }}
-                                  bg="white"
-                                />
-                                <Accordion.ItemTrigger
-                                  w="auto"
-                                  p={1}
-                                  borderRadius="md"
-                                  bg="blue.50"
-                                  color="blue.600"
-                                  px={2}
-                                  _hover={{ bg: "blue.100" }}
-                                >
-                                  <Text fontSize="xs" fontWeight="bold" mr={1}>
-                                    Opsi (N1-N5)
-                                  </Text>
-                                  <Accordion.ItemIndicator />
-                                </Accordion.ItemTrigger>
-                                <HStack gap={1}>
-                                  <IconButton
-                                    aria-label="Up"
-                                    size="xs"
-                                    onClick={() =>
-                                      handleReorder(
-                                        "criteria",
-                                        group.id,
-                                        subgroup.criteria,
-                                        cIdx,
-                                        "up",
-                                      )
-                                    }
-                                    disabled={cIdx === 0}
-                                  >
-                                    <IconUp />
-                                  </IconButton>
-                                  <IconButton
-                                    aria-label="Down"
-                                    size="xs"
-                                    onClick={() =>
-                                      handleReorder(
-                                        "criteria",
-                                        group.id,
-                                        subgroup.criteria,
-                                        cIdx,
-                                        "down",
-                                      )
-                                    }
-                                    disabled={
-                                      cIdx === subgroup.criteria.length - 1
-                                    }
-                                  >
-                                    <IconDown />
-                                  </IconButton>
-                                  <IconButton
-                                    aria-label="Delete"
-                                    size="xs"
-                                    colorScheme="red"
-                                    variant="ghost"
-                                    onClick={() =>
-                                      setConfirmDelete({
-                                        type: "criteria",
-                                        id: criteria.id,
-                                      })
-                                    }
-                                  >
-                                    <IconTrash />
-                                  </IconButton>
-                                </HStack>
-                              </Flex>
-                              <Accordion.ItemContent pb={4} pt={0}>
-                                <VStack gap={2} align="stretch" pl={4}>
-                                  {[1, 2, 3, 4, 5].map((score) => {
-                                    const opt = criteria.scale_options.find(
-                                      (o) => o.score === score,
-                                    );
-                                    return (
-                                      <Flex
-                                        key={score}
-                                        align="flex-start"
-                                        gap={2}
-                                      >
-                                        <Text
-                                          fontSize="xs"
-                                          fontWeight="bold"
-                                          w="24px"
-                                          pt={2}
-                                        >
-                                          N{score}
-                                        </Text>
-                                        <Textarea
-                                          size="xs"
-                                          value={opt?.description || ""}
-                                          onChange={(e) =>
-                                            handleUpdateScaleOption(
-                                              criteria.id,
-                                              score,
-                                              e.target.value,
-                                            )
-                                          }
-                                          placeholder={`Penjelasan untuk poin ${score}`}
-                                          resize="vertical"
-                                          minH="40px"
-                                        />
-                                      </Flex>
-                                    );
-                                  })}
-                                </VStack>
-                              </Accordion.ItemContent>
-                            </Accordion.Item>
-                          </Accordion.Root>
-                        ))}
+                        {subgroup.criteria.map((criteria, cIdx) =>
+                          renderCriteriaEditor(
+                            criteria,
+                            cIdx,
+                            "criteria",
+                            subgroup.id,
+                            subgroup.criteria,
+                          ),
+                        )}
                         <Button
                           size="xs"
                           mt={2}
@@ -781,6 +840,7 @@ const EvaluationFormManage: React.FC = () => {
             <ScoringRubricTable
               criteriaGroups={groups.map((g) => ({
                 ...g,
+                criteria: (g.criteria || []).filter((c) => c.is_active),
                 subgroups: g.subgroups.map((s) => ({
                   ...s,
                   criteria: s.criteria.filter((c) => c.is_active),
