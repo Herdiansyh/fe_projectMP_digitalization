@@ -239,10 +239,7 @@ const EvaluationForm: React.FC = () => {
       } else {
         const shScores: Record<number, number> = {};
         item.scores.forEach((score) => {
-          if (
-            score.score !== null &&
-            score.filled_by_role === "section_head"
-          ) {
+          if (score.score !== null && score.filled_by_role === "section_head") {
             shScores[score.criteria_id] = score.score;
           }
         });
@@ -251,7 +248,14 @@ const EvaluationForm: React.FC = () => {
         );
       }
     }
-  }, [id, isEditMode, navigate, roleName, evaluationDetailRes, loadingEvaluation]);
+  }, [
+    id,
+    isEditMode,
+    navigate,
+    roleName,
+    evaluationDetailRes,
+    loadingEvaluation,
+  ]);
 
   useEffect(() => {
     if (
@@ -973,7 +977,7 @@ const EvaluationForm: React.FC = () => {
             >
               <option value="">Pilih status</option>
               <option value="permanen">
-                {isIntern ? "Permanen (Langsung Karyawan Tetap)" : "Permanen"}
+                {isIntern ? "Karyawan Tetap" : "Karyawan Tetap"}
               </option>
               <option value="kontrak_berakhir">
                 {isIntern
@@ -1021,14 +1025,11 @@ const EvaluationForm: React.FC = () => {
                   setRecommendation((prev) => ({
                     ...prev,
                     extend_pkwt: checked,
-                    // Hanya reset pkwt_number saat uncheck — extend_months TETAP dipakai
-                    // baik untuk durasi magang (intern tetap intern) maupun durasi PKWT
-                    // (intern naik jadi karyawan / employee perpanjang kontrak).
                     ...(checked ? {} : { pkwt_number: "" }),
                   }));
                 }}
               />
-              Extend PKWT
+              SIGN PKWT
               {isIntern && (
                 <Text
                   as="span"

@@ -1084,7 +1084,9 @@ const EvaluationDetail: React.FC = () => {
                       kontrak PKWT diperpanjang. === */}
                   <SummaryField
                     icon={FiFileText}
-                    label={isInternSubject ? "Status Perpanjangan" : "Sign PKWT"}
+                    label={
+                      isInternSubject ? "Status Perpanjangan" : "Sign PKWT"
+                    }
                     value={
                       <Badge
                         px={2}
@@ -1092,9 +1094,7 @@ const EvaluationDetail: React.FC = () => {
                         borderRadius="full"
                         fontSize="11px"
                         fontWeight="600"
-                        bg={
-                          recommendation.extend_pkwt ? "green.50" : "blue.50"
-                        }
+                        bg={recommendation.extend_pkwt ? "green.50" : "blue.50"}
                         color={
                           recommendation.extend_pkwt ? "green.700" : "blue.700"
                         }
@@ -1109,9 +1109,6 @@ const EvaluationDetail: React.FC = () => {
                       </Badge>
                     }
                   />
-                  {/* === UBAH (Intern): Untuk Intern, extend_months SELALU ditampilkan
-                      karena baik perpanjang magang maupun naik jadi karyawan sama-sama
-                      butuh durasi. Untuk Employee, hanya ditampilkan jika extend_pkwt. === */}
                   {(isInternSubject || recommendation.extend_pkwt) && (
                     <>
                       {recommendation.extend_pkwt && (

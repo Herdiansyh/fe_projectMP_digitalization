@@ -42,7 +42,7 @@ export interface EvaluationCriteriaScaleOption {
 export interface EvaluationCriteria {
   id: number;
   name: string;
-  subgroup_id: number;
+  subgroup_id: number | null; // ← diubah: nullable, karena kriteria bisa langsung di grup (mis. Penguasaan Kerja, Kuantitas, Kualitas)
   weight: number;
   scale_type: string;
   scale_options: EvaluationCriteriaScaleOption[];
@@ -64,6 +64,7 @@ export interface EvaluationGroup {
   description?: string | null;
   order: number;
   code?: string | null;
+  criteria?: EvaluationCriteria[]; // ← ditambahkan: kriteria langsung di grup, tanpa subgroup
   subgroups: EvaluationSubgroup[];
 }
 

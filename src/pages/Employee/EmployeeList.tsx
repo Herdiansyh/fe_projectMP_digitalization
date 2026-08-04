@@ -95,8 +95,8 @@ const Badge = ({
 
 const employmentTypeBadge = (type: string) => {
   const map: Record<string, { color: string; bg: string; label: string }> = {
-    permanent: { color: "#166534", bg: "#dcfce7", label: "Permanent" },
-    contract: { color: "#92400e", bg: "#fef3c7", label: "Contract" },
+    permanent: { color: "#166534", bg: "#dcfce7", label: "Karyawan Tetap" },
+    contract: { color: "#92400e", bg: "#fef3c7", label: "Karyawan Kontrak" },
     apprentice: { color: "#1e40af", bg: "#dbeafe", label: "Apprentice" },
   };
   const s = map[type] ?? { color: "#475569", bg: "#f1f5f9", label: type };
@@ -757,9 +757,9 @@ const EmployeeList: React.FC = () => {
               }}
             >
               <option value="">All Types</option>
-              <option value="permanent">Permanent</option>
-              <option value="contract">Contract</option>
-              <option value="apprentice">Apprentice</option>
+              <option value="permanent">Karyawan Tetap</option>
+              <option value="contract">Karyawan Kontrak</option>
+              <option value="apprentice">Karyawan Magang</option>
             </select>
 
             <select

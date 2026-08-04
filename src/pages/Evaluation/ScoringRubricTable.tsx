@@ -1,7 +1,10 @@
 // components/evaluation/ScoringRubricTable.tsx
 import React, { useMemo } from "react";
 import { Box, Text } from "@chakra-ui/react";
-import type { EvaluationGroup } from "../../types/evaluation";
+import type {
+  EvaluationGroup,
+  EvaluationCriteria as EvaluationCriteriaType,
+} from "../../types/evaluation";
 
 type Mode = "leader" | "section_head" | "readonly" | "manager_view";
 
@@ -34,32 +37,37 @@ const ScoringRubricTable: React.FC<Props> = ({
   const isEditableSH = mode === "section_head";
   const isReadonly = mode === "readonly";
 
+  // Total bobot: mencakup kriteria langsung-di-grup (tanpa subgroup, mis. Grup A:
+  // Penguasaan Kerja/Kuantitas/Kualitas) DAN kriteria di dalam subgroup.
   const totalWeight = useMemo(
     () =>
-      criteriaGroups.reduce(
-        (sum, g) =>
-          sum +
-          g.subgroups.reduce(
-            (s, sg) =>
-              s +
-              sg.criteria.reduce((c, cr) => c + (Number(cr.weight) || 0), 0),
-            0,
-          ),
-        0,
-      ),
+      criteriaGroups.reduce((sum, g) => {
+        const directWeight =
+          g.criteria?.reduce((c, cr) => c + (Number(cr.weight) || 0), 0) || 0;
+        const subgroupWeight = g.subgroups.reduce(
+          (s, sg) =>
+            s + sg.criteria.reduce((c, cr) => c + (Number(cr.weight) || 0), 0),
+          0,
+        );
+        return sum + directWeight + subgroupWeight;
+      }, 0),
     [criteriaGroups],
   );
 
   const computeFinalScore = (scoreMap: Record<number, number>) => {
     let total = 0;
-    criteriaGroups.forEach((g) =>
+    criteriaGroups.forEach((g) => {
+      g.criteria?.forEach((cr) => {
+        const val = scoreMap[cr.id];
+        if (val) total += Number(val) * (Number(cr.weight) || 0);
+      });
       g.subgroups.forEach((sg) =>
         sg.criteria.forEach((cr) => {
           const val = scoreMap[cr.id];
           if (val) total += Number(val) * (Number(cr.weight) || 0);
         }),
-      ),
-    );
+      );
+    });
     return totalWeight ? Math.round((total / totalWeight) * 100) / 100 : 0;
   };
 
@@ -72,6 +80,333 @@ const ScoringRubricTable: React.FC<Props> = ({
     () => computeFinalScore(leaderScores),
     [criteriaGroups, leaderScores, totalWeight],
   );
+
+  // ── Render satu baris kriteria — dipakai baik untuk kriteria langsung-di-grup
+  // (group.criteria, tanpa subgroup) maupun kriteria di dalam subgroup
+  // (subgroup.criteria). Disatukan supaya logikanya tidak duplikat & konsisten.
+  const renderCriterionRow = (
+    criterion: EvaluationCriteriaType,
+    idx: number,
+  ) => {
+    const rowBg = idx % 2 === 0 ? "#eef6fb" : "#fdf6e8";
+    const shScore = scores[criterion.id];
+    const ldScore = leaderScores[criterion.id];
+    const isUnfilled = unfilledIds.includes(criterion.id);
+    const shSelectedOption = criterion.scale_options.find(
+      (o) => o.score === shScore,
+    );
+    const shNxB =
+      shSelectedOption && criterion.weight != null
+        ? Math.round(
+            Number(shSelectedOption.score) * Number(criterion.weight) * 100,
+          ) / 100
+        : null;
+
+    // For leader/readonly mode, use single-row scores
+    const singleScore = scores[criterion.id];
+    const singleOption = criterion.scale_options.find(
+      (o) => o.score === singleScore,
+    );
+    const singleNxB =
+      singleOption && criterion.weight != null
+        ? Math.round(
+            Number(singleOption.score) * Number(criterion.weight) * 100,
+          ) / 100
+        : null;
+
+    if (isDualView) {
+      // ── Single row: LD & SH radio side-by-side in each score cell ──
+      return (
+        <Box
+          key={criterion.id}
+          display="grid"
+          style={{ gridTemplateColumns: GRID_TEMPLATE }}
+          bg={isUnfilled ? "#fef2f2" : rowBg}
+          borderTop="1px solid #ffffff"
+          borderLeft={
+            isUnfilled ? "3px solid #ef4444" : "3px solid transparent"
+          }
+        >
+          {/* Kriteria */}
+          <Box px={4} py={3} display="flex" alignItems="center">
+            <Text fontSize="13px" fontWeight="700" color="gray.800">
+              {criterion.name}
+            </Text>
+          </Box>
+          {/* Bobot */}
+          <Box
+            px={2}
+            py={3}
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+          >
+            <Text fontSize="13px" fontWeight="600" color="gray.700">
+              {criterion.weight}
+            </Text>
+          </Box>
+          {/* 5 score cells — each contains LD + SH radio side by side */}
+          {criterion.scale_options
+            .sort((a, b) => a.order - b.order)
+            .map((option, oIdx) => {
+              const isLdActive = ldScore === option.score;
+              const isShActive = shScore === option.score;
+              return (
+                <Box
+                  key={option.id}
+                  borderLeft={oIdx > 0 ? "1px solid #e2e8f0" : undefined}
+                  px={1}
+                  py={2}
+                  display="flex"
+                  flexDirection="column"
+                  alignItems="center"
+                  gap={1}
+                  bg={
+                    isLdActive && isShActive
+                      ? "linear-gradient(135deg, #dbeafe 50%, #dcfce7 50%)"
+                      : isLdActive
+                        ? "#dbeafe"
+                        : isShActive
+                          ? "#dcfce7"
+                          : "transparent"
+                  }
+                  transition="background 0.15s"
+                >
+                  {/* Description text (shared) */}
+                  <Text
+                    fontSize="10px"
+                    color={isLdActive || isShActive ? "gray.700" : "gray.500"}
+                    fontWeight={isLdActive || isShActive ? "600" : "400"}
+                    textAlign="center"
+                    lineHeight="1.3"
+                    mb={1}
+                  >
+                    {option.description}
+                  </Text>
+                  {/* LD & SH radio buttons side by side */}
+                  <Box display="flex" gap={2} alignItems="center">
+                    {/* LD — always read-only */}
+                    <Box
+                      display="flex"
+                      flexDirection="column"
+                      alignItems="center"
+                      gap={0.5}
+                    >
+                      <Text
+                        fontSize="9px"
+                        fontWeight="700"
+                        color={isLdActive ? "#1d4ed8" : "#94a3b8"}
+                      >
+                        LD
+                      </Text>
+                      <Box
+                        w="18px"
+                        h="18px"
+                        rounded="full"
+                        border="2.5px solid"
+                        borderColor={isLdActive ? "#2563eb" : "#cbd5e1"}
+                        bg={isLdActive ? "#2563eb" : "#f1f5f9"}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        flexShrink={0}
+                        cursor="not-allowed"
+                        title="Leader score (read-only)"
+                        boxShadow={isLdActive ? "0 0 0 3px #bfdbfe" : "none"}
+                      >
+                        {isLdActive && (
+                          <Box w="7px" h="7px" rounded="full" bg="white" />
+                        )}
+                      </Box>
+                    </Box>
+                    {/* SH — editable only when isEditableSH */}
+                    <Box
+                      display="flex"
+                      flexDirection="column"
+                      alignItems="center"
+                      gap={0.5}
+                      as={isEditableSH ? "button" : "div"}
+                      {...(isEditableSH ? ({ type: "button" } as any) : {})}
+                      onClick={
+                        isEditableSH
+                          ? () => onChange(criterion.id, option.score)
+                          : undefined
+                      }
+                      cursor={isEditableSH ? "pointer" : "default"}
+                      title="Section Head score"
+                    >
+                      <Text
+                        fontSize="9px"
+                        fontWeight="700"
+                        color={isShActive ? "#16a34a" : "#94a3b8"}
+                      >
+                        SH
+                      </Text>
+                      <Box
+                        w="18px"
+                        h="18px"
+                        rounded="full"
+                        border="2.5px solid"
+                        borderColor={isShActive ? "#16a34a" : "#94a3b8"}
+                        bg={isShActive ? "#16a34a" : "transparent"}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        flexShrink={0}
+                        cursor={isEditableSH ? "pointer" : "not-allowed"}
+                        _hover={
+                          isEditableSH
+                            ? {
+                                borderColor: "#16a34a",
+                                bg: isShActive ? "#16a34a" : "#f0fdf4",
+                              }
+                            : undefined
+                        }
+                        transition="all 0.12s"
+                        boxShadow={isShActive ? "0 0 0 3px #bbf7d0" : "none"}
+                      >
+                        {isShActive && (
+                          <Box w="7px" h="7px" rounded="full" bg="white" />
+                        )}
+                      </Box>
+                    </Box>
+                  </Box>
+                </Box>
+              );
+            })}
+          {/* Persetujuan Akhir — SH N×B */}
+          <Box
+            px={2}
+            py={3}
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            borderLeft="1px solid #e2e8f0"
+          >
+            <Text
+              fontSize="13px"
+              fontWeight="700"
+              color={shNxB !== null && !isNaN(shNxB) ? "#15803d" : "gray.400"}
+            >
+              {shNxB !== null && !isNaN(shNxB) ? shNxB : "-"}
+            </Text>
+          </Box>
+        </Box>
+      );
+    }
+
+    // ── Single row: leader or readonly ──
+    return (
+      <Box
+        key={criterion.id}
+        display="grid"
+        style={{ gridTemplateColumns: GRID_TEMPLATE }}
+        bg={isUnfilled ? "#fef2f2" : rowBg}
+        borderTop="1px solid #ffffff"
+        borderLeft={isUnfilled ? "3px solid #ef4444" : "3px solid transparent"}
+      >
+        <Box px={4} py={3} display="flex" alignItems="center">
+          <Text fontSize="13px" fontWeight="700" color="gray.800">
+            {criterion.name}
+          </Text>
+          {isUnfilled && (
+            <Text fontSize="10px" fontWeight="700" color="#ef4444" mt={0.5}>
+              Wajib diisi
+            </Text>
+          )}
+        </Box>
+        <Box
+          px={2}
+          py={3}
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Text fontSize="13px" fontWeight="600" color="gray.700">
+            {criterion.weight}
+          </Text>
+        </Box>
+
+        {criterion.scale_options
+          .sort((a, b) => a.order - b.order)
+          .map((option, oIdx) => {
+            const isActive = singleScore === option.score;
+            return (
+              <Box
+                key={option.id}
+                as={isReadonly ? "div" : "button"}
+                {...(!isReadonly ? ({ type: "button" } as any) : {})}
+                onClick={
+                  isReadonly
+                    ? undefined
+                    : () => onChange(criterion.id, option.score)
+                }
+                borderLeft={oIdx > 0 ? "1px solid #ffffff" : undefined}
+                px={2}
+                py={2}
+                display="flex"
+                flexDirection="column"
+                alignItems="center"
+                justifyContent="space-between"
+                gap={2}
+                cursor={isReadonly ? "default" : "pointer"}
+                bg={isActive ? "#dbeafe" : "transparent"}
+                _hover={
+                  isReadonly
+                    ? undefined
+                    : { bg: isActive ? "#dbeafe" : "#ffffffaa" }
+                }
+                transition="background-color 0.12s"
+              >
+                <Text
+                  fontSize="11.5px"
+                  color={isActive ? "#1d4ed8" : "gray.600"}
+                  fontWeight={isActive ? "600" : "400"}
+                  textAlign="center"
+                  lineHeight="1.35"
+                >
+                  {option.description}
+                </Text>
+                <Box
+                  w="18px"
+                  h="18px"
+                  rounded="full"
+                  border="2px solid"
+                  borderColor={isActive ? "#2563eb" : "#94a3b8"}
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  flexShrink={0}
+                >
+                  {isActive && (
+                    <Box w="9px" h="9px" rounded="full" bg="#2563eb" />
+                  )}
+                </Box>
+              </Box>
+            );
+          })}
+
+        <Box
+          px={2}
+          py={3}
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          borderLeft="1px solid #ffffff"
+        >
+          <Text
+            fontSize="13px"
+            fontWeight="700"
+            color={
+              singleNxB !== null && !isNaN(singleNxB) ? "#1d4ed8" : "gray.400"
+            }
+          >
+            {singleNxB !== null && !isNaN(singleNxB) ? singleNxB : "-"}
+          </Text>
+        </Box>
+      </Box>
+    );
+  };
 
   return (
     <Box
@@ -165,6 +500,17 @@ const ScoringRubricTable: React.FC<Props> = ({
                 </Box>
               </Box>
 
+              {/* Kriteria langsung di grup (tanpa subgroup) — mis. Grup A:
+                  Penguasaan Kerja, Kuantitas, Kualitas. Sebelumnya bagian ini
+                  tidak pernah dirender sehingga baris-baris ini tampak kosong. */}
+              {group.criteria && group.criteria.length > 0 && (
+                <Box>
+                  {group.criteria.map((criterion, idx) =>
+                    renderCriterionRow(criterion, idx),
+                  )}
+                </Box>
+              )}
+
               {group.subgroups.map((subgroup) => (
                 <Box key={subgroup.id}>
                   {(subgroup.name || subgroup.description) && (
@@ -206,424 +552,9 @@ const ScoringRubricTable: React.FC<Props> = ({
                     </Box>
                   )}
 
-                  {subgroup.criteria.map((criterion, idx) => {
-                    const rowBg = idx % 2 === 0 ? "#eef6fb" : "#fdf6e8";
-                    const shScore = scores[criterion.id];
-                    const ldScore = leaderScores[criterion.id];
-                    const isUnfilled = unfilledIds.includes(criterion.id);
-                    const shSelectedOption = criterion.scale_options.find(
-                      (o) => o.score === shScore,
-                    );
-                    const shNxB =
-                      shSelectedOption && criterion.weight != null
-                        ? Math.round(
-                            Number(shSelectedOption.score) *
-                              Number(criterion.weight) *
-                              100,
-                          ) / 100
-                        : null;
-
-                    // For leader/readonly mode, use single-row scores
-                    const singleScore = scores[criterion.id];
-                    const singleOption = criterion.scale_options.find(
-                      (o) => o.score === singleScore,
-                    );
-                    const singleNxB =
-                      singleOption && criterion.weight != null
-                        ? Math.round(
-                            Number(singleOption.score) *
-                              Number(criterion.weight) *
-                              100,
-                          ) / 100
-                        : null;
-
-                    if (isDualView) {
-                      // ── Single row: LD & SH radio side-by-side in each score cell ──
-                      return (
-                        <Box
-                          key={criterion.id}
-                          display="grid"
-                          style={{ gridTemplateColumns: GRID_TEMPLATE }}
-                          bg={isUnfilled ? "#fef2f2" : rowBg}
-                          borderTop="1px solid #ffffff"
-                          borderLeft={
-                            isUnfilled
-                              ? "3px solid #ef4444"
-                              : "3px solid transparent"
-                          }
-                        >
-                          {/* Kriteria */}
-                          <Box px={4} py={3} display="flex" alignItems="center">
-                            <Text
-                              fontSize="13px"
-                              fontWeight="700"
-                              color="gray.800"
-                            >
-                              {criterion.name}
-                            </Text>
-                          </Box>
-                          {/* Bobot */}
-                          <Box
-                            px={2}
-                            py={3}
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="center"
-                          >
-                            <Text
-                              fontSize="13px"
-                              fontWeight="600"
-                              color="gray.700"
-                            >
-                              {criterion.weight}
-                            </Text>
-                          </Box>
-                          {/* 5 score cells — each contains LD + SH radio side by side */}
-                          {criterion.scale_options
-                            .sort((a, b) => a.order - b.order)
-                            .map((option, oIdx) => {
-                              const isLdActive = ldScore === option.score;
-                              const isShActive = shScore === option.score;
-                              return (
-                                <Box
-                                  key={option.id}
-                                  borderLeft={
-                                    oIdx > 0 ? "1px solid #e2e8f0" : undefined
-                                  }
-                                  px={1}
-                                  py={2}
-                                  display="flex"
-                                  flexDirection="column"
-                                  alignItems="center"
-                                  gap={1}
-                                  bg={
-                                    isLdActive && isShActive
-                                      ? "linear-gradient(135deg, #dbeafe 50%, #dcfce7 50%)"
-                                      : isLdActive
-                                        ? "#dbeafe"
-                                        : isShActive
-                                          ? "#dcfce7"
-                                          : "transparent"
-                                  }
-                                  transition="background 0.15s"
-                                >
-                                  {/* Description text (shared) */}
-                                  <Text
-                                    fontSize="10px"
-                                    color={
-                                      isLdActive || isShActive
-                                        ? "gray.700"
-                                        : "gray.500"
-                                    }
-                                    fontWeight={
-                                      isLdActive || isShActive ? "600" : "400"
-                                    }
-                                    textAlign="center"
-                                    lineHeight="1.3"
-                                    mb={1}
-                                  >
-                                    {option.description}
-                                  </Text>
-                                  {/* LD & SH radio buttons side by side */}
-                                  <Box
-                                    display="flex"
-                                    gap={2}
-                                    alignItems="center"
-                                  >
-                                    {/* LD — always read-only */}
-                                    <Box
-                                      display="flex"
-                                      flexDirection="column"
-                                      alignItems="center"
-                                      gap={0.5}
-                                    >
-                                      <Text
-                                        fontSize="9px"
-                                        fontWeight="700"
-                                        color={
-                                          isLdActive ? "#1d4ed8" : "#94a3b8"
-                                        }
-                                      >
-                                        LD
-                                      </Text>
-                                      <Box
-                                        w="18px"
-                                        h="18px"
-                                        rounded="full"
-                                        border="2.5px solid"
-                                        borderColor={
-                                          isLdActive ? "#2563eb" : "#cbd5e1"
-                                        }
-                                        bg={isLdActive ? "#2563eb" : "#f1f5f9"}
-                                        display="flex"
-                                        alignItems="center"
-                                        justifyContent="center"
-                                        flexShrink={0}
-                                        cursor="not-allowed"
-                                        title="Leader score (read-only)"
-                                        boxShadow={
-                                          isLdActive
-                                            ? "0 0 0 3px #bfdbfe"
-                                            : "none"
-                                        }
-                                      >
-                                        {isLdActive && (
-                                          <Box
-                                            w="7px"
-                                            h="7px"
-                                            rounded="full"
-                                            bg="white"
-                                          />
-                                        )}
-                                      </Box>
-                                    </Box>
-                                    {/* SH — editable only when isEditableSH */}
-                                    <Box
-                                      display="flex"
-                                      flexDirection="column"
-                                      alignItems="center"
-                                      gap={0.5}
-                                      as={isEditableSH ? "button" : "div"}
-                                      {...(isEditableSH ? { type: "button" } as any : {})}
-                                      onClick={
-                                        isEditableSH
-                                          ? () =>
-                                              onChange(
-                                                criterion.id,
-                                                option.score,
-                                              )
-                                          : undefined
-                                      }
-                                      cursor={
-                                        isEditableSH ? "pointer" : "default"
-                                      }
-                                      title="Section Head score"
-                                    >
-                                      <Text
-                                        fontSize="9px"
-                                        fontWeight="700"
-                                        color={
-                                          isShActive ? "#16a34a" : "#94a3b8"
-                                        }
-                                      >
-                                        SH
-                                      </Text>
-                                      <Box
-                                        w="18px"
-                                        h="18px"
-                                        rounded="full"
-                                        border="2.5px solid"
-                                        borderColor={
-                                          isShActive ? "#16a34a" : "#94a3b8"
-                                        }
-                                        bg={
-                                          isShActive ? "#16a34a" : "transparent"
-                                        }
-                                        display="flex"
-                                        alignItems="center"
-                                        justifyContent="center"
-                                        flexShrink={0}
-                                        cursor={
-                                          isEditableSH
-                                            ? "pointer"
-                                            : "not-allowed"
-                                        }
-                                        _hover={
-                                          isEditableSH
-                                            ? {
-                                                borderColor: "#16a34a",
-                                                bg: isShActive
-                                                  ? "#16a34a"
-                                                  : "#f0fdf4",
-                                              }
-                                            : undefined
-                                        }
-                                        transition="all 0.12s"
-                                        boxShadow={
-                                          isShActive
-                                            ? "0 0 0 3px #bbf7d0"
-                                            : "none"
-                                        }
-                                      >
-                                        {isShActive && (
-                                          <Box
-                                            w="7px"
-                                            h="7px"
-                                            rounded="full"
-                                            bg="white"
-                                          />
-                                        )}
-                                      </Box>
-                                    </Box>
-                                  </Box>
-                                </Box>
-                              );
-                            })}
-                          {/* Persetujuan Akhir — SH N×B */}
-                          <Box
-                            px={2}
-                            py={3}
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="center"
-                            borderLeft="1px solid #e2e8f0"
-                          >
-                            <Text
-                              fontSize="13px"
-                              fontWeight="700"
-                              color={
-                                shNxB !== null && !isNaN(shNxB)
-                                  ? "#15803d"
-                                  : "gray.400"
-                              }
-                            >
-                              {shNxB !== null && !isNaN(shNxB) ? shNxB : "-"}
-                            </Text>
-                          </Box>
-                        </Box>
-                      );
-                    }
-
-                    // ── Single row: leader or readonly ──
-                    return (
-                      <Box
-                        key={criterion.id}
-                        display="grid"
-                        style={{ gridTemplateColumns: GRID_TEMPLATE }}
-                        bg={isUnfilled ? "#fef2f2" : rowBg}
-                        borderTop="1px solid #ffffff"
-                        borderLeft={
-                          isUnfilled
-                            ? "3px solid #ef4444"
-                            : "3px solid transparent"
-                        }
-                      >
-                        <Box px={4} py={3} display="flex" alignItems="center">
-                          <Text
-                            fontSize="13px"
-                            fontWeight="700"
-                            color="gray.800"
-                          >
-                            {criterion.name}
-                          </Text>
-                          {isUnfilled && (
-                            <Text
-                              fontSize="10px"
-                              fontWeight="700"
-                              color="#ef4444"
-                              mt={0.5}
-                            >
-                              Wajib diisi
-                            </Text>
-                          )}
-                        </Box>
-                        <Box
-                          px={2}
-                          py={3}
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="center"
-                        >
-                          <Text
-                            fontSize="13px"
-                            fontWeight="600"
-                            color="gray.700"
-                          >
-                            {criterion.weight}
-                          </Text>
-                        </Box>
-
-                        {criterion.scale_options
-                          .sort((a, b) => a.order - b.order)
-                          .map((option, oIdx) => {
-                            const isActive = singleScore === option.score;
-                            return (
-                              <Box
-                                key={option.id}
-                                as={isReadonly ? "div" : "button"}
-                                {...(!isReadonly ? { type: "button" } as any : {})}
-                                onClick={
-                                  isReadonly
-                                    ? undefined
-                                    : () => onChange(criterion.id, option.score)
-                                }
-                                borderLeft={
-                                  oIdx > 0 ? "1px solid #ffffff" : undefined
-                                }
-                                px={2}
-                                py={2}
-                                display="flex"
-                                flexDirection="column"
-                                alignItems="center"
-                                justifyContent="space-between"
-                                gap={2}
-                                cursor={isReadonly ? "default" : "pointer"}
-                                bg={isActive ? "#dbeafe" : "transparent"}
-                                _hover={
-                                  isReadonly
-                                    ? undefined
-                                    : { bg: isActive ? "#dbeafe" : "#ffffffaa" }
-                                }
-                                transition="background-color 0.12s"
-                              >
-                                <Text
-                                  fontSize="11.5px"
-                                  color={isActive ? "#1d4ed8" : "gray.600"}
-                                  fontWeight={isActive ? "600" : "400"}
-                                  textAlign="center"
-                                  lineHeight="1.35"
-                                >
-                                  {option.description}
-                                </Text>
-                                <Box
-                                  w="18px"
-                                  h="18px"
-                                  rounded="full"
-                                  border="2px solid"
-                                  borderColor={isActive ? "#2563eb" : "#94a3b8"}
-                                  display="flex"
-                                  alignItems="center"
-                                  justifyContent="center"
-                                  flexShrink={0}
-                                >
-                                  {isActive && (
-                                    <Box
-                                      w="9px"
-                                      h="9px"
-                                      rounded="full"
-                                      bg="#2563eb"
-                                    />
-                                  )}
-                                </Box>
-                              </Box>
-                            );
-                          })}
-
-                        <Box
-                          px={2}
-                          py={3}
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="center"
-                          borderLeft="1px solid #ffffff"
-                        >
-                          <Text
-                            fontSize="13px"
-                            fontWeight="700"
-                            color={
-                              singleNxB !== null && !isNaN(singleNxB)
-                                ? "#1d4ed8"
-                                : "gray.400"
-                            }
-                          >
-                            {singleNxB !== null && !isNaN(singleNxB)
-                              ? singleNxB
-                              : "-"}
-                          </Text>
-                        </Box>
-                      </Box>
-                    );
-                  })}
+                  {subgroup.criteria.map((criterion, idx) =>
+                    renderCriterionRow(criterion, idx),
+                  )}
                 </Box>
               ))}
             </Box>

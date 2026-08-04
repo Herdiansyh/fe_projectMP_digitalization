@@ -560,8 +560,8 @@ const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                         }
                       }}
                     >
-                      <option value="permanent">Permanent</option>
-                      <option value="contract">Contract</option>
+                      <option value="permanent">Karyawan Tetap</option>
+                      <option value="contract">Karyawan Kontrak</option>
                       <option value="apprentice">Apprentice</option>
                     </select>
                     {errorText("employment_type")}

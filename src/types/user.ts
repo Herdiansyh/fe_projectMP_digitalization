@@ -9,7 +9,6 @@ export interface UserItem {
   department?: { id: number; name: string } | null;
   section?: { id: number; name: string } | null;
   role_level?: { id: number; name: string } | null;
-  director?: { id: number; name: string; npk: string } | null;
   approver_manager?: { id: number; name: string; npk: string } | null;
   approver_section_head?: { id: number; name: string; npk: string } | null;
   approver_division?: { id: number; name: string; npk: string } | null;
@@ -41,7 +40,6 @@ export interface UserFormData {
   department_id?: number | string | null;
   section_id?: number | string | null;
   role_level_id?: number | string | null;
-  director_id?: number | string | null;
   approver_manager_id?: number | string | null;
   approver_section_head_id?: number | string | null;
   approver_division_id?: number | string | null;
